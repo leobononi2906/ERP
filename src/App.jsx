@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Produtos from "./pages/Produtos";
+import OrdensServico from "./pages/OrdensServico";
 
 const GRUPOS_DEMO = ["Administrador", "Gestor", "Vendedor Loja", "Estoque", "Financeiro"];
 
@@ -16,7 +17,7 @@ const MENU = [
   { key: "clientes", label: "Clientes", icon: Users, ok: true },
   { key: "produtos", label: "Produtos", icon: Package, ok: true },
   { key: "vendas", label: "Vendas", icon: ShoppingCart },
-  { key: "os", label: "Ordem de Serviço", icon: Wrench },
+  { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
   { key: "estoque", label: "Estoque", icon: Package },
   { key: "financeiro", label: "Financeiro", icon: DollarSign },
   { key: "fiscal", label: "Fiscal", icon: FileText },
@@ -66,7 +67,8 @@ export default function App() {
         {pagina === "dashboard" && <Dashboard />}
         {pagina === "clientes" && <Clientes simGrupo={simGrupo} />}
         {pagina === "produtos" && <Produtos simGrupo={simGrupo} />}
-        {!["dashboard", "clientes", "produtos"].includes(pagina) && (
+        {pagina === "os" && <OrdensServico simGrupo={simGrupo} />}
+        {!["dashboard", "clientes", "produtos", "os"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
