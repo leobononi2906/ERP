@@ -13,8 +13,9 @@ async function sbQ(t, q = "") {
 
 const VAZIO = () => ({
   id: null, descricao: "", mov_estoque: true, mov_financeiro: true, gera_nf: true,
-  gera_comissao: true, contabiliza_lucro: true, padrao: false, ativo: true,
+  gera_comissao: false, contabiliza_lucro: false, padrao: false, ativo: true,
   id_natureza_dentro: "", id_natureza_fora: "",
+  tipo: "SAIDA", atualiza_custo: false, id_centro_custo: "", id_categoria_despesa: "",
 });
 
 function Toggle({ label, value, onChange, disabled }) {
@@ -38,6 +39,9 @@ export default function TiposOperacao({ usuario }) {
   const [loading, setLoading] = useState(true);
   const [lista, setLista] = useState([]);
   const [naturezas, setNaturezas] = useState([]);
+  const [centrosCusto, setCentrosCusto] = useState([]);
+  const [planoContas, setPlanoContas] = useState([]);
+  const [fTipo, setFTipo] = useState("");
   const [view, setView] = useState("lista");
   const [form, setForm] = useState(VAZIO());
   const [saving, setSaving] = useState(false);
@@ -49,12 +53,16 @@ export default function TiposOperacao({ usuario }) {
   async function carregar() {
     setLoading(true);
     try {
-      const [tp, nat] = await Promise.all([
+      const [tp, nat, cc, pc] = await Promise.all([
         sbQ("tipos_saida", "order=descricao"),
         sbQ("naturezas_operacao", "ativo=eq.true&order=cfop"),
+        sbQ("centros_custo", "ativo=eq.true&order=descricao"),
+        sbQ("plano_contas", "order=codigo"),
       ]);
       setLista(Array.isArray(tp) ? tp : []);
       setNaturezas(Array.isArray(nat) ? nat : []);
+      setCentrosCusto(Array.isArray(cc) ? cc : []);
+      setPlanoContas(Array.isArray(pc) ? pc : []);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoading(false); }
   }
@@ -92,7 +100,21 @@ export default function TiposOperacao({ usuario }) {
         </div>
         {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
         <Secao titulo="Dados">
-          <Campo label="Descrição *" span={2}>
+          <Campo label="Tipo *">
+            <div style={{ display: "flex", gap: 8 }}>
+              {["SAIDA", "ENTRADA"].map(t => (
+                <div key={t} onClick={() => setF("tipo", t)} style={{
+                  padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  border: form.tipo === t ? `2px solid ${t === "SAIDA" ? C.success : C.primary}` : `2px solid ${C.border}`,
+                  background: form.tipo === t ? (t === "SAIDA" ? C.successBg : "rgba(0,170,238,0.08)") : "#fff",
+                  color: form.tipo === t ? (t === "SAIDA" ? C.success : C.primary) : C.foreground,
+                }}>
+                  {t === "SAIDA" ? "Saída" : "Entrada"}
+                </div>
+              ))}
+            </div>
+          </Campo>
+          <Campo label="Descrição *" span={1}>
             <input value={form.descricao} onChange={(e) => setF("descricao", e.target.value)} style={inp(true)} placeholder="Ex: Venda Normal" />
           </Campo>
           <Campo label="Status">
@@ -106,6 +128,23 @@ export default function TiposOperacao({ usuario }) {
           <Campo label=""><Toggle label="Gera Comissão" value={form.gera_comissao} onChange={(v) => setF("gera_comissao", v)} /></Campo>
           <Campo label=""><Toggle label="Contabiliza Lucro" value={form.contabiliza_lucro} onChange={(v) => setF("contabiliza_lucro", v)} /></Campo>
           <Campo label=""><Toggle label="Tipo Padrão" value={form.padrao} onChange={(v) => setF("padrao", v)} /></Campo>
+          {form.tipo === "ENTRADA" && (
+            <Campo label=""><Toggle label="Atualiza Custo" value={form.atualiza_custo} onChange={(v) => setF("atualiza_custo", v)} /></Campo>
+          )}
+        </Secao>
+        <Secao titulo="DRE / Contabilização">
+          <Campo label="Centro de Custo">
+            <select value={form.id_centro_custo || ""} onChange={(e) => setF("id_centro_custo", e.target.value)} style={sel(true)}>
+              <option value="">— Nenhum —</option>
+              {centrosCusto.map(cc => <option key={cc.id} value={cc.id}>{cc.codigo ? `${cc.codigo} — ` : ""}{cc.descricao}</option>)}
+            </select>
+          </Campo>
+          <Campo label="Categoria de Despesa (Plano de Contas)">
+            <select value={form.id_categoria_despesa || ""} onChange={(e) => setF("id_categoria_despesa", e.target.value)} style={sel(true)}>
+              <option value="">— Nenhuma —</option>
+              {planoContas.map(pc => <option key={pc.id} value={pc.id}>{pc.codigo ? `${pc.codigo} — ` : ""}{pc.descricao}</option>)}
+            </select>
+          </Campo>
         </Secao>
         <Secao titulo="Naturezas de Operação (CFOP)">
           <Campo label="Dentro do Estado" span={1}>
@@ -132,6 +171,8 @@ export default function TiposOperacao({ usuario }) {
   }
 
   /* ═══ LISTA ═══ */
+  const listaFiltrada = lista.filter(t => !fTipo || t.tipo === fTipo);
+
   const flagBadge = (val) => (
     <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: val ? C.successBg : C.surface2, color: val ? C.success : C.textMuted }}>
       {val ? "SIM" : "NÃO"}
@@ -141,16 +182,28 @@ export default function TiposOperacao({ usuario }) {
   return (
     <>{ToastEl}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Tipos de Operação</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{lista.length} tipos cadastrados</p></div>
+        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Tipos de Operação</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{listaFiltrada.length} de {lista.length} tipos</p></div>
         {admin && <button onClick={() => { setForm(VAZIO()); setErroForm(""); setView("form"); }} style={btnPrimary()}><Plus size={16} /> Novo Tipo</button>}
+      </div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+        <select value={fTipo} onChange={e => setFTipo(e.target.value)} style={sel()}>
+          <option value="">Todos</option>
+          <option value="SAIDA">Saída</option>
+          <option value="ENTRADA">Entrada</option>
+        </select>
       </div>
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
         {loading ? <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} h={28} />)}</div>
-          : lista.length === 0 ? <div style={{ textAlign: "center", padding: "48px 0", color: C.textMuted }}><Settings size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Nenhum tipo cadastrado.</div></div>
-            : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 700 }}>
-              <thead><tr>{["Descrição", "Estoque", "Financeiro", "NF-e", "Comissão", "Lucro", "Padrão", "Status", ""].map((h) => <th key={h} style={th()}>{h}</th>)}</tr></thead>
-              <tbody>{lista.map((t) => (
+          : listaFiltrada.length === 0 ? <div style={{ textAlign: "center", padding: "48px 0", color: C.textMuted }}><Settings size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Nenhum tipo encontrado.</div></div>
+            : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 750 }}>
+              <thead><tr>{["Tipo", "Descrição", "Estoque", "Financeiro", "NF-e", "Comissão", "Padrão", "Status", ""].map((h) => <th key={h} style={th()}>{h}</th>)}</tr></thead>
+              <tbody>{listaFiltrada.map((t) => (
                 <tr key={t.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={td()}>
+                    <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: t.tipo === "ENTRADA" ? "rgba(0,170,238,0.1)" : C.successBg, color: t.tipo === "ENTRADA" ? C.primary : C.success }}>
+                      {t.tipo === "ENTRADA" ? "ENTRADA" : "SAÍDA"}
+                    </span>
+                  </td>
                   <td style={{ ...td(), fontWeight: 600 }}>
                     {t.descricao}
                     {t.padrao && <Star size={12} style={{ marginLeft: 6, color: C.warning, fill: C.warning }} />}
@@ -159,10 +212,9 @@ export default function TiposOperacao({ usuario }) {
                   <td style={td()}>{flagBadge(t.mov_financeiro)}</td>
                   <td style={td()}>{flagBadge(t.gera_nf)}</td>
                   <td style={td()}>{flagBadge(t.gera_comissao)}</td>
-                  <td style={td()}>{flagBadge(t.contabiliza_lucro)}</td>
                   <td style={td()}>{t.padrao && <Star size={14} style={{ color: C.warning, fill: C.warning }} />}</td>
                   <td style={td()}><Badge texto={t.ativo ? "ATIVO" : "INATIVO"} /></td>
-                  <td style={td()}>{admin && <button onClick={() => { setForm({ ...t }); setErroForm(""); setView("form"); }} style={btnIcon()}><Pencil size={14} /></button>}</td>
+                  <td style={td()}>{admin && <button onClick={() => { setForm({ ...VAZIO(), ...t, id_centro_custo: t.id_centro_custo || "", id_categoria_despesa: t.id_categoria_despesa || "" }); setErroForm(""); setView("form"); }} style={btnIcon()}><Pencil size={14} /></button>}</td>
                 </tr>
               ))}</tbody>
             </table></div>}

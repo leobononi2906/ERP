@@ -158,19 +158,35 @@ export default function Vendas({ usuario }) {
     const vt = Math.round((qty * vu - vDesc) * 100) / 100;
     setSaving(true);
     try {
-      const res = await rpc("venda_lancar_item", { p: {
-        id_venda: vendaAtual.id, tipo: formItem.tipo,
-        id_produto: formItem.tipo === "PRODUTO" ? formItem.id_produto || null : null,
-        id_servico: formItem.tipo === "SERVICO" ? formItem.id_servico || null : null,
-        descricao: formItem.descricao, referencia: formItem.referencia || null,
-        quantidade: qty, valor_unitario: vu, percentual_desconto: descP,
-        valor_desconto: vDesc, valor_total: vt, _ator: usuario.id,
-      }});
-      if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
-      await recarregarDetalhe(vendaAtual.id);
-      setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
-      const estInfo = res?.estoque ? ` (Estoque: ${res.estoque.estoque_posterior})` : "";
-      notificar("Item adicionado." + estInfo);
+      if (formItem.tipo === "PRODUTO") {
+        // Produto vai para Separação em vez de movimentar estoque direto
+        const res = await rpc("venda_solicitar_item", {
+          p_id_venda: vendaAtual.id,
+          p_id_produto: num(formItem.id_produto),
+          p_descricao: formItem.descricao,
+          p_referencia: formItem.referencia || null,
+          p_quantidade: qty, p_valor_unitario: vu,
+          p_percentual_desconto: descP, p_valor_desconto: vDesc, p_valor_total: vt,
+          p_id_usuario: usuario.id,
+        });
+        await recarregarDetalhe(vendaAtual.id);
+        setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
+        notificar(`Produto solicitado → Separação ${res.numero_sep}`);
+      } else {
+        // Serviço continua no fluxo normal (sem separação)
+        const res = await rpc("venda_lancar_item", { p: {
+          id_venda: vendaAtual.id, tipo: "SERVICO",
+          id_produto: null,
+          id_servico: formItem.id_servico || null,
+          descricao: formItem.descricao, referencia: formItem.referencia || null,
+          quantidade: qty, valor_unitario: vu, percentual_desconto: descP,
+          valor_desconto: vDesc, valor_total: vt, _ator: usuario.id,
+        }});
+        if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
+        await recarregarDetalhe(vendaAtual.id);
+        setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
+        notificar("Serviço adicionado.");
+      }
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setSaving(false); }
   }

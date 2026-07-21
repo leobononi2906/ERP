@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
+  DollarSign, Send, Eye,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
 
 /* ─── Helpers Supabase REST direto ─────────────────────────────── */
@@ -113,14 +114,16 @@ export default function OrdensServico({ usuario }) {
     setLoadingDetalhe(true);
     setView("detalhe");
     try {
-      const [servs, pecas, apts] = await Promise.all([
+      const [servs, pecas, apts, exps] = await Promise.all([
         sbQ("os_servicos", `id_os=eq.${os.id}&order=id`),
         sbQ("os_pecas", `id_os=eq.${os.id}&order=id`),
         sbQ("os_apontamentos", `id_os=eq.${os.id}&order=data_apontamento.desc,hora_inicio.desc`),
+        sbQ("expedicoes", `id_os=eq.${os.id}&order=criado_em.desc`),
       ]);
       setOsServicos(Array.isArray(servs) ? servs : []);
       setOsPecas(Array.isArray(pecas) ? pecas : []);
       setOsApontamentos(Array.isArray(apts) ? apts : []);
+      setExpedicoesOs(Array.isArray(exps) ? exps : []);
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
     } finally {
@@ -137,6 +140,7 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Salvar OS (criar / editar) ─────────────────────────────── */
   async function salvarOS() {
+    if (!form.id_tipo_os) { setErroForm("Selecione o Tipo de OS."); return; }
     if (!form.id_cliente) { setErroForm("Selecione o cliente."); return; }
     setErroForm(""); setSaving(true);
     const payload = {
@@ -176,23 +180,134 @@ export default function OrdensServico({ usuario }) {
   async function adicionarServico() {
     if (!formServ.descricao.trim()) { notificar("Descrição do serviço é obrigatória.", "erro"); return; }
     setSaving(true);
-    const payload = {
-      id_os: osAtual.id,
-      id_servico: num(formServ.id_servico) || null,
-      descricao: formServ.descricao,
-      quantidade: num(formServ.quantidade) || 1,
-      valor_unitario: num(formServ.valor_unitario) || 0,
-      valor_total: (num(formServ.quantidade) || 1) * (num(formServ.valor_unitario) || 0),
-      id_tecnico: num(formServ.id_tecnico) || null,
-      status: "PENDENTE",
-    };
     try {
-      const res = await sbInsert("os_servicos", payload);
-      const saved = Array.isArray(res) ? res[0] : res;
-      setOsServicos((l) => [...l, saved]);
+      const res = await rpc("os_servico_salvar", {
+        p_id_os: osAtual.id,
+        p_id_servico: num(formServ.id_servico) || null,
+        p_descricao: formServ.descricao,
+        p_quantidade: num(formServ.quantidade) || 1,
+        p_valor_unitario: num(formServ.valor_unitario) || 0,
+        p_valor_total: (num(formServ.quantidade) || 1) * (num(formServ.valor_unitario) || 0),
+        p_id_tecnico: num(formServ.id_tecnico) || null,
+      });
+      setOsServicos((l) => [...l, res]);
       setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
       setAddServico(false);
+      // Recarregar OS para atualizar totais
+      const osAtualizada = await sbQ("ordens_servico", `id=eq.${osAtual.id}`);
+      if (osAtualizada[0]) setOsAtual(osAtualizada[0]);
       notificar("Serviço adicionado.");
+    } catch (e) {
+      notificar("Erro: " + e.message, "erro");
+    } finally { setSaving(false); }
+  }
+
+  /* ─── Solicitar peça (envia para Separação) ─────────────── */
+  const [modalPeca, setModalPeca] = useState(false);
+  const [formPeca, setFormPeca] = useState({ id_produto: "", quantidade: 1 });
+  const [produtos, setProdutos] = useState([]);
+  const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [expedicoesOs, setExpedicoesOs] = useState([]);
+
+  async function carregarProdutos() {
+    if (produtos.length > 0) return;
+    setLoadingProdutos(true);
+    try {
+      const p = await sbQ("produtos", "select=id,referencia,nome,preco_venda&situacao=eq.ATIVO&order=nome");
+      setProdutos(Array.isArray(p) ? p : []);
+    } catch (e) { /* ignore */ }
+    finally { setLoadingProdutos(false); }
+  }
+
+  async function carregarExpedicoesOs(idOs) {
+    try {
+      const exp = await sbQ("expedicoes", `id_os=eq.${idOs}&order=criado_em.desc`);
+      setExpedicoesOs(Array.isArray(exp) ? exp : []);
+    } catch (e) { /* ignore */ }
+  }
+
+  async function solicitarPeca() {
+    if (!formPeca.id_produto) { notificar("Selecione um produto.", "erro"); return; }
+    setSaving(true);
+    try {
+      const prod = produtos.find(p => p.id === num(formPeca.id_produto));
+      const res = await rpc("os_solicitar_peca", {
+        p_id_os: osAtual.id,
+        p_id_produto: num(formPeca.id_produto),
+        p_quantidade: num(formPeca.quantidade) || 1,
+        p_valor_unitario: prod ? prod.preco_venda : 0,
+        p_id_usuario: usuario.id,
+      });
+      setFormPeca({ id_produto: "", quantidade: 1 });
+      setModalPeca(false);
+      await carregarExpedicoesOs(osAtual.id);
+      notificar(`Peça solicitada → Separação ${res.numero}`);
+    } catch (e) {
+      notificar("Erro: " + e.message, "erro");
+    } finally { setSaving(false); }
+  }
+
+  /* ─── Avaliar serviços ──────────────────────────────────── */
+  const [modalAvaliar, setModalAvaliar] = useState(false);
+  const [avalServicos, setAvalServicos] = useState([]);
+
+  function abrirAvaliacao() {
+    setAvalServicos(osServicos.map(s => ({
+      id: s.id, descricao: s.descricao, status: s.status === "CONCLUIDO" ? "CONCLUIDO" : "CONCLUIDO",
+      valor_unitario: s.valor_unitario || 0, valor_total: s.valor_total || 0,
+      tempo_realizado: s.tempo_realizado || 0,
+      horas_apontadas: osApontamentos.filter(a => a.id_servico_os === s.id && a.hora_termino).reduce((sum, a) => sum + (a.horas_trabalhadas || 0), 0),
+    })));
+    setModalAvaliar(true);
+  }
+
+  async function confirmarAvaliacao() {
+    setSaving(true);
+    try {
+      await rpc("os_avaliar_servicos", {
+        p_id_os: osAtual.id,
+        p_servicos: avalServicos.map(s => ({ id: s.id, valor_unitario: s.valor_unitario, valor_total: s.valor_total, status: s.status, tempo_realizado: s.tempo_realizado })),
+        p_id_usuario: usuario.id,
+      });
+      setModalAvaliar(false);
+      await abrirDetalhe(osAtual);
+      notificar("Serviços avaliados com sucesso.");
+    } catch (e) {
+      notificar("Erro: " + e.message, "erro");
+    } finally { setSaving(false); }
+  }
+
+  /* ─── Faturar OS ────────────────────────────────────────── */
+  const [modalFaturar, setModalFaturar] = useState(false);
+  const [formasPag, setFormasPag] = useState([]);
+  const [condicoesPag, setCondicoesPag] = useState([]);
+  const [fatForma, setFatForma] = useState("");
+  const [fatCond, setFatCond] = useState("");
+
+  async function abrirFaturamento() {
+    try {
+      const [fp, cp] = await Promise.all([
+        sbQ("formas_pagamento", "ativo=eq.true&order=descricao"),
+        sbQ("condicoes_pagamento", "ativo=eq.true&order=descricao"),
+      ]);
+      setFormasPag(Array.isArray(fp) ? fp : []);
+      setCondicoesPag(Array.isArray(cp) ? cp : []);
+      setFatForma(""); setFatCond("");
+      setModalFaturar(true);
+    } catch (e) {
+      notificar("Erro ao carregar dados: " + e.message, "erro");
+    }
+  }
+
+  async function confirmarFaturamento() {
+    if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
+    setSaving(true);
+    try {
+      await rpc("os_faturar", { p_id_os: osAtual.id, p_id_forma_pagamento: num(fatForma), p_id_condicao_pagamento: num(fatCond) || null });
+      setModalFaturar(false);
+      const osAtualizada = await sbQ("ordens_servico", `id=eq.${osAtual.id}`);
+      if (osAtualizada[0]) { setOsAtual(osAtualizada[0]); setLista(l => l.map(o => o.id === osAtualizada[0].id ? osAtualizada[0] : o)); }
+      notificar("OS faturada com sucesso!");
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
@@ -206,7 +321,7 @@ export default function OrdensServico({ usuario }) {
       const res = await sbInsert("os_apontamentos", {
         id_os: osAtual.id,
         id_servico_os: idServicoOs,
-        id_colaborador: 1, // TODO: usar id do usuário logado
+        id_colaborador: usuario.id,
         data_apontamento: agora.toISOString().slice(0, 10),
         hora_inicio: horaStr,
         horas_trabalhadas: 0,
@@ -292,17 +407,33 @@ export default function OrdensServico({ usuario }) {
 
         {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
 
+        {/* Tipo de OS — cards clicáveis */}
+        <div style={{ ...cardStyle(), marginBottom: 16, padding: 16 }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, marginBottom: 10 }}>Tipo de OS *</label>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {tiposOs.map((t) => {
+              const sel2 = String(form.id_tipo_os) === String(t.id);
+              return (
+                <div key={t.id} onClick={() => setF("id_tipo_os", String(t.id))} style={{
+                  padding: "12px 20px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  border: sel2 ? `2px solid ${C.primary}` : `2px solid ${C.border}`,
+                  background: sel2 ? "rgba(0,170,238,0.08)" : "#fff",
+                  color: sel2 ? C.primary : C.foreground,
+                  transition: "all 0.15s",
+                }}>
+                  <Wrench size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                  {t.descricao}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <Secao titulo="Dados da OS">
           <Campo label="Cliente *" span={2}>
             <select value={form.id_cliente} onChange={(e) => setF("id_cliente", e.target.value)} style={sel(true)}>
               <option value="">Selecione...</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Tipo de OS">
-            <select value={form.id_tipo_os} onChange={(e) => setF("id_tipo_os", e.target.value)} style={sel(true)}>
-              <option value="">Selecione...</option>
-              {tiposOs.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
             </select>
           </Campo>
           <Campo label="Veículo">
@@ -367,11 +498,23 @@ export default function OrdensServico({ usuario }) {
               {nomeCliente(osAtual.id_cliente)} · {osAtual.id_veiculo ? nomeVeiculo(osAtual.id_veiculo) : "sem veículo"}
             </p>
           </div>
-          {perms.editar && (
-            <button onClick={() => { setForm({ ...OS_VAZIA(), ...osAtual }); setView("form"); }} style={btnGhost()}>
-              <Pencil size={14} /> Editar
-            </button>
-          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && osServicos.length > 0 && (
+              <button onClick={abrirAvaliacao} style={btnGhost()}>
+                <CheckCircle2 size={14} /> Avaliar
+              </button>
+            )}
+            {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+              <button onClick={abrirFaturamento} style={{ ...btnPrimary(), background: C.success }}>
+                <DollarSign size={14} /> Faturar OS
+              </button>
+            )}
+            {perms.editar && osAtual.status !== "FATURADA" && (
+              <button onClick={() => { setForm({ ...OS_VAZIA(), ...osAtual }); setView("form"); }} style={btnGhost()}>
+                <Pencil size={14} /> Editar
+              </button>
+            )}
+          </div>
         </div>
 
         {/* KPIs */}
@@ -502,13 +645,35 @@ export default function OrdensServico({ usuario }) {
             {/* ─── ABA PEÇAS ────────────────────────────────────── */}
             {abaDetalhe === "pecas" && (
               <div style={cardStyle()}>
-                <span style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 14 }}>Peças da OS</span>
-                {osPecas.length === 0 ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Peças da OS</span>
+                  {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+                    <button onClick={() => { carregarProdutos(); setModalPeca(true); }} style={btnPrimary()}>
+                      <Send size={14} /> Solicitar Peça
+                    </button>
+                  )}
+                </div>
+
+                {/* Solicitações pendentes */}
+                {expedicoesOs.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: C.textMuted, letterSpacing: "0.08em" }}>Solicitações de Separação</span>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                      {expedicoesOs.map(exp => (
+                        <div key={exp.id} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: exp.status === "SOLICITADA" ? C.warningBg || "#FFF3CD" : exp.status === "ENTREGUE" ? C.successBg : C.surface2, color: exp.status === "SOLICITADA" ? "#856404" : exp.status === "ENTREGUE" ? C.success : C.muted, border: `1px solid ${C.border}` }}>
+                          {exp.numero} · <Badge texto={exp.status} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {osPecas.length === 0 && expedicoesOs.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "36px 0", color: C.textMuted }}>
                     <Package size={28} style={{ opacity: 0.3 }} />
-                    <div style={{ marginTop: 8, fontSize: 13 }}>Nenhuma peça adicionada.</div>
+                    <div style={{ marginTop: 8, fontSize: 13 }}>Nenhuma peça. Use "Solicitar Peça" para enviar ao estoque.</div>
                   </div>
-                ) : (
+                ) : osPecas.length > 0 && (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
                       {["Descrição", "Referência", "Qtd", "Valor Unit.", "Total"].map((h, i) => (
@@ -583,6 +748,122 @@ export default function OrdensServico({ usuario }) {
               </div>
             )}
           </>
+        )}
+
+        {/* ─── MODAL SOLICITAR PEÇA ──────────────────────────── */}
+        {modalPeca && (
+          <div onClick={() => setModalPeca(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>Solicitar Peça para Separação</span>
+                <button onClick={() => setModalPeca(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+              </div>
+              <div style={{ padding: 20 }}>
+                {loadingProdutos ? <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Carregando produtos...</div> : (
+                  <>
+                    <Campo label="Produto *">
+                      <select value={formPeca.id_produto} onChange={e => setFormPeca(f => ({ ...f, id_produto: e.target.value }))} style={sel(true)}>
+                        <option value="">Selecione...</option>
+                        {produtos.map(p => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
+                      </select>
+                    </Campo>
+                    <Campo label="Quantidade">
+                      <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
+                    </Campo>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+                      <button onClick={() => setModalPeca(false)} style={btnGhost()}>Cancelar</button>
+                      <button onClick={solicitarPeca} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                        <Send size={14} /> {saving ? "Enviando..." : "Solicitar"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── MODAL AVALIAR SERVIÇOS ────────────────────────── */}
+        {modalAvaliar && (
+          <div onClick={() => setModalAvaliar(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>Avaliar Serviços — OS {osAtual.numero}</span>
+                <button onClick={() => setModalAvaliar(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+              </div>
+              <div style={{ padding: 20 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead><tr>
+                    {["Serviço", "Horas apontadas", "Valor Unit.", "Total", "Status"].map((h, i) => (
+                      <th key={i} style={th(i >= 1 && i <= 3)}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {avalServicos.map((s, idx) => (
+                      <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <td style={{ ...td(), fontWeight: 500, maxWidth: 200 }}>{s.descricao}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{s.horas_apontadas.toFixed(1)}h</td>
+                        <td style={td()}>
+                          <input value={s.valor_unitario} onChange={e => setAvalServicos(l => l.map((x, i) => i === idx ? { ...x, valor_unitario: num(e.target.value) || 0, valor_total: (num(e.target.value) || 0) * (x.quantidade || 1) } : x))} inputMode="decimal" style={{ ...inp(), width: 90, textAlign: "right" }} />
+                        </td>
+                        <td style={td()}>
+                          <input value={s.valor_total} onChange={e => setAvalServicos(l => l.map((x, i) => i === idx ? { ...x, valor_total: num(e.target.value) || 0 } : x))} inputMode="decimal" style={{ ...inp(), width: 90, textAlign: "right" }} />
+                        </td>
+                        <td style={td()}>
+                          <select value={s.status} onChange={e => setAvalServicos(l => l.map((x, i) => i === idx ? { ...x, status: e.target.value } : x))} style={sel()}>
+                            <option value="CONCLUIDO">Concluído</option>
+                            <option value="PENDENTE">Pendente</option>
+                            <option value="EM_EXECUCAO">Em Execução</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+                  <button onClick={() => setModalAvaliar(false)} style={btnGhost()}>Cancelar</button>
+                  <button onClick={confirmarAvaliacao} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                    <CheckCircle2 size={14} /> {saving ? "Salvando..." : "Confirmar Avaliação"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── MODAL FATURAR OS ──────────────────────────────── */}
+        {modalFaturar && (
+          <div onClick={() => setModalFaturar(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>Faturar OS {osAtual.numero}</span>
+                <button onClick={() => setModalFaturar(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+              </div>
+              <div style={{ padding: 20 }}>
+                <div style={{ textAlign: "center", fontSize: 24, fontWeight: 700, fontFamily: mono, marginBottom: 16 }}>
+                  {fmtBRL((osAtual.valor_total || 0))}
+                </div>
+                <Campo label="Forma de pagamento *">
+                  <select value={fatForma} onChange={e => setFatForma(e.target.value)} style={sel(true)}>
+                    <option value="">Selecione...</option>
+                    {formasPag.map(f => <option key={f.id} value={f.id}>{f.descricao}</option>)}
+                  </select>
+                </Campo>
+                <Campo label="Condição de pagamento">
+                  <select value={fatCond} onChange={e => setFatCond(e.target.value)} style={sel(true)}>
+                    <option value="">À vista</option>
+                    {condicoesPag.map(c => <option key={c.id} value={c.id}>{c.descricao}</option>)}
+                  </select>
+                </Campo>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+                  <button onClick={() => setModalFaturar(false)} style={btnGhost()}>Cancelar</button>
+                  <button onClick={confirmarFaturamento} disabled={saving} style={{ ...btnPrimary(), background: C.success, opacity: saving ? 0.6 : 1 }}>
+                    <DollarSign size={14} /> {saving ? "Faturando..." : "Confirmar Faturamento"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
