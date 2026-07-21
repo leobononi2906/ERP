@@ -73,6 +73,11 @@ export default function OrdensServico({ usuario }) {
   const [abaDetalhe, setAbaDetalhe] = useState("servicos");
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
 
+  // defeitos
+  const [osDefeitos, setOsDefeitos] = useState([]);
+  const [addDefeito, setAddDefeito] = useState(false);
+  const [formDefeito, setFormDefeito] = useState("");
+
   // servico inline
   const [addServico, setAddServico] = useState(false);
   const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
@@ -87,9 +92,9 @@ export default function OrdensServico({ usuario }) {
     let ok = true;
     Promise.all([
       sbQ("ordens_servico", "order=data_entrada.desc"),
-      sbQ("clientes", "select=id,nome,cpf_cnpj&order=nome"),
+      sbQ("clientes", "select=id,nome,cpf_cnpj,telefone,celular,endereco,numero,bairro,cidade,uf,cep&order=nome"),
       sbQ("tipos_os", "ativo=eq.true&order=descricao"),
-      sbQ("veiculos", "select=id,placa,id_cliente&ativo=eq.true&order=placa"),
+      sbQ("veiculos", "select=id,placa,id_cliente,marca,modelo,cor,ano_fabricacao,ano_modelo,km_atual,combustivel,chassi&ativo=eq.true&order=placa"),
       sbQ("usuarios", "select=id,nome&order=nome"),
       sbQ("servicos", "select=id,codigo,nome,preco&situacao=eq.ATIVO&order=nome"),
     ])
@@ -110,20 +115,22 @@ export default function OrdensServico({ usuario }) {
   /* ─── Carregar detalhe de uma OS ─────────────────────────────── */
   async function abrirDetalhe(os) {
     setOsAtual(os);
-    setAbaDetalhe("servicos");
+    setAbaDetalhe("defeitos");
     setLoadingDetalhe(true);
     setView("detalhe");
     try {
-      const [servs, pecas, apts, exps] = await Promise.all([
+      const [servs, pecas, apts, exps, defs] = await Promise.all([
         sbQ("os_servicos", `id_os=eq.${os.id}&order=id`),
         sbQ("os_pecas", `id_os=eq.${os.id}&order=id`),
         sbQ("os_apontamentos", `id_os=eq.${os.id}&order=data_apontamento.desc,hora_inicio.desc`),
         sbQ("expedicoes", `id_os=eq.${os.id}&order=criado_em.desc`),
+        sbQ("os_defeitos", `id_os=eq.${os.id}&order=id`),
       ]);
       setOsServicos(Array.isArray(servs) ? servs : []);
       setOsPecas(Array.isArray(pecas) ? pecas : []);
       setOsApontamentos(Array.isArray(apts) ? apts : []);
       setExpedicoesOs(Array.isArray(exps) ? exps : []);
+      setOsDefeitos(Array.isArray(defs) ? defs : []);
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
     } finally {
@@ -200,6 +207,27 @@ export default function OrdensServico({ usuario }) {
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
+  }
+
+  /* ─── Defeitos ──────────────────────────────────────────── */
+  async function adicionarDefeito() {
+    if (!formDefeito.trim()) { notificar("Descrição do defeito é obrigatória.", "erro"); return; }
+    setSaving(true);
+    try {
+      const res = await rpc("os_defeito_salvar", { p_id_os: osAtual.id, p_descricao: formDefeito.trim() });
+      setOsDefeitos((l) => [...l, res]);
+      setFormDefeito(""); setAddDefeito(false);
+      notificar("Defeito adicionado.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(false); }
+  }
+
+  async function excluirDefeito(id) {
+    try {
+      await rpc("os_defeito_excluir", { p_id: id });
+      setOsDefeitos((l) => l.filter((d) => d.id !== id));
+      notificar("Defeito removido.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
 
   /* ─── Solicitar peça (envia para Separação) ─────────────── */
@@ -370,10 +398,13 @@ export default function OrdensServico({ usuario }) {
     }
   }
 
-  /* ─── Helpers de nome ────────────────────────────────────────── */
+  /* ─── Helpers de nome/dados ───────────────────────────────────── */
   const nomeCliente = (id) => (clientes.find((c) => c.id === id) || {}).nome || "—";
   const nomeTecnico = (id) => (usuarios.find((u) => u.id === id) || {}).nome || "—";
   const nomeVeiculo = (id) => (veiculos.find((v) => v.id === id) || {}).placa || "—";
+  const dadosCliente = (id) => clientes.find((c) => c.id === id) || {};
+  const dadosVeiculo = (id) => veiculos.find((v) => v.id === id) || {};
+  const dadosUsuario = (id) => usuarios.find((u) => u.id === id) || {};
 
   /* ─── Filtro da lista ────────────────────────────────────────── */
   const filtrados = lista.filter((o) => {
@@ -457,13 +488,15 @@ export default function OrdensServico({ usuario }) {
           <Campo label="KM Entrada">
             <input value={form.km_entrada} onChange={(e) => setF("km_entrada", e.target.value)} inputMode="numeric" style={inp(true)} />
           </Campo>
-          <Campo label="Defeito relatado" span={2}>
-            <textarea value={form.defeito_relatado} onChange={(e) => setF("defeito_relatado", e.target.value)} rows={3} style={{ ...inp(true), height: "auto", resize: "vertical" }} />
-          </Campo>
-          <Campo label="Observação interna" span={3}>
+          <Campo label="Observação interna" span={2}>
             <textarea value={form.observacao_interna} onChange={(e) => setF("observacao_interna", e.target.value)} rows={2} style={{ ...inp(true), height: "auto", resize: "vertical" }} />
           </Campo>
         </Secao>
+        {!form.id && (
+          <div style={{ background: C.bluePale, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, color: C.primary, fontWeight: 500 }}>
+            Após abrir a OS, você poderá adicionar os defeitos relatados, serviços e peças na tela de detalhe.
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button onClick={() => setView("lista")} style={btnGhost()}><X size={16} /> Cancelar</button>
@@ -481,6 +514,11 @@ export default function OrdensServico({ usuario }) {
   if (view === "detalhe" && osAtual) {
     const totalServicos = osServicos.reduce((s, sv) => s + (num(sv.valor_total) || 0), 0);
     const totalPecas = osPecas.reduce((s, p) => s + (num(p.valor_total) || 0), 0);
+    const cli = dadosCliente(osAtual.id_cliente);
+    const veic = osAtual.id_veiculo ? dadosVeiculo(osAtual.id_veiculo) : null;
+    const resp = osAtual.id_usuario_responsavel ? dadosUsuario(osAtual.id_usuario_responsavel) : null;
+    const infoStyle = { fontSize: 12, color: C.muted, lineHeight: 1.6 };
+    const infoLabel = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textMuted };
 
     return (
       <div>
@@ -494,9 +532,6 @@ export default function OrdensServico({ usuario }) {
               <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>OS {osAtual.numero}</h1>
               <Badge texto={osAtual.status} cor={STATUS_CORES[osAtual.status]} />
             </div>
-            <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
-              {nomeCliente(osAtual.id_cliente)} · {osAtual.id_veiculo ? nomeVeiculo(osAtual.id_veiculo) : "sem veículo"}
-            </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && osServicos.length > 0 && (
@@ -517,13 +552,53 @@ export default function OrdensServico({ usuario }) {
           </div>
         </div>
 
+        {/* Painel: Cliente / Veículo / Responsável */}
+        <div style={{ display: "grid", gridTemplateColumns: veic ? "2fr 2fr 1fr" : "3fr 1fr", gap: 12, margin: "12px 0" }}>
+          {/* Cliente */}
+          <div style={cardStyle()}>
+            <div style={{ ...infoLabel, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}><User size={12} /> Cliente</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{cli.nome || "—"}</div>
+            <div style={infoStyle}>
+              {cli.cpf_cnpj && <div>CPF/CNPJ: <span style={{ fontFamily: mono }}>{cli.cpf_cnpj}</span></div>}
+              {(cli.telefone || cli.celular) && <div>Tel: {cli.telefone || cli.celular}</div>}
+              {cli.endereco && <div>{cli.endereco}{cli.numero ? `, ${cli.numero}` : ""}{cli.bairro ? ` — ${cli.bairro}` : ""}</div>}
+              {cli.cidade && <div>{cli.cidade}{cli.uf ? `/${cli.uf}` : ""}{cli.cep ? ` · ${cli.cep}` : ""}</div>}
+            </div>
+          </div>
+          {/* Veículo */}
+          {veic && (
+            <div style={cardStyle()}>
+              <div style={{ ...infoLabel, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}><FileText size={12} /> Veículo</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, fontFamily: mono }}>{veic.placa || "—"}</div>
+              <div style={infoStyle}>
+                {(veic.marca || veic.modelo) && <div>{veic.marca} {veic.modelo}</div>}
+                {(veic.ano_fabricacao || veic.ano_modelo) && <div>Ano: {veic.ano_fabricacao || ""}{veic.ano_modelo ? `/${veic.ano_modelo}` : ""}</div>}
+                {veic.cor && <div>Cor: {veic.cor}</div>}
+                {veic.combustivel && <div>Combustível: {veic.combustivel}</div>}
+                {veic.km_atual > 0 && <div>KM: <span style={{ fontFamily: mono }}>{Number(veic.km_atual).toLocaleString("pt-BR")}</span></div>}
+                {veic.chassi && <div>Chassi: <span style={{ fontFamily: mono, fontSize: 11 }}>{veic.chassi}</span></div>}
+              </div>
+            </div>
+          )}
+          {/* Responsável */}
+          <div style={cardStyle()}>
+            <div style={{ ...infoLabel, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}><User size={12} /> Responsável</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{resp ? resp.nome : "Não atribuído"}</div>
+            <div style={infoStyle}>
+              {osAtual.data_entrada && <div>Entrada: {new Date(osAtual.data_entrada).toLocaleDateString("pt-BR")}</div>}
+              {osAtual.data_prevista && <div>Prevista: {new Date(osAtual.data_prevista + "T00:00").toLocaleDateString("pt-BR")}</div>}
+              {osAtual.km_entrada > 0 && <div>KM entrada: <span style={{ fontFamily: mono }}>{Number(osAtual.km_entrada).toLocaleString("pt-BR")}</span></div>}
+            </div>
+          </div>
+        </div>
+
         {/* KPIs */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, margin: "16px 0" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, margin: "12px 0" }}>
           {[
+            { label: "Defeitos", valor: `${osDefeitos.length}`, icone: AlertCircle },
             { label: "Serviços", valor: fmtBRL(totalServicos), icone: Wrench },
             { label: "Peças", valor: fmtBRL(totalPecas), icone: Package },
             { label: "Total", valor: fmtBRL(totalServicos + totalPecas), icone: FileText },
-            { label: "Apontamentos", valor: `${osApontamentos.length}`, icone: Clock },
           ].map((kpi, i) => (
             <div key={i} style={cardStyle()}>
               <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
@@ -537,6 +612,7 @@ export default function OrdensServico({ usuario }) {
         {/* Abas */}
         <div style={{ display: "flex", gap: 0, borderBottom: `2px solid ${C.border}`, marginBottom: 16 }}>
           {[
+            { key: "defeitos", label: "Defeitos", icon: AlertCircle, count: osDefeitos.length },
             { key: "servicos", label: "Serviços", icon: Wrench, count: osServicos.length },
             { key: "pecas", label: "Peças", icon: Package, count: osPecas.length },
             { key: "apontamentos", label: "Apontamentos", icon: Clock, count: osApontamentos.length },
@@ -559,6 +635,52 @@ export default function OrdensServico({ usuario }) {
           </div>
         ) : (
           <>
+            {/* ─── ABA DEFEITOS ────────────────────────────────── */}
+            {abaDetalhe === "defeitos" && (
+              <div style={cardStyle()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Defeitos Relatados</span>
+                  {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+                    <button onClick={() => setAddDefeito(!addDefeito)} style={btnPrimary()}>
+                      <Plus size={14} /> Adicionar defeito
+                    </button>
+                  )}
+                </div>
+
+                {addDefeito && (
+                  <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14, display: "flex", gap: 10, alignItems: "end" }}>
+                    <Campo label="Descrição do defeito *" span={1}>
+                      <input value={formDefeito} onChange={(e) => setFormDefeito(e.target.value)} placeholder="Ex: Vazamento de óleo no motor" style={{ ...inp(true), width: "100%", minWidth: 300 }}
+                        onKeyDown={(e) => { if (e.key === "Enter") adicionarDefeito(); }} />
+                    </Campo>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={adicionarDefeito} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
+                      <button onClick={() => setAddDefeito(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
+                    </div>
+                  </div>
+                )}
+
+                {osDefeitos.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "36px 0", color: C.textMuted }}>
+                    <AlertCircle size={28} style={{ opacity: 0.3 }} />
+                    <div style={{ marginTop: 8, fontSize: 13 }}>Nenhum defeito relatado ainda.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {osDefeitos.map((d) => (
+                      <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff" }}>
+                        <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 13, color: C.destructive, minWidth: 44 }}>{d.codigo}</span>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.descricao}</span>
+                        {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+                          <button onClick={() => excluirDefeito(d.id)} style={{ ...btnIcon(), color: C.muted }} title="Remover"><Trash2 size={13} /></button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ─── ABA SERVIÇOS ─────────────────────────────────── */}
             {abaDetalhe === "servicos" && (
               <div style={cardStyle()}>
