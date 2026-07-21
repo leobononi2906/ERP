@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
-  Building2, Eye, LogOut,
+  Building2, Eye, LogOut, Truck,
 } from "lucide-react";
 import { C } from "./config";
 import Login from "./pages/Login";
@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Produtos from "./pages/Produtos";
 import OrdensServico from "./pages/OrdensServico";
+import Veiculos from "./pages/Veiculos";
+import Vendas from "./pages/Vendas";
 
 const GRUPOS_DEMO = ["Administrador", "Gestor", "Vendedor Loja", "Estoque", "Financeiro"];
 
@@ -16,7 +18,8 @@ const MENU = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true },
   { key: "clientes", label: "Clientes", icon: Users, ok: true },
   { key: "produtos", label: "Produtos", icon: Package, ok: true },
-  { key: "vendas", label: "Vendas", icon: ShoppingCart },
+  { key: "veiculos", label: "Veículos", icon: Truck, ok: true },
+  { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
   { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
   { key: "estoque", label: "Estoque", icon: Package },
   { key: "financeiro", label: "Financeiro", icon: DollarSign },
@@ -67,8 +70,10 @@ export default function App() {
         {pagina === "dashboard" && <Dashboard />}
         {pagina === "clientes" && <Clientes simGrupo={simGrupo} />}
         {pagina === "produtos" && <Produtos simGrupo={simGrupo} />}
+        {pagina === "veiculos" && <Veiculos simGrupo={simGrupo} />}
+        {pagina === "vendas" && <Vendas simGrupo={simGrupo} />}
         {pagina === "os" && <OrdensServico simGrupo={simGrupo} />}
-        {!["dashboard", "clientes", "produtos", "os"].includes(pagina) && (
+        {!["dashboard", "clientes", "produtos", "veiculos", "vendas", "os"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
