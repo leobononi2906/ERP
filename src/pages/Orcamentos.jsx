@@ -4,7 +4,7 @@ import {
   ShoppingCart, Package, Wrench, FileText, Trash2, Eye, ThumbsUp, ThumbsDown,
   ArrowRightCircle, Clock, Calendar,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY, ATOR } from "../config";
+import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton,
@@ -19,14 +19,6 @@ async function sbQ(t, q = "") {
   return r.json();
 }
 
-const PERMS = {
-  Administrador: { incluir: true, editar: true, aprovar: true },
-  Gestor:        { incluir: true, editar: true, aprovar: true },
-  "Vendedor Loja":   { incluir: true, editar: true, aprovar: false },
-  "Vendedor Externo":{ incluir: true, editar: true, aprovar: false },
-  Estoque:       { incluir: false, editar: false, aprovar: false },
-  Financeiro:    { incluir: false, editar: false, aprovar: false },
-};
 
 const STATUS_BADGE = {
   ABERTO: [C.bluePale, C.blueMid],
@@ -51,8 +43,8 @@ function StatusBadge({ status, validade }) {
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
 
 /* ═══════════════════════════════════════════════════════════════ */
-export default function Orcamentos({ simGrupo }) {
-  const perms = PERMS[simGrupo] || PERMS.Administrador;
+export default function Orcamentos({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.orcamentos) || {};
 
   /* ─── state: dados ─────────────────────────────────────────── */
   const [loading, setLoading] = useState(true);
@@ -150,7 +142,7 @@ export default function Orcamentos({ simGrupo }) {
     if (!form.id_empresa) { setErroForm("Selecione a empresa."); return; }
     setErroForm(""); setSaving(true);
     try {
-      const res = await rpc("orcamento_salvar", { p: { ...form, _ator: ATOR } });
+      const res = await rpc("orcamento_salvar", { p: { ...form, _ator: usuario.id } });
       if (res?.id) {
         setLista((l) => { const sem = l.filter((x) => x.id !== res.id); return [res, ...sem]; });
         notificar(form.id ? "Orçamento atualizado." : `Orçamento nº ${res.numero} criado.`);
@@ -176,7 +168,7 @@ export default function Orcamentos({ simGrupo }) {
         id_servico: formItem.tipo === "SERVICO" ? formItem.id_servico || null : null,
         descricao: formItem.descricao, referencia: formItem.referencia || null,
         quantidade: qty, valor_unitario: vu, percentual_desconto: descP,
-        valor_desconto: vDesc, valor_total: vt, _ator: ATOR,
+        valor_desconto: vDesc, valor_total: vt, _ator: usuario.id,
       }});
       await recarregarDetalhe(orcAtual.id);
       setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
@@ -187,7 +179,7 @@ export default function Orcamentos({ simGrupo }) {
 
   async function removerItem(idItem) {
     try {
-      await rpc("orcamento_remover_item", { p: { id_item: idItem, _ator: ATOR } });
+      await rpc("orcamento_remover_item", { p: { id_item: idItem, _ator: usuario.id } });
       await recarregarDetalhe(orcAtual.id);
       notificar("Item removido.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -197,7 +189,7 @@ export default function Orcamentos({ simGrupo }) {
   async function aprovar() {
     setSaving(true);
     try {
-      const res = await rpc("orcamento_aprovar", { p: { id_orcamento: orcAtual.id, _ator: ATOR } });
+      const res = await rpc("orcamento_aprovar", { p: { id_orcamento: orcAtual.id, _ator: usuario.id } });
       if (res?.ok) { await recarregarDetalhe(orcAtual.id); notificar("Orçamento aprovado!"); }
       else notificar(res?.msg || "Erro", "erro");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -208,7 +200,7 @@ export default function Orcamentos({ simGrupo }) {
     if (!motivoRepr.trim()) { notificar("Informe o motivo.", "erro"); return; }
     setSaving(true);
     try {
-      const res = await rpc("orcamento_reprovar", { p: { id_orcamento: orcAtual.id, motivo: motivoRepr, _ator: ATOR } });
+      const res = await rpc("orcamento_reprovar", { p: { id_orcamento: orcAtual.id, motivo: motivoRepr, _ator: usuario.id } });
       if (res?.ok) { await recarregarDetalhe(orcAtual.id); setReprovarOpen(false); setMotivoRepr(""); notificar("Orçamento reprovado."); }
       else notificar(res?.msg || "Erro", "erro");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -218,7 +210,7 @@ export default function Orcamentos({ simGrupo }) {
   async function converter() {
     setSaving(true);
     try {
-      const res = await rpc("orcamento_converter_venda", { p: { id_orcamento: orcAtual.id, _ator: ATOR } });
+      const res = await rpc("orcamento_converter_venda", { p: { id_orcamento: orcAtual.id, _ator: usuario.id } });
       if (res?.ok) { await recarregarDetalhe(orcAtual.id); notificar(`Convertido! Venda criada (ID ${res.id_venda}).`); }
       else notificar(res?.msg || "Erro", "erro");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }

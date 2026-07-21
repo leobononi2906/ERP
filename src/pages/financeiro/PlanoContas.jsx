@@ -9,7 +9,7 @@ function MH({children,onClose}){return<div style={{display:"flex",justifyContent
 function MB({children}){return<div style={{padding:20}}>{children}</div>;}
 function F({label,req,children}){return<div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>;}
 
-export default function PlanoContas({simGrupo}){
+export default function PlanoContas({usuario}){
   const[contas,setContas]=useState([]);const[loading,setLoading]=useState(true);
   const[exp,setExp]=useState(new Set(["1","2","3"]));
   const[modalNovo,setModalNovo]=useState(false);const[toast,setToast]=useState("");
@@ -18,7 +18,7 @@ export default function PlanoContas({simGrupo}){
   const toggle=(cod)=>setExp(p=>{const n=new Set(p);n.has(cod)?n.delete(cod):n.add(cod);return n;});
   const filhosDe=(idPai)=>contas.filter(i=>i.id_pai===idPai);
   const show=(m)=>{setToast(m);setTimeout(()=>setToast(""),3000);};
-  const gestor=!simGrupo||simGrupo==="Administrador"||simGrupo==="Gestor";
+  const pf=(usuario&&usuario.permissoes&&usuario.permissoes.financeiro)||{};const gestor=pf.incluir;
 
   const handleSalvar=async(f)=>{try{const r=await rpc("erp_plano_conta_salvar",{p_codigo:f.codigo,p_descricao:f.descricao,p_tipo:f.tipo,p_natureza:f.natureza,p_id_pai:parseInt(f.id_pai)||null,p_aceita_lancamento:f.aceita_lancamento,p_ativo:true,p_id_usuario:null});if(r?.ok){show("Conta criada");setModalNovo(false);carregar();}else show(r?.erro||"Erro");}catch(e){show(e.message);}};
 

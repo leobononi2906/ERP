@@ -11,7 +11,7 @@ function MH({children,onClose}){return<div style={{display:"flex",justifyContent
 function MB({children}){return<div style={{padding:20}}>{children}</div>;}
 function F({label,req,children}){return<div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>;}
 
-export default function ContasFinanceiras({ simGrupo }) {
+export default function ContasFinanceiras({ usuario }) {
   const [contas, setContas] = useState([]); const [loading, setLoading] = useState(true);
   const [modalNova, setModalNova] = useState(false); const [modalEditar, setModalEditar] = useState(null);
   const [modalExtrato, setModalExtrato] = useState(null); const [modalTransf, setModalTransf] = useState(false);

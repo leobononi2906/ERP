@@ -26,7 +26,7 @@ const ABAS = [
   { key: "centros", label: "Centros de Custo", icon: Building },
 ];
 
-export default function Financeiro({ simGrupo }) {
+export default function Financeiro({ usuario }) {
   const [aba, setAba] = useState("receber");
 
   return (
@@ -57,13 +57,13 @@ export default function Financeiro({ simGrupo }) {
       </div>
 
       {/* Conteúdo */}
-      {aba === "receber" && <ContasReceber simGrupo={simGrupo} />}
-      {aba === "pagar" && <ContasPagar simGrupo={simGrupo} />}
-      {aba === "contas" && <ContasFinanceiras simGrupo={simGrupo} />}
-      {aba === "caixa" && <Caixa simGrupo={simGrupo} />}
-      {aba === "cheques" && <Cheques simGrupo={simGrupo} />}
-      {aba === "plano" && <PlanoContas simGrupo={simGrupo} />}
-      {aba === "centros" && <CentrosCusto simGrupo={simGrupo} />}
+      {aba === "receber" && <ContasReceber usuario={usuario} />}
+      {aba === "pagar" && <ContasPagar usuario={usuario} />}
+      {aba === "contas" && <ContasFinanceiras usuario={usuario} />}
+      {aba === "caixa" && <Caixa usuario={usuario} />}
+      {aba === "cheques" && <Cheques usuario={usuario} />}
+      {aba === "plano" && <PlanoContas usuario={usuario} />}
+      {aba === "centros" && <CentrosCusto usuario={usuario} />}
     </div>
   );
 }

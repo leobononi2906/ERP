@@ -91,16 +91,16 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, padding: 20 }}>
         {pagina === "dashboard" && <Dashboard />}
-        {pagina === "clientes" && <Clientes simGrupo="real" usuario={usuario} />}
-        {pagina === "produtos" && <Produtos simGrupo="real" usuario={usuario} />}
-        {pagina === "veiculos" && <Veiculos simGrupo="real" usuario={usuario} />}
-        {pagina === "orcamentos" && <Orcamentos simGrupo="real" usuario={usuario} />}
-        {pagina === "vendas" && <Vendas simGrupo="real" usuario={usuario} />}
-        {pagina === "os" && <OrdensServico simGrupo="real" usuario={usuario} />}
-        {pagina === "tipos_operacao" && <TiposOperacao simGrupo="real" usuario={usuario} />}
-        {pagina === "estoque" && <Estoque simGrupo="real" usuario={usuario} />}
-        {pagina === "separacao" && <Separacao simGrupo="real" usuario={usuario} />}
-        {pagina === "financeiro" && <Financeiro simGrupo="real" usuario={usuario} />}
+        {pagina === "clientes" && <Clientes usuario={usuario} />}
+        {pagina === "produtos" && <Produtos usuario={usuario} />}
+        {pagina === "veiculos" && <Veiculos usuario={usuario} />}
+        {pagina === "orcamentos" && <Orcamentos usuario={usuario} />}
+        {pagina === "vendas" && <Vendas usuario={usuario} />}
+        {pagina === "os" && <OrdensServico usuario={usuario} />}
+        {pagina === "tipos_operacao" && <TiposOperacao usuario={usuario} />}
+        {pagina === "estoque" && <Estoque usuario={usuario} />}
+        {pagina === "separacao" && <Separacao usuario={usuario} />}
+        {pagina === "financeiro" && <Financeiro usuario={usuario} />}
         {pagina === "admin" && <Administracao usuario={usuario} />}
         {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "tipos_operacao", "estoque", "separacao", "financeiro", "admin"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>

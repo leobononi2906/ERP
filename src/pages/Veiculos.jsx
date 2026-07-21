@@ -10,16 +10,11 @@ async function sbQ(t, q = "") { const r = await fetch(`${SUPA_URL}/rest/v1/${t}?
 async function sbInsert(t, row) { const r = await fetch(`${SUPA_URL}/rest/v1/${t}`, { method: "POST", headers: schemaHdr, body: JSON.stringify(row) }); if (!r.ok) { const x = await r.text(); throw new Error(x); } return r.json(); }
 async function sbUpdate(t, id, row) { const r = await fetch(`${SUPA_URL}/rest/v1/${t}?id=eq.${id}`, { method: "PATCH", headers: schemaHdr, body: JSON.stringify(row) }); if (!r.ok) { const x = await r.text(); throw new Error(x); } return r.json(); }
 
-const PERMS = {
-  Administrador: { incluir: true, editar: true }, Gestor: { incluir: true, editar: true },
-  "Vendedor Loja": { incluir: true, editar: true }, Estoque: { incluir: false, editar: false },
-  Financeiro: { incluir: false, editar: false },
-};
 
 const VAZIO = () => ({ id: null, placa: "", marca: "", modelo: "", cor: "", ano_fabricacao: "", ano_modelo: "", chassi: "", renavam: "", km_atual: "", combustivel: "", id_cliente: "", observacao: "", ativo: true });
 
-export default function Veiculos({ simGrupo }) {
-  const perms = PERMS[simGrupo] || PERMS.Administrador;
+export default function Veiculos({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.veiculos) || {};
   const [loading, setLoading] = useState(true);
   const [lista, setLista] = useState([]);
   const [clientes, setClientes] = useState([]);

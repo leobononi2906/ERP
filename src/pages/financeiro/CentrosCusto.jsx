@@ -9,13 +9,13 @@ function MH({children,onClose}){return<div style={{display:"flex",justifyContent
 function MB({children}){return<div style={{padding:20}}>{children}</div>;}
 function F({label,req,children}){return<div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>;}
 
-export default function CentrosCusto({simGrupo}){
+export default function CentrosCusto({usuario}){
   const[centros,setCentros]=useState([]);const[loading,setLoading]=useState(true);
   const[modalNovo,setModalNovo]=useState(false);const[toast,setToast]=useState("");
   const carregar=()=>{setLoading(true);rpc("erp_centros_custo_listar",{}).then(r=>setCentros(Array.isArray(r)?r:[])).catch(()=>{}).finally(()=>setLoading(false));};
   useEffect(()=>{carregar();},[]);
   const show=(m)=>{setToast(m);setTimeout(()=>setToast(""),3000);};
-  const gestor=!simGrupo||simGrupo==="Administrador"||simGrupo==="Gestor";
+  const pf=(usuario&&usuario.permissoes&&usuario.permissoes.financeiro)||{};const gestor=pf.incluir;
 
   const handleSalvar=async(f)=>{try{const r=await rpc("erp_centro_custo_salvar",{p_codigo:f.codigo,p_descricao:f.descricao,p_id_empresa:null,p_ativo:true,p_id_usuario:null});if(r?.ok){show("Centro criado");setModalNovo(false);carregar();}else show(r?.erro||"Erro");}catch(e){show(e.message);}};
 

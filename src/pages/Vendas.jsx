@@ -3,7 +3,7 @@ import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY, ATOR } from "../config";
+import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton,
@@ -17,20 +17,11 @@ async function sbQ(t, q = "") {
   return r.json();
 }
 
-const PERMS = {
-  Administrador:     { incluir: true, editar: true, faturar: true, cancelar: true, verCusto: true },
-  Gestor:            { incluir: true, editar: true, faturar: true, cancelar: true, verCusto: true },
-  "Vendedor Loja":   { incluir: true, editar: true, faturar: false, cancelar: false, verCusto: false },
-  "Vendedor Externo":{ incluir: true, editar: true, faturar: false, cancelar: false, verCusto: false },
-  Faturamento:       { incluir: false, editar: false, faturar: true, cancelar: false, verCusto: true },
-  Estoque:           { incluir: false, editar: false, faturar: false, cancelar: false, verCusto: true },
-  Financeiro:        { incluir: false, editar: false, faturar: true, cancelar: false, verCusto: false },
-};
 
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
 
-export default function Vendas({ simGrupo }) {
-  const perms = PERMS[simGrupo] || PERMS.Administrador;
+export default function Vendas({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.vendas) || {};
 
   /* ─── dados ────────────────────────────────────────────────── */
   const [loading, setLoading] = useState(true);
@@ -147,7 +138,7 @@ export default function Vendas({ simGrupo }) {
     if (!form.id_empresa) { setErroForm("Selecione a empresa."); return; }
     setErroForm(""); setSaving(true);
     try {
-      const res = await rpc("venda_salvar", { p: { ...form, _ator: ATOR } });
+      const res = await rpc("venda_salvar", { p: { ...form, _ator: usuario.id } });
       if (res?.id) {
         setLista((l) => { const sem = l.filter((x) => x.id !== res.id); return [res, ...sem]; });
         notificar(form.id ? "Venda atualizada." : `Venda nº ${res.numero} criada.`);
@@ -173,7 +164,7 @@ export default function Vendas({ simGrupo }) {
         id_servico: formItem.tipo === "SERVICO" ? formItem.id_servico || null : null,
         descricao: formItem.descricao, referencia: formItem.referencia || null,
         quantidade: qty, valor_unitario: vu, percentual_desconto: descP,
-        valor_desconto: vDesc, valor_total: vt, _ator: ATOR,
+        valor_desconto: vDesc, valor_total: vt, _ator: usuario.id,
       }});
       if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
       await recarregarDetalhe(vendaAtual.id);
@@ -186,7 +177,7 @@ export default function Vendas({ simGrupo }) {
 
   async function removerItem(idItem) {
     try {
-      await rpc("venda_remover_item", { p: { id_item: idItem, _ator: ATOR } });
+      await rpc("venda_remover_item", { p: { id_item: idItem, _ator: usuario.id } });
       await recarregarDetalhe(vendaAtual.id);
       notificar("Item removido e estoque devolvido.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -199,7 +190,7 @@ export default function Vendas({ simGrupo }) {
     try {
       const res = await rpc("venda_faturar", { p: {
         id_venda: vendaAtual.id, id_forma_pagamento: fatForma,
-        id_condicao_pagamento: fatCond || null, _ator: ATOR,
+        id_condicao_pagamento: fatCond || null, _ator: usuario.id,
       }});
       if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
       await recarregarDetalhe(vendaAtual.id);
@@ -214,7 +205,7 @@ export default function Vendas({ simGrupo }) {
     if (!motivoCancel.trim()) { notificar("Informe o motivo.", "erro"); return; }
     setSaving(true);
     try {
-      const res = await rpc("venda_cancelar", { p: { id_venda: vendaAtual.id, motivo: motivoCancel, _ator: ATOR } });
+      const res = await rpc("venda_cancelar", { p: { id_venda: vendaAtual.id, motivo: motivoCancel, _ator: usuario.id } });
       if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
       await recarregarDetalhe(vendaAtual.id);
       setCancelOpen(false); setMotivoCancel("");
@@ -324,8 +315,8 @@ export default function Vendas({ simGrupo }) {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {podeEditar && <button onClick={() => { setForm({ ...vendaAtual }); setView("form"); }} style={btnGhost()}><Pencil size={14} /> Editar</button>}
-            {!isFaturada && !isCancelada && perms.cancelar && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
-            {!isFaturada && !isCancelada && perms.faturar && itens.length > 0 && (
+            {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
+            {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
               <button onClick={() => { setFatForma(vendaAtual.id_forma_pagamento || ""); setFatCond(vendaAtual.id_condicao_pagamento || ""); setFatOpen(true); }} style={btnPrimary()}>
                 <DollarSign size={14} /> Faturar
               </button>
@@ -404,7 +395,7 @@ export default function Vendas({ simGrupo }) {
             : itens.length === 0 ? <div style={{ textAlign: "center", padding: "36px 0", color: C.textMuted }}><ShoppingCart size={28} style={{ opacity: 0.3 }} /><div style={{ marginTop: 8, fontSize: 13 }}>Nenhum item adicionado.</div></div>
               : <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead><tr>
-                  {["Tipo", "Descrição", "Qtd", "Valor Unit.", perms.verCusto ? "Custo" : null, "Desc %", "Total", ""].filter(Boolean).map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}
+                  {["Tipo", "Descrição", "Qtd", "Valor Unit.", perms.exportar ? "Custo" : null, "Desc %", "Total", ""].filter(Boolean).map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}
                 </tr></thead>
                 <tbody>{itens.map((it) => (
                   <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -412,7 +403,7 @@ export default function Vendas({ simGrupo }) {
                     <td style={{ ...td(), fontWeight: 500 }}>{it.descricao}{it.referencia ? <span style={{ color: C.muted, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}</td>
                     <td style={{ ...td(), textAlign: "right" }}>{it.quantidade}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.valor_unitario)}</td>
-                    {perms.verCusto && <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.muted }}>{fmtBRL(it.valor_custo)}</td>}
+                    {perms.exportar && <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.muted }}>{fmtBRL(it.valor_custo)}</td>}
                     <td style={{ ...td(), textAlign: "right" }}>{num(it.percentual_desconto) > 0 ? `${it.percentual_desconto}%` : "—"}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(it.valor_total)}</td>
                     <td style={td()}>{podeEditar && <button onClick={() => removerItem(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><Trash2 size={13} /></button>}</td>

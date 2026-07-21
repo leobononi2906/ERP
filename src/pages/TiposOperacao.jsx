@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Settings, Star } from "lucide-react";
-import { C, mono, rpc, SUPA_URL, SUPA_KEY, ATOR } from "../config";
+import { C, mono, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
 
 const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
@@ -31,8 +31,9 @@ function Toggle({ label, value, onChange, disabled }) {
   );
 }
 
-export default function TiposOperacao({ simGrupo }) {
-  const admin = ["Administrador", "Gestor"].includes(simGrupo);
+export default function TiposOperacao({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.tipos_operacao) || {};
+  const admin = perms.incluir;
 
   const [loading, setLoading] = useState(true);
   const [lista, setLista] = useState([]);
@@ -63,7 +64,7 @@ export default function TiposOperacao({ simGrupo }) {
     if (!form.descricao.trim()) { setErroForm("Descrição obrigatória."); return; }
     setErroForm(""); setSaving(true);
     try {
-      const res = await rpc("tipos_saida_salvar", { p: { ...form, _ator: ATOR } });
+      const res = await rpc("tipos_saida_salvar", { p: { ...form, _ator: usuario.id } });
       if (res?.id) {
         await carregar();
         notificar(form.id ? "Tipo atualizado." : "Tipo criado.");

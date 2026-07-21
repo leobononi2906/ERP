@@ -11,7 +11,7 @@ function MH({children,onClose}){return<div style={{display:"flex",justifyContent
 function MB({children}){return<div style={{padding:20}}>{children}</div>;}
 function F({label,req,children}){return<div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>;}
 
-export default function Cheques({simGrupo}){
+export default function Cheques({usuario}){
   const[cheques,setCheques]=useState([]);const[loading,setLoading]=useState(true);
   const[filtroTipo,setFiltroTipo]=useState("");const[filtroStatus,setFiltroStatus]=useState("");
   const[contas,setContas]=useState([]);

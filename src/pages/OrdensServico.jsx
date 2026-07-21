@@ -31,14 +31,6 @@ async function sbDelete(table, id) {
   if (!r.ok) throw new Error(`${r.status}`);
 }
 
-/* ─── Permissões ──────────────────────────────────────────────── */
-const PERMS = {
-  Administrador: { incluir: true, editar: true, apontar: true },
-  Gestor: { incluir: true, editar: true, apontar: true },
-  "Vendedor Loja": { incluir: true, editar: true, apontar: false },
-  Estoque: { incluir: false, editar: false, apontar: false },
-  Financeiro: { incluir: false, editar: false, apontar: false },
-};
 
 const STATUS_CORES = {
   ABERTA: "ABERTA", EM_EXECUCAO: "ATIVO", FATURADA: "FATURADA", CANCELADA: "CANCELADA",
@@ -51,8 +43,8 @@ const OS_VAZIA = () => ({
 });
 
 /* ═══════════════════════════════════════════════════════════════ */
-export default function OrdensServico({ simGrupo }) {
-  const perms = PERMS[simGrupo] || PERMS.Administrador;
+export default function OrdensServico({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.os) || {};
 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -486,7 +478,7 @@ export default function OrdensServico({ simGrupo }) {
                             <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(sv.valor_total)}</td>
                             <td style={td()}><Badge texto={sv.status || "PENDENTE"} /></td>
                             <td style={td()}>
-                              {perms.apontar && (
+                              {perms.aprovar && (
                                 aptAberto ? (
                                   <button onClick={() => finalizarApontamento(aptAberto)} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30` }} title="Finalizar apontamento">
                                     <Square size={14} />
@@ -605,7 +597,7 @@ export default function OrdensServico({ simGrupo }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Ordens de Serviço</h1>
-          <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {lista.length} · como <strong>{simGrupo}</strong></p>
+          <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {lista.length} · {usuario.nome}</p>
         </div>
         {perms.incluir ? (
           <button onClick={() => { setForm(OS_VAZIA()); setErroForm(""); setView("form"); }} style={btnPrimary()}>

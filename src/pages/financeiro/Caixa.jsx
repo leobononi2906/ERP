@@ -10,7 +10,7 @@ function MH({children,onClose}){return<div style={{display:"flex",justifyContent
 function MB({children}){return<div style={{padding:20}}>{children}</div>;}
 function F({label,req,children}){return<div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>;}
 
-export default function Caixa({simGrupo}){
+export default function Caixa({usuario}){
   const[sessoes,setSessoes]=useState([]);const[loading,setLoading]=useState(true);
   const[contas,setContas]=useState([]);
   const[modalAbrir,setModalAbrir]=useState(false);const[modalFechar,setModalFechar]=useState(null);

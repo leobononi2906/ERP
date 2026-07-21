@@ -19,7 +19,7 @@ function MH({ children, onClose }) { return <div style={{display:"flex",justifyC
 function MB({ children }) { return <div style={{padding:20}}>{children}</div>; }
 function F({ label, req, children }) { return <div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>; }
 
-export default function ContasPagar({ simGrupo }) {
+export default function ContasPagar({ usuario }) {
   const [titulos, setTitulos] = useState([]); const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState(""); const [busca, setBusca] = useState("");
   const [dataIni, setDataIni] = useState(""); const [dataFim, setDataFim] = useState("");

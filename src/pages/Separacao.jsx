@@ -1,15 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Package, RefreshCw, Printer, Hand, CheckCircle2, XCircle, AlertCircle, PackageOpen, Truck, Store, ArrowLeft, Search, X } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, ATOR } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Badge, Aviso } from "../ui";
-
-const PERMS = {
-  "Administrador": { validar: true, cancelar: true },
-  "Gestor": { validar: true, cancelar: true },
-  "Estoque": { validar: true, cancelar: false },
-  "Vendedor Loja": { validar: false, cancelar: false },
-  "Financeiro": { validar: false, cancelar: false },
-};
 const STATUS_COR = { SOLICITADA: "ABERTA", EM_SEPARACAO: "BLOQUEADO", SEPARADA: "ATIVO", ENTREGUE: "INATIVO", CANCELADA: "CANCELADA" };
 const STATUS_LABEL = { SOLICITADA: "Solicitada", EM_SEPARACAO: "Em separação", SEPARADA: "Separada", ENTREGUE: "Entregue", CANCELADA: "Cancelada" };
 const fmtDH = (iso) => { if (!iso) return "—"; const d = new Date(iso); return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
@@ -26,8 +18,8 @@ function Info({ label, valor }) {
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
-export default function Separacao({ simGrupo }) {
-  const perms = PERMS[simGrupo] || {};
+export default function Separacao({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.separacao) || {};
   const [fila, setFila] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +51,7 @@ export default function Separacao({ simGrupo }) {
 
   const assumir = async (id) => {
     try {
-      await rpc("erp_separacao_assumir", { p_id: id, p_id_usuario: ATOR });
+      await rpc("erp_separacao_assumir", { p_id: id, p_id_usuario: usuario.id });
       notificar("Separação assumida!");
       carregar(true);
     } catch (e) { notificar(e.message, "destructive"); }
@@ -73,7 +65,7 @@ export default function Separacao({ simGrupo }) {
     <>
       <Toast toast={toast} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Separação — Fila</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{fila.length} solicitações · como <strong>{simGrupo}</strong></p></div>
+        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Separação — Fila</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{fila.length} solicitações · {usuario.nome}</p></div>
         <button onClick={() => carregar()} style={btnGhost()}><RefreshCw size={16} style={loading ? { animation: "spin 1s linear infinite" } : {}} /> Atualizar</button>
       </div>
 
@@ -107,7 +99,7 @@ export default function Separacao({ simGrupo }) {
                   <td style={{ ...td(), textAlign: "center", fontFamily: mono, fontWeight: 600 }}>{r.qtd_itens}</td>
                   <td style={td()}><Badge texto={STATUS_LABEL[r.status] || r.status} cor={STATUS_COR[r.status]} /></td>
                   <td style={{ ...td(), textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
-                    {r.status === "SOLICITADA" && perms.validar && <button onClick={() => assumir(r.id)} style={btnIcon()} title="Assumir separação"><Hand size={16} /></button>}
+                    {r.status === "SOLICITADA" && perms.aprovar && <button onClick={() => assumir(r.id)} style={btnIcon()} title="Assumir separação"><Hand size={16} /></button>}
                     <button onClick={() => imprimirPicking(r.id)} style={{ ...btnIcon(), marginLeft: 4 }} title="Imprimir picking"><Printer size={16} /></button>
                   </td>
                 </tr>
@@ -145,7 +137,7 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const editavel = perms.validar && ["SOLICITADA", "EM_SEPARACAO"].includes(cab?.status);
+  const editavel = perms.aprovar && ["SOLICITADA", "EM_SEPARACAO"].includes(cab?.status);
   const setItem = (idx, patch) => setItens(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
 
   const confirmar = async () => {
@@ -157,7 +149,7 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
     try {
       setSalvando(true);
       const payload = itens.map(it => ({ id_item: it.id, qtd_separada: Number(it.qtd_input), motivo_falta: Number(it.qtd_input) < Number(it.quantidade_pedida) ? it.motivo_input : null, observacao_falta: it.obs_input || null }));
-      const data = await rpc("erp_separacao_confirmar", { p_id_expedicao: id, p_id_usuario: ATOR, p_itens: payload });
+      const data = await rpc("erp_separacao_confirmar", { p_id_expedicao: id, p_id_usuario: usuario.id, p_itens: payload });
       setResumo(data || {});
       notificar("Separação confirmada!");
       carregar();
@@ -166,12 +158,12 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
   };
 
   const cancelar = async () => {
-    try { setSalvando(true); await rpc("erp_separacao_cancelar", { p_id: id, p_id_usuario: ATOR }); setModal(null); onVoltar(); }
+    try { setSalvando(true); await rpc("erp_separacao_cancelar", { p_id: id, p_id_usuario: usuario.id }); setModal(null); onVoltar(); }
     catch (e) { notificar(e.message, "destructive"); setModal(null); } finally { setSalvando(false); }
   };
 
   const entregar = async (destino) => {
-    try { setSalvando(true); await rpc("erp_separacao_entregar", { p_id: id, p_entregue_para: destino, p_id_usuario: ATOR }); setModal(null); notificar("Entrega registrada!"); carregar(); }
+    try { setSalvando(true); await rpc("erp_separacao_entregar", { p_id: id, p_entregue_para: destino, p_id_usuario: usuario.id }); setModal(null); notificar("Entrega registrada!"); carregar(); }
     catch (e) { notificar(e.message, "destructive"); setModal(null); } finally { setSalvando(false); }
   };
 
@@ -190,7 +182,7 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => imprimirPicking(id)} style={btnGhost()}><Printer size={16} /> Picking</button>
-          {perms.cancelar && ["SOLICITADA", "EM_SEPARACAO"].includes(cab.status) && <button onClick={() => setModal("cancelar")} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><XCircle size={16} /> Cancelar</button>}
+          {perms.excluir && ["SOLICITADA", "EM_SEPARACAO"].includes(cab.status) && <button onClick={() => setModal("cancelar")} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><XCircle size={16} /> Cancelar</button>}
         </div>
       </div>
 
@@ -242,7 +234,7 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
       {/* Acoes */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
         {editavel && <button onClick={confirmar} disabled={salvando} style={btnPrimary()}><CheckCircle2 size={16} /> {salvando ? "Confirmando..." : "Confirmar separação"}</button>}
-        {perms.validar && cab.status === "SEPARADA" && <button onClick={() => setModal("entregar")} style={btnPrimary()}><Truck size={16} /> Registrar entrega</button>}
+        {perms.aprovar && cab.status === "SEPARADA" && <button onClick={() => setModal("entregar")} style={btnPrimary()}><Truck size={16} /> Registrar entrega</button>}
       </div>
 
       {/* Modal cancelar */}

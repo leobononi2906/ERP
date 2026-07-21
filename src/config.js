@@ -22,4 +22,4 @@ export const C = {
 export const mono = "'DM Mono', ui-monospace, monospace";
 export const num = (v) => Number(String(v).replace(",", ".")) || 0;
 export const fmtBRL = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
-export const ATOR = 2; // usuário logado (definido no login)
+// ATOR removido — usar usuario.id do login

@@ -16,7 +16,7 @@ const inputSt = { width: "100%", padding: "8px 10px", fontSize: 13, border: `1px
 const btnPrimSt = { padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#fff", background: C.primary, border: "none", borderRadius: 8, cursor: "pointer" };
 const btnSecSt = { ...btnPrimSt, background: "#fff", color: C.foreground, border: `1px solid ${C.border}` };
 
-export default function ContasReceber({ simGrupo }) {
+export default function ContasReceber({ usuario }) {
   const [titulos, setTitulos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState("");

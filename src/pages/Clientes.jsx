@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Users } from "lucide-react";
-import { C, mono, fmtBRL, rpc, ATOR } from "../config";
+import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
-
-const PERMS = {
-  "Administrador": { incluir: true, editar: true, aprovar: true },
-  "Gestor": { incluir: true, editar: true, aprovar: true },
-  "Vendedor Loja": { incluir: true, editar: true, aprovar: false },
-  "Estoque": { incluir: false, editar: false, aprovar: false },
-  "Financeiro": { incluir: false, editar: false, aprovar: true },
-};
 const TIPOS = ["CLIENTE", "FORNECEDOR", "AMBOS", "FUNCIONARIO", "TRANSPORTADORA"];
 const SITUACOES = ["ATIVO", "INATIVO", "BLOQUEADO"];
 const IND_IE = [{ v: 1, t: "1 - Contribuinte ICMS" }, { v: 2, t: "2 - Contribuinte isento" }, { v: 9, t: "9 - Não contribuinte" }];
@@ -21,8 +13,8 @@ function mascaraDoc(v, pessoa) {
 }
 const vazio = () => ({ id: null, tipo_pessoa: "J", tipo: "CLIENTE", nome: "", nome_fantasia: "", cpf_cnpj: "", rg_ie: "", inscricao_municipal: "", email: "", telefone: "", celular: "", whatsapp: "", cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", limite_credito: "", situacao: "ATIVO", id_empresa: "", observacao: "", indicador_ie: 9, inscricao_suframa: "", iss_retido: false, email_nfe: "" });
 
-export default function Clientes({ simGrupo }) {
-  const perms = PERMS[simGrupo] || PERMS["Administrador"];
+export default function Clientes({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.clientes) || {};
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
   const [clientes, setClientes] = useState([]);
@@ -57,7 +49,7 @@ export default function Clientes({ simGrupo }) {
     const empNome = empresas.find((e) => String(e.id) === String(form.id_empresa))?.nome_fantasia || null;
     const salvo = { ...form, empresa_nome: empNome };
     try {
-      const row = await rpc("cliente_salvar", { p: { ...form, _ator: ATOR } });
+      const row = await rpc("cliente_salvar", { p: { ...form, _ator: usuario.id } });
       salvo.id = row.id || form.id; aplicar(salvo);
       notificar(form.id ? "Cliente atualizado — registrado na auditoria." : "Cliente cadastrado.");
     } catch (e) { if (!salvo.id) salvo.id = Math.max(0, ...clientes.map((c) => c.id)) + 1; aplicar(salvo); notificar("Salvo localmente (demo — sem conexão).", "warn"); }
@@ -73,7 +65,7 @@ export default function Clientes({ simGrupo }) {
     <>
       {toast && <Toast toast={toast} />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Clientes</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {clientes.length} · como <strong>{simGrupo}</strong> · {live ? "ao vivo" : "demo"}</p></div>
+        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Clientes</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {clientes.length} · {usuario.nome} · {live ? "ao vivo" : "demo"}</p></div>
         {perms.incluir ? <button onClick={abrirNovo} style={btnPrimary()}><Plus size={16} /> Novo cliente</button> : <span style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6 }}><Lock size={14} /> Sem permissão para incluir</span>}
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>

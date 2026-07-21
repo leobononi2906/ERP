@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, ATOR } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
-
-const PERMS = {
-  "Administrador": { incluir: true, editar: true, aprovar: true },
-  "Gestor": { incluir: true, editar: true, aprovar: true },
-  "Estoque": { incluir: true, editar: true, aprovar: false },
-  "Vendedor Loja": { incluir: false, editar: false, aprovar: false },
-  "Financeiro": { incluir: false, editar: false, aprovar: true },
-};
 const SITUACOES = ["ATIVO", "INATIVO"];
 const ORIGENS = [
   { v: 0, t: "0 - Nacional" }, { v: 1, t: "1 - Estrangeira (import. direta)" }, { v: 2, t: "2 - Estrangeira (merc. interno)" },
@@ -18,8 +10,8 @@ const ORIGENS = [
 ];
 const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "" });
 
-export default function Produtos({ simGrupo }) {
-  const perms = PERMS[simGrupo] || PERMS["Administrador"];
+export default function Produtos({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.produtos) || {};
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
   const [produtos, setProdutos] = useState([]);
@@ -51,7 +43,7 @@ export default function Produtos({ simGrupo }) {
     setErroForm(""); setSaving(true);
     const g = grupos.find((x) => String(x.id) === String(form.id_grupo)), m = marcas.find((x) => String(x.id) === String(form.id_marca)), u = unidades.find((x) => String(x.id) === String(form.id_unidade));
     const salvo = { ...form, grupo_nome: g?.descricao || null, marca_nome: m?.descricao || null, unidade_sigla: u?.sigla || null };
-    try { const row = await rpc("produto_salvar", { p: { ...form, _ator: ATOR } }); salvo.id = row.id || form.id; aplicar(salvo); notificar(form.id ? "Produto atualizado — registrado na auditoria." : "Produto cadastrado."); }
+    try { const row = await rpc("produto_salvar", { p: { ...form, _ator: usuario.id } }); salvo.id = row.id || form.id; aplicar(salvo); notificar(form.id ? "Produto atualizado — registrado na auditoria." : "Produto cadastrado."); }
     catch (e) { if (!salvo.id) salvo.id = Math.max(0, ...produtos.map((p) => p.id)) + 1; aplicar(salvo); notificar("Salvo localmente (demo — sem conexão).", "warn"); }
     finally { setSaving(false); setView("lista"); }
   }
@@ -65,7 +57,7 @@ export default function Produtos({ simGrupo }) {
     <>
       {toast && <Toast toast={toast} />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Produtos</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {produtos.length} · como <strong>{simGrupo}</strong> · {live ? "ao vivo" : "demo"}</p></div>
+        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Produtos</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {produtos.length} · {usuario.nome} · {live ? "ao vivo" : "demo"}</p></div>
         {perms.incluir ? <button onClick={abrirNovo} style={btnPrimary()}><Plus size={16} /> Novo produto</button> : <span style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6 }}><Lock size={14} /> Sem permissão para incluir</span>}
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>

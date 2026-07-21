@@ -1,18 +1,10 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, ArrowLeft, Save, Package, Boxes, ArrowDownCircle, ArrowUpCircle, History, Warehouse, AlertTriangle, X, ChevronDown, ChevronUp } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, ATOR } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
 
-const PERMS = {
-  "Administrador": { ajustar: true, centros: true },
-  "Gestor": { ajustar: true, centros: true },
-  "Estoque": { ajustar: true, centros: false },
-  "Vendedor Loja": { ajustar: false, centros: false },
-  "Financeiro": { ajustar: false, centros: false },
-};
-
-export default function Estoque({ simGrupo }) {
-  const perms = PERMS[simGrupo] || {};
+export default function Estoque({ usuario }) {
+  const perms = (usuario && usuario.permissoes && usuario.permissoes.estoque) || {};
   const [loading, setLoading] = useState(true);
   const [saldos, setSaldos] = useState([]);
   const [centros, setCentros] = useState([]);
@@ -74,7 +66,7 @@ export default function Estoque({ simGrupo }) {
       await rpc("erp_estoque_ajuste", {
         p_id_produto: Number(ajuste.id_produto), p_id_centro: Number(ajuste.id_centro),
         p_quantidade: num(ajuste.quantidade), p_tipo: ajuste.tipo,
-        p_observacao: ajuste.observacao || "", p_id_usuario: ATOR,
+        p_observacao: ajuste.observacao || "", p_id_usuario: usuario.id,
       });
       notificar("Ajuste realizado com sucesso!");
       setAjuste(null);
@@ -162,7 +154,7 @@ export default function Estoque({ simGrupo }) {
           <button onClick={() => setView("saldos")} style={btnGhost()}><ArrowLeft size={16} /> Voltar</button>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Centros de Estoque</h1>
         </div>
-        {perms.centros && <button onClick={() => abrirCentro(null)} style={btnPrimary()}><Plus size={16} /> Novo centro</button>}
+        {perms.editar && <button onClick={() => abrirCentro(null)} style={btnPrimary()}><Plus size={16} /> Novo centro</button>}
       </div>
       {centroForm && (
         <div style={{ ...cardStyle(), marginBottom: 16 }}>
@@ -192,7 +184,7 @@ export default function Estoque({ simGrupo }) {
               <td style={td()}>{c.endereco || "—"}</td>
               <td style={td()}>{c.principal ? <Badge texto="SIM" cor="ATIVO" /> : "—"}</td>
               <td style={td()}><Badge texto={c.ativo ? "ATIVO" : "INATIVO"} cor={c.ativo ? "ATIVO" : "INATIVO"} /></td>
-              <td style={td()}>{perms.centros && <button onClick={() => abrirCentro(c)} style={btnIcon()} title="Editar">✏️</button>}</td>
+              <td style={td()}>{perms.editar && <button onClick={() => abrirCentro(c)} style={btnIcon()} title="Editar">✏️</button>}</td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -232,10 +224,10 @@ export default function Estoque({ simGrupo }) {
 
       {/* Cabeçalho */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Estoque</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} saldos · como <strong>{simGrupo}</strong></p></div>
+        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Estoque</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} saldos · {usuario.nome}</p></div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setView("centros")} style={btnGhost()}><Warehouse size={16} /> Centros</button>
-          {perms.ajustar && <button onClick={abrirAjuste} style={btnPrimary()}><Plus size={16} /> Ajuste de Estoque</button>}
+          {perms.ajustar_estoque && <button onClick={abrirAjuste} style={btnPrimary()}><Plus size={16} /> Ajuste de Estoque</button>}
         </div>
       </div>
 
