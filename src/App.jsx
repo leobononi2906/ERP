@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
-  Building2, Eye, LogOut, Truck,
+  Building2, Eye, LogOut, Truck, ClipboardList, Settings,
 } from "lucide-react";
 import { C } from "./config";
 import Login from "./pages/Login";
@@ -10,17 +10,21 @@ import Clientes from "./pages/Clientes";
 import Produtos from "./pages/Produtos";
 import OrdensServico from "./pages/OrdensServico";
 import Veiculos from "./pages/Veiculos";
+import Orcamentos from "./pages/Orcamentos";
 import Vendas from "./pages/Vendas";
+import TiposOperacao from "./pages/TiposOperacao";
 
-const GRUPOS_DEMO = ["Administrador", "Gestor", "Vendedor Loja", "Estoque", "Financeiro"];
+const GRUPOS_DEMO = ["Administrador", "Gestor", "Vendedor Loja", "Vendedor Externo", "Faturamento", "Estoque", "Financeiro"];
 
 const MENU = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true },
   { key: "clientes", label: "Clientes", icon: Users, ok: true },
   { key: "produtos", label: "Produtos", icon: Package, ok: true },
   { key: "veiculos", label: "Veículos", icon: Truck, ok: true },
+  { key: "orcamentos", label: "Orçamentos", icon: ClipboardList, ok: true },
   { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
   { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
+  { key: "tipos_operacao", label: "Tipos de Operação", icon: Settings, ok: true, grupo: "Cadastros" },
   { key: "estoque", label: "Estoque", icon: Package },
   { key: "financeiro", label: "Financeiro", icon: DollarSign },
   { key: "fiscal", label: "Fiscal", icon: FileText },
@@ -33,6 +37,8 @@ export default function App() {
 
   if (!usuario) return <Login onLogin={setUsuario} />;
 
+  let lastGrupo = null;
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.background, color: C.foreground }}>
       <aside style={{ width: 212, background: C.sidebar, flexShrink: 0, padding: "20px 12px", display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh" }}>
@@ -43,15 +49,23 @@ export default function App() {
         <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", padding: "8px 8px 6px" }}>Menu</div>
         {MENU.map((m) => {
           const ativo = pagina === m.key;
+          let grupoLabel = null;
+          if (m.grupo && m.grupo !== lastGrupo) {
+            lastGrupo = m.grupo;
+            grupoLabel = <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", padding: "14px 8px 6px" }}>{m.grupo}</div>;
+          }
           return (
-            <div key={m.key} onClick={() => m.ok && setPagina(m.key)} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 2,
-              cursor: m.ok ? "pointer" : "default", opacity: m.ok ? 1 : 0.45,
-              background: ativo ? "rgba(0,170,238,0.18)" : "transparent",
-              borderLeft: ativo ? `3px solid ${C.blueLight}` : "3px solid transparent",
-              color: ativo ? C.blueLight : "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: ativo ? 600 : 400,
-            }}>
-              <m.icon size={17} /> {m.label}{!m.ok && <span style={{ marginLeft: "auto", fontSize: 9, opacity: 0.7 }}>em breve</span>}
+            <div key={m.key}>
+              {grupoLabel}
+              <div onClick={() => m.ok && setPagina(m.key)} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 2,
+                cursor: m.ok ? "pointer" : "default", opacity: m.ok ? 1 : 0.45,
+                background: ativo ? "rgba(0,170,238,0.18)" : "transparent",
+                borderLeft: ativo ? `3px solid ${C.blueLight}` : "3px solid transparent",
+                color: ativo ? C.blueLight : "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: ativo ? 600 : 400,
+              }}>
+                <m.icon size={17} /> {m.label}{!m.ok && <span style={{ marginLeft: "auto", fontSize: 9, opacity: 0.7 }}>em breve</span>}
+              </div>
             </div>
           );
         })}
@@ -71,9 +85,11 @@ export default function App() {
         {pagina === "clientes" && <Clientes simGrupo={simGrupo} />}
         {pagina === "produtos" && <Produtos simGrupo={simGrupo} />}
         {pagina === "veiculos" && <Veiculos simGrupo={simGrupo} />}
+        {pagina === "orcamentos" && <Orcamentos simGrupo={simGrupo} />}
         {pagina === "vendas" && <Vendas simGrupo={simGrupo} />}
         {pagina === "os" && <OrdensServico simGrupo={simGrupo} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "vendas", "os"].includes(pagina) && (
+        {pagina === "tipos_operacao" && <TiposOperacao simGrupo={simGrupo} />}
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "tipos_operacao"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
