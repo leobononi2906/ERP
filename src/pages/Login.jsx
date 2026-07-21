@@ -14,8 +14,8 @@ export default function Login({ onLogin }) {
     if (!login.trim() || !senha) { setError("Preencha usuário e senha."); return; }
     setLoading(true);
     try {
-      const rows = await rpc("login_erp", { p_login: login.trim(), p_senha: senha });
-      if (Array.isArray(rows) && rows.length > 0) onLogin(rows[0]);
+      const result = await rpc("login_erp", { p_login: login.trim(), p_senha: senha });
+      if (result && result.id) onLogin(result);
       else setError("Usuário ou senha incorretos.");
     } catch (e) {
       setError("Não foi possível conectar ao servidor.");
@@ -67,8 +67,8 @@ export default function Login({ onLogin }) {
             {loading ? (<><LoaderCircle size={17} className="spin" /> Entrando…</>) : "Entrar"}
           </button>
         </div>
-        <p style={{ textAlign: "center", color: C.textMuted, fontSize: 12, marginTop: 16 }}>
-          Teste com <strong style={{ color: C.muted }}>Leonardo</strong> / <strong style={{ color: C.muted }}>1234</strong>
+        <p style={{ textAlign: "center", color: C.textMuted, fontSize: 11, marginTop: 16 }}>
+          Grupo Bononi &copy; {new Date().getFullYear()}
         </p>
       </div>
       <style>{`.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>

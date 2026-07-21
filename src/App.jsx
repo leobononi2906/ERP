@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
-  Building2, Eye, LogOut, Truck, ClipboardList, Settings,
+  Building2, Eye, LogOut, Truck, ClipboardList, Settings, UserCog,
 } from "lucide-react";
 import { C } from "./config";
 import Login from "./pages/Login";
@@ -14,10 +14,11 @@ import Orcamentos from "./pages/Orcamentos";
 import Vendas from "./pages/Vendas";
 import TiposOperacao from "./pages/TiposOperacao";
 import Financeiro from "./pages/Financeiro";
+import Estoque from "./pages/Estoque";
+import Separacao from "./pages/Separacao";
+import Administracao from "./pages/Administracao";
 
-const GRUPOS_DEMO = ["Administrador", "Gestor", "Vendedor Loja", "Vendedor Externo", "Faturamento", "Estoque", "Financeiro"];
-
-const MENU = [
+const MENU_FULL = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true },
   { key: "clientes", label: "Clientes", icon: Users, ok: true },
   { key: "produtos", label: "Produtos", icon: Package, ok: true },
@@ -26,17 +27,25 @@ const MENU = [
   { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
   { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
   { key: "tipos_operacao", label: "Tipos de Operação", icon: Settings, ok: true, grupo: "Cadastros" },
-  { key: "estoque", label: "Estoque", icon: Package },
+  { key: "estoque", label: "Estoque", icon: Package, ok: true },
+  { key: "separacao", label: "Separação", icon: Package, ok: true },
   { key: "financeiro", label: "Financeiro", icon: DollarSign, ok: true },
   { key: "fiscal", label: "Fiscal", icon: FileText },
+  { key: "admin", label: "Administração", icon: UserCog, ok: true, grupo: "Sistema" },
 ];
 
 export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [pagina, setPagina] = useState("dashboard");
-  const [simGrupo, setSimGrupo] = useState("Administrador");
 
   if (!usuario) return <Login onLogin={setUsuario} />;
+
+  const perms = usuario.permissoes || {};
+  const MENU = MENU_FULL.filter((m) => {
+    if (!m.ok) return true; // mostra "em breve"
+    const p = perms[m.key];
+    return p && p.visualizar;
+  });
 
   let lastGrupo = null;
 
@@ -71,11 +80,10 @@ export default function App() {
           );
         })}
         <div style={{ marginTop: "auto", padding: "8px 8px 0", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-          <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}><Eye size={12} /> Simular grupo (demo)</div>
-          <select value={simGrupo} onChange={(e) => setSimGrupo(e.target.value)} style={{ width: "100%", background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 7, padding: "7px 8px", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
-            {GRUPOS_DEMO.map((g) => <option key={g} value={g} style={{ color: "#000" }}>{g}</option>)}
-          </select>
-          <div onClick={() => setUsuario(null)} style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer" }}>
+          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 4, padding: "0 6px" }}>
+            {(usuario.grupos || []).map((g) => g.nome).join(", ") || "Sem grupo"}
+          </div>
+          <div onClick={() => setUsuario(null)} style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer" }}>
             <LogOut size={16} /> Sair ({usuario.nome})
           </div>
         </div>
@@ -83,15 +91,18 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, padding: 20 }}>
         {pagina === "dashboard" && <Dashboard />}
-        {pagina === "clientes" && <Clientes simGrupo={simGrupo} />}
-        {pagina === "produtos" && <Produtos simGrupo={simGrupo} />}
-        {pagina === "veiculos" && <Veiculos simGrupo={simGrupo} />}
-        {pagina === "orcamentos" && <Orcamentos simGrupo={simGrupo} />}
-        {pagina === "vendas" && <Vendas simGrupo={simGrupo} />}
-        {pagina === "os" && <OrdensServico simGrupo={simGrupo} />}
-        {pagina === "tipos_operacao" && <TiposOperacao simGrupo={simGrupo} />}
-        {pagina === "financeiro" && <Financeiro simGrupo={simGrupo} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "tipos_operacao", "financeiro"].includes(pagina) && (
+        {pagina === "clientes" && <Clientes simGrupo="real" usuario={usuario} />}
+        {pagina === "produtos" && <Produtos simGrupo="real" usuario={usuario} />}
+        {pagina === "veiculos" && <Veiculos simGrupo="real" usuario={usuario} />}
+        {pagina === "orcamentos" && <Orcamentos simGrupo="real" usuario={usuario} />}
+        {pagina === "vendas" && <Vendas simGrupo="real" usuario={usuario} />}
+        {pagina === "os" && <OrdensServico simGrupo="real" usuario={usuario} />}
+        {pagina === "tipos_operacao" && <TiposOperacao simGrupo="real" usuario={usuario} />}
+        {pagina === "estoque" && <Estoque simGrupo="real" usuario={usuario} />}
+        {pagina === "separacao" && <Separacao simGrupo="real" usuario={usuario} />}
+        {pagina === "financeiro" && <Financeiro simGrupo="real" usuario={usuario} />}
+        {pagina === "admin" && <Administracao usuario={usuario} />}
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "tipos_operacao", "estoque", "separacao", "financeiro", "admin"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
