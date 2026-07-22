@@ -204,10 +204,10 @@ function Composicao({ idProduto, podeEditar }) {
     try {
       await rpc("produto_composicao_salvar", { p: {
         id_produto: idProduto, tipo: formC.tipo,
-        id_produto_componente: formC.tipo === "PECA" ? num(formC.id_item) : null,
+        id_componente: formC.tipo === "PECA" ? num(formC.id_item) : null,
         id_servico: formC.tipo === "SERVICO" ? num(formC.id_item) : null,
         quantidade: num(formC.quantidade) || 1,
-        valor_unitario: num(formC.valor_unitario) || null,
+        custo_unitario: num(formC.valor_unitario) || null,
       }});
       setFormC({ tipo: formC.tipo, id_item: "", quantidade: 1, valor_unitario: "" });
       await carregar();
@@ -262,10 +262,10 @@ function Composicao({ idProduto, podeEditar }) {
             {itens.map((it) => (
               <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                 <td style={td()}><Badge texto={it.tipo === "PECA" ? "PEÇA" : "SERVIÇO"} cor={it.tipo === "PECA" ? "ATIVO" : "ABERTA"} /></td>
-                <td style={{ ...td(), fontWeight: 500 }}>{it.descricao}</td>
+                <td style={{ ...td(), fontWeight: 500 }}>{it.nome}{it.referencia ? <span style={{ color: C.muted, fontFamily: mono, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}</td>
                 <td style={{ ...td(), textAlign: "right" }}>{num(it.quantidade)}</td>
-                <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.valor_unitario)}</td>
-                <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(num(it.quantidade) * num(it.valor_unitario))}</td>
+                <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.custo_unitario)}</td>
+                <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(num(it.custo_total))}</td>
                 <td style={{ ...td(), textAlign: "right" }}>{podeEditar && <button onClick={() => remover(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><X size={13} /></button>}</td>
               </tr>
             ))}

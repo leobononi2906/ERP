@@ -65,3 +65,21 @@ Relatórios de comissão ficam para depois (dados sendo gravados em `comissoes`)
 - Cadastrar fornecedores antes de cotar encomendas.
 - Marcar produtos produzidos + montar composições.
 - Token do GitHub usado nesta sessão deve ser trocado (ficou registrado em chat).
+
+## Testes de ponta a ponta (madrugada, após o push inicial)
+Rodados direto no banco dentro de transações revertidas (nenhum dado de teste ficou gravado):
+1. **Desconto** — política 10%: bloqueia 15%, libera com aprovação (logado), aceita 8%. ✅
+2. **Preço especial** — resolve CLIENTE_PRODUTO e não vaza para outros clientes. ✅
+3. **Consumo E2E** — solicitar → separar → entregar: valor cobrado correto, consumo pelo custo, estoque −3, reserva liberada. ✅
+4. **Produção E2E** — composição (custo 60) → lançar → distribuição → concluir: custo pela composição, entrada+saída do acabado, valor na OS. ✅
+5. **Encomenda E2E** — solicitar → cotar → aprovar (pedido PC + item na venda) → faturar BLOQUEADO → receber (custo real no item) → faturar OK com título quitado; item com produto cadastrado gera reserva. ✅
+6. **OS faturar** — bloqueia com produção pendente; após concluir fatura com título e comissão. ✅
+
+### Bugs achados e corrigidos nos testes (migrations fix_*)
+- Expedições criadas sem centro de estoque (regressão da sessão nas funções reescritas) — corrigido.
+- CHECKs desatualizados: estoque_reservas (faltava SEPARACAO/ENCOMENDA), estoque_movimentos (faltava PRODUCAO_OS/ENCOMENDA/MOV_INTERNA), pedidos_compra ('ABERTO' inválido → APROVADO).
+- **Coluna gerada estoque_disponivel**: 7 funções escreviam nela e quebravam — incluindo as CORE pré-existentes erp_baixar_estoque / erp_entrada_estoque / erp_devolver_estoque (o módulo Estoque inteiro não conseguia movimentar), além de ajuste, mov. interno e encomendas. Todas corrigidas.
+- **Coluna gerada titulos.valor_saldo**: baixa de título, estorno e criação de título (pré-existentes) + faturamentos escreviam nela — Financeiro quebraria na primeira baixa. Corrigidos.
+- **Status de título fora do CHECK**: funções usavam QUITADO/PARCIAL, tabela aceita PAGO/PAGO_PARCIAL — padronizado (tabela estava vazia). Recebimentos: PARCIAL → RECEBIDO_PARCIAL.
+- pedidos_compra_itens.id_produto liberado para item avulso de encomenda.
+- Front da Composição alinhado aos campos reais da RPC (id_componente/custo_unitario).
