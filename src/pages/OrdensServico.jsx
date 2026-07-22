@@ -111,7 +111,6 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Salvar OS (criar / editar) ─────────────────────────────── */
   async function salvarOS() {
-    if (!form.id_tipo_os) { setErroForm("Selecione o Tipo de OS."); return; }
     if (!form.id_cliente) { setErroForm("Selecione o cliente."); return; }
     setErroForm(""); setSaving(true);
     try {
@@ -143,6 +142,7 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Adicionar serviço na OS ─────────────────────────────── */
   async function adicionarServico() {
+    if (!formServ.id_area) { notificar("Selecione a área/setor do serviço.", "erro"); return; }
     if (!formServ.descricao.trim()) { notificar("Descrição do serviço é obrigatória.", "erro"); return; }
     setSaving(true);
     try {
@@ -424,6 +424,7 @@ export default function OrdensServico({ usuario }) {
   const nomeCliente = (id) => (clientes.find((c) => c.id === id) || {}).nome || "—";
   const nomeTecnico = (id) => (usuarios.find((u) => u.id === id) || {}).nome || "—";
   const nomeVeiculo = (id) => (veiculos.find((v) => v.id === id) || {}).placa || "—";
+  const nomeArea = (id) => { const a = areas.find((a) => a.id === id); return a ? (a.codigo || a.descricao) : "—"; };
   const dadosCliente = (id) => clientes.find((c) => c.id === id) || {};
   const dadosVeiculo = (id) => veiculos.find((v) => v.id === id) || {};
   const dadosUsuario = (id) => usuarios.find((u) => u.id === id) || {};
@@ -459,28 +460,6 @@ export default function OrdensServico({ usuario }) {
         </div>
 
         {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
-
-        {/* Tipo de OS — cards clicáveis */}
-        <div style={{ ...cardStyle(), marginBottom: 16, padding: 16 }}>
-          <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMuted, marginBottom: 10 }}>Tipo de OS *</label>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {tiposOs.map((t) => {
-              const sel2 = String(form.id_tipo_os) === String(t.id);
-              return (
-                <div key={t.id} onClick={() => setF("id_tipo_os", String(t.id))} style={{
-                  padding: "12px 20px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
-                  border: sel2 ? `2px solid ${C.primary}` : `2px solid ${C.border}`,
-                  background: sel2 ? "rgba(0,170,238,0.08)" : "#fff",
-                  color: sel2 ? C.primary : C.foreground,
-                  transition: "all 0.15s",
-                }}>
-                  <Wrench size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-                  {t.descricao}
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         <Secao titulo="Dados da OS">
           <Campo label="Cliente *" span={2}>
@@ -720,7 +699,7 @@ export default function OrdensServico({ usuario }) {
                   <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14 }}>
                   {areas.length > 0 && (
                     <div style={{ marginBottom: 12 }}>
-                      <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 6 }}>Área do serviço</span>
+                      <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 6 }}>Área / Setor *</span>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {areas.map((a) => {
                           const on = String(formServ.id_area) === String(a.id);
@@ -768,8 +747,8 @@ export default function OrdensServico({ usuario }) {
                 ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
-                      {["#", "Descrição", "Técnico", "Qtd", "Valor Unit.", "Total", "Status", "Apontar"].map((h, i) => (
-                        <th key={i} style={th(i >= 3 && i <= 5)}>{h}</th>
+                      {["#", "Área", "Descrição", "Técnico", "Qtd", "Valor Unit.", "Total", "Status", "Apontar"].map((h, i) => (
+                        <th key={i} style={th(i >= 4 && i <= 6)}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
@@ -778,6 +757,7 @@ export default function OrdensServico({ usuario }) {
                         return (
                           <tr key={sv.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                             <td style={td()}>{i + 1}</td>
+                            <td style={td()}><span style={{ fontFamily: mono, fontSize: 11, fontWeight: 700, color: C.primary, background: C.bluePale, padding: "2px 6px", borderRadius: 4 }}>{nomeArea(sv.id_area)}</span></td>
                             <td style={{ ...td(), fontWeight: 500 }}>{sv.descricao}</td>
                             <td style={{ ...td(), color: C.muted }}>{sv.id_tecnico ? nomeTecnico(sv.id_tecnico) : "—"}</td>
                             <td style={{ ...td(), textAlign: "right" }}>{sv.quantidade}</td>
