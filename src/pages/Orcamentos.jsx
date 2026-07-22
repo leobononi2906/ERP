@@ -152,8 +152,23 @@ export default function Orcamentos({ usuario }) {
     finally { setSaving(false); }
   }
 
+  /* ─── preço resolvido: cliente+produto > tabela > geral ─────── */
+  const [precoOrigem, setPrecoOrigem] = useState("");
+  async function resolverPreco(idProduto) {
+    try {
+      const r = await rpc("erp_resolver_preco", {
+        p_id_cliente: orcAtual?.id_cliente || null, p_id_produto: Number(idProduto),
+        p_id_empresa: orcAtual?.id_empresa || null, p_id_tabela_preco: orcAtual?.id_tabela_preco || null,
+      });
+      if (r?.preco != null) {
+        setFormItem((f) => ({ ...f, valor_unitario: r.preco }));
+        setPrecoOrigem(r.origem === "CLIENTE_PRODUTO" ? "preço especial do cliente" : r.origem === "GERAL" ? "" : "tabela de preço");
+      }
+    } catch { /* mantém preço padrão */ }
+  }
+
   /* ─── itens ────────────────────────────────────────────────── */
-  async function lancarItem() {
+  async function lancarItem(libDesconto = false) {
     if (!formItem.descricao.trim()) { notificar("Descrição obrigatória.", "erro"); return; }
     const qty = num(formItem.quantidade) || 1;
     const vu = num(formItem.valor_unitario) || 0;
@@ -169,11 +184,22 @@ export default function Orcamentos({ usuario }) {
         descricao: formItem.descricao, referencia: formItem.referencia || null,
         quantidade: qty, valor_unitario: vu, percentual_desconto: descP,
         valor_desconto: vDesc, valor_total: vt, _ator: usuario.id,
+        _lib_desconto: libDesconto,
       }});
       await recarregarDetalhe(orcAtual.id);
-      setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
-      notificar("Item adicionado.");
-    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+      setFormItem({ ...ITEM_VAZIO }); setAddItem(false); setPrecoOrigem("");
+      notificar(libDesconto ? "Item adicionado com desconto liberado." : "Item adicionado.");
+    } catch (e) {
+      if (String(e.message).includes("DESCONTO_EXCEDIDO")) {
+        const msg = String(e.message).split("|")[1] || "Desconto acima do permitido.";
+        if (perms.aprovar) {
+          setSaving(false);
+          if (window.confirm(msg + "\n\nVocê tem permissão de aprovação. Liberar este desconto?")) { lancarItem(true); }
+          return;
+        }
+        notificar(msg + " Peça liberação a um gestor.", "erro");
+      } else notificar("Erro: " + e.message, "erro");
+    }
     finally { setSaving(false); }
   }
 
@@ -211,7 +237,7 @@ export default function Orcamentos({ usuario }) {
     setSaving(true);
     try {
       const res = await rpc("orcamento_converter_venda", { p: { id_orcamento: orcAtual.id, _ator: usuario.id } });
-      if (res?.ok) { await recarregarDetalhe(orcAtual.id); notificar(`Convertido! Venda criada (ID ${res.id_venda}).`); }
+      if (res?.ok) { await recarregarDetalhe(orcAtual.id); notificar(res.numero_sep ? `Convertido! Venda criada — produtos na Separação (${res.numero_sep}).` : `Convertido! Venda criada (ID ${res.id_venda}).`); }
       else notificar(res?.msg || "Erro", "erro");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setSaving(false); }
@@ -366,6 +392,7 @@ export default function Orcamentos({ usuario }) {
                     <select value={formItem.id_produto} onChange={(e) => {
                       const p = produtos.find((x) => x.id === Number(e.target.value));
                       setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "" }));
+                      if (e.target.value) resolverPreco(e.target.value);
                     }} style={sel(true)}>
                       <option value="">Selecione...</option>
                       {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
@@ -386,10 +413,10 @@ export default function Orcamentos({ usuario }) {
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
                 <Campo label="Descrição"><input value={formItem.descricao} onChange={(e) => setFormItem((f) => ({ ...f, descricao: e.target.value }))} style={inp(true)} /></Campo>
                 <Campo label="Qtd"><input value={formItem.quantidade} onChange={(e) => setFormItem((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} /></Campo>
-                <Campo label="Valor unit."><input value={formItem.valor_unitario} onChange={(e) => setFormItem((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
+                <Campo label={precoOrigem ? `Valor unit. (${precoOrigem})` : "Valor unit."}><input value={formItem.valor_unitario} onChange={(e) => setFormItem((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
                 <Campo label="Desc %"><input value={formItem.percentual_desconto} onChange={(e) => setFormItem((f) => ({ ...f, percentual_desconto: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={lancarItem} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
+                  <button onClick={() => lancarItem()} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
                   <button onClick={() => setAddItem(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
                 </div>
               </div>

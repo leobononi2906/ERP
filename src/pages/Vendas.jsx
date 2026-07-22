@@ -148,8 +148,23 @@ export default function Vendas({ usuario }) {
     finally { setSaving(false); }
   }
 
+  /* ─── preço resolvido: cliente+produto > tabela > geral ─────── */
+  const [precoOrigem, setPrecoOrigem] = useState("");
+  async function resolverPreco(idProduto) {
+    try {
+      const r = await rpc("erp_resolver_preco", {
+        p_id_cliente: vendaAtual?.id_cliente || null, p_id_produto: Number(idProduto),
+        p_id_empresa: vendaAtual?.id_empresa || null, p_id_tabela_preco: vendaAtual?.id_tabela_preco || null,
+      });
+      if (r?.preco != null) {
+        setFormItem((f) => ({ ...f, valor_unitario: r.preco }));
+        setPrecoOrigem(r.origem === "CLIENTE_PRODUTO" ? "preço especial do cliente" : r.origem === "GERAL" ? "" : "tabela de preço");
+      }
+    } catch { /* mantém preço padrão */ }
+  }
+
   /* ─── lançar item ──────────────────────────────────────────── */
-  async function lancarItem() {
+  async function lancarItem(libDesconto = false) {
     if (!formItem.descricao.trim()) { notificar("Descrição obrigatória.", "erro"); return; }
     const qty = num(formItem.quantidade) || 1;
     const vu = num(formItem.valor_unitario) || 0;
@@ -168,9 +183,10 @@ export default function Vendas({ usuario }) {
           p_quantidade: qty, p_valor_unitario: vu,
           p_percentual_desconto: descP, p_valor_desconto: vDesc, p_valor_total: vt,
           p_id_usuario: usuario.id,
+          p_lib_desconto: libDesconto,
         });
         await recarregarDetalhe(vendaAtual.id);
-        setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
+        setFormItem({ ...ITEM_VAZIO }); setAddItem(false); setPrecoOrigem("");
         notificar(`Produto solicitado → Separação ${res.numero_sep}`);
       } else {
         // Serviço continua no fluxo normal (sem separação)
@@ -187,6 +203,35 @@ export default function Vendas({ usuario }) {
         setFormItem({ ...ITEM_VAZIO }); setAddItem(false);
         notificar("Serviço adicionado.");
       }
+    } catch (e) {
+      if (String(e.message).includes("DESCONTO_EXCEDIDO")) {
+        const msg = String(e.message).split("|")[1] || "Desconto acima do permitido.";
+        if (perms.aprovar) {
+          setSaving(false);
+          if (window.confirm(msg + "\n\nVocê tem permissão de aprovação. Liberar este desconto?")) { lancarItem(true); }
+          return;
+        }
+        notificar(msg + " Peça liberação a um gestor.", "erro");
+      } else notificar("Erro: " + e.message, "erro");
+    }
+    finally { setSaving(false); }
+  }
+
+  /* ─── encomenda (produto que não temos em estoque) ─────────── */
+  const [encOpen, setEncOpen] = useState(false);
+  const [formEnc, setFormEnc] = useState({ id_produto: "", descricao: "", quantidade: 1, observacao: "" });
+  async function solicitarEncomenda() {
+    if (!formEnc.descricao.trim()) { notificar("Descreva o item da encomenda.", "erro"); return; }
+    setSaving(true);
+    try {
+      const res = await rpc("encomenda_solicitar", { p: {
+        origem: "VENDA", id_venda: vendaAtual.id,
+        id_produto: formEnc.id_produto || null, descricao: formEnc.descricao,
+        quantidade: num(formEnc.quantidade) || 1, observacao: formEnc.observacao || null,
+        _ator: usuario.id,
+      }});
+      setEncOpen(false); setFormEnc({ id_produto: "", descricao: "", quantidade: 1, observacao: "" });
+      notificar(`Encomenda ${res.numero} enviada para o Compras cotar.`);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setSaving(false); }
   }
@@ -200,15 +245,23 @@ export default function Vendas({ usuario }) {
   }
 
   /* ─── faturar ──────────────────────────────────────────────── */
-  async function faturar() {
+  async function faturar(libCredito = false) {
     if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
     setSaving(true);
     try {
       const res = await rpc("venda_faturar", { p: {
         id_venda: vendaAtual.id, id_forma_pagamento: fatForma,
         id_condicao_pagamento: fatCond || null, _ator: usuario.id,
+        _lib_credito: libCredito,
       }});
-      if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
+      if (res?.ok === false) {
+        if (res.credito?.permite_liberacao && perms.aprovar && !libCredito) {
+          setSaving(false);
+          if (window.confirm(res.msg + "\n\nVocê tem permissão de aprovação. Liberar o crédito e faturar mesmo assim?")) { faturar(true); }
+          return;
+        }
+        notificar(res.msg, "erro"); setSaving(false); return;
+      }
       await recarregarDetalhe(vendaAtual.id);
       setFatOpen(false);
       notificar("Venda faturada com sucesso!");
@@ -360,8 +413,34 @@ export default function Vendas({ usuario }) {
         <div style={cardStyle()}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Itens ({itens.length})</span>
-            {podeEditar && <button onClick={() => setAddItem(!addItem)} style={btnPrimary()}><Plus size={14} /> Adicionar item</button>}
+            <div style={{ display: "flex", gap: 8 }}>
+              {podeEditar && <button onClick={() => { setEncOpen(!encOpen); setAddItem(false); }} style={btnGhost()}><Package size={14} /> Encomendar</button>}
+              {podeEditar && <button onClick={() => { setAddItem(!addItem); setEncOpen(false); }} style={btnPrimary()}><Plus size={14} /> Adicionar item</button>}
+            </div>
           </div>
+
+          {encOpen && (
+            <div style={{ background: C.warningBg, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.warning, marginBottom: 10 }}>ENCOMENDA — item sem estoque, o Compras vai cotar e você aprova o preço antes de entrar na venda</div>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr auto", gap: 10, alignItems: "end" }}>
+                <Campo label="Produto (se cadastrado)">
+                  <select value={formEnc.id_produto} onChange={(e) => {
+                    const p = produtos.find((x) => x.id === Number(e.target.value));
+                    setFormEnc((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : f.descricao }));
+                  }} style={sel(true)}>
+                    <option value="">— item novo / avulso —</option>
+                    {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
+                  </select>
+                </Campo>
+                <Campo label="Descrição *"><input value={formEnc.descricao} onChange={(e) => setFormEnc((f) => ({ ...f, descricao: e.target.value }))} style={inp(true)} /></Campo>
+                <Campo label="Qtd"><input value={formEnc.quantidade} onChange={(e) => setFormEnc((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} /></Campo>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={solicitarEncomenda} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
+                  <button onClick={() => setEncOpen(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {addItem && (
             <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14 }}>
@@ -377,6 +456,7 @@ export default function Vendas({ usuario }) {
                     <select value={formItem.id_produto} onChange={(e) => {
                       const p = produtos.find((x) => x.id === Number(e.target.value));
                       setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "" }));
+                      if (e.target.value) resolverPreco(e.target.value);
                     }} style={sel(true)}>
                       <option value="">Selecione...</option>
                       {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
@@ -397,10 +477,10 @@ export default function Vendas({ usuario }) {
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
                 <Campo label="Descrição"><input value={formItem.descricao} onChange={(e) => setFormItem((f) => ({ ...f, descricao: e.target.value }))} style={inp(true)} /></Campo>
                 <Campo label="Qtd"><input value={formItem.quantidade} onChange={(e) => setFormItem((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} /></Campo>
-                <Campo label="Valor unit."><input value={formItem.valor_unitario} onChange={(e) => setFormItem((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
+                <Campo label={precoOrigem ? `Valor unit. (${precoOrigem})` : "Valor unit."}><input value={formItem.valor_unitario} onChange={(e) => setFormItem((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
                 <Campo label="Desc %"><input value={formItem.percentual_desconto} onChange={(e) => setFormItem((f) => ({ ...f, percentual_desconto: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={lancarItem} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
+                  <button onClick={() => lancarItem()} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
                   <button onClick={() => setAddItem(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
                 </div>
               </div>
@@ -450,7 +530,7 @@ export default function Vendas({ usuario }) {
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
                 <button onClick={() => setFatOpen(false)} style={btnGhost()}>Cancelar</button>
-                <button onClick={faturar} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                <button onClick={() => faturar()} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
                   <DollarSign size={14} /> {saving ? "Faturando..." : "Confirmar Faturamento"}
                 </button>
               </div>

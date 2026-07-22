@@ -8,7 +8,11 @@ export async function rpc(fn, body = {}) {
     headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error("HTTP " + res.status);
+  if (!res.ok) {
+    let msg = "HTTP " + res.status;
+    try { const j = await res.json(); msg = j.message || j.hint || msg; } catch { /* corpo não-JSON */ }
+    throw new Error(msg);
+  }
   return res.json();
 }
 
