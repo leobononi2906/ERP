@@ -80,7 +80,8 @@ export default function OrdensServico({ usuario }) {
 
   // servico inline
   const [addServico, setAddServico] = useState(false);
-  const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
+  const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: "" });
+  const [areas, setAreas] = useState([]);
 
   // apontamento
   const [apontando, setApontando] = useState(null); // id_servico_os sendo apontado
@@ -97,8 +98,9 @@ export default function OrdensServico({ usuario }) {
       sbQ("veiculos", "select=id,placa,id_cliente,marca,modelo,cor,ano_fabricacao,ano_modelo,km_atual,combustivel,chassi&ativo=eq.true&order=placa"),
       sbQ("usuarios", "select=id,nome&order=nome"),
       sbQ("servicos", "select=id,codigo,nome,preco&situacao=eq.ATIVO&order=nome"),
+      sbQ("grupos_servico", "ativo=eq.true&order=descricao"),
     ])
-      .then(([os, cli, tip, veic, usr, serv]) => {
+      .then(([os, cli, tip, veic, usr, serv, ars]) => {
         if (!ok) return;
         setLista(Array.isArray(os) ? os : []);
         setClientes(Array.isArray(cli) ? cli : []);
@@ -106,6 +108,7 @@ export default function OrdensServico({ usuario }) {
         setVeiculos(Array.isArray(veic) ? veic : []);
         setUsuarios(Array.isArray(usr) ? usr : []);
         setServicos(Array.isArray(serv) ? serv : []);
+        setAreas(Array.isArray(ars) ? ars : []);
       })
       .catch((e) => setErro(e.message))
       .finally(() => ok && setLoading(false));
@@ -196,9 +199,10 @@ export default function OrdensServico({ usuario }) {
         p_valor_unitario: num(formServ.valor_unitario) || 0,
         p_valor_total: (num(formServ.quantidade) || 1) * (num(formServ.valor_unitario) || 0),
         p_id_tecnico: num(formServ.id_tecnico) || null,
+        p_id_area: num(formServ.id_area) || null,
       });
       setOsServicos((l) => [...l, res]);
-      setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
+      setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: "" });
       setAddServico(false);
       // Recarregar OS para atualizar totais
       const osAtualizada = await sbQ("ordens_servico", `id=eq.${osAtual.id}`);
@@ -232,7 +236,7 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Solicitar peça (envia para Separação) ─────────────── */
   const [modalPeca, setModalPeca] = useState(false);
-  const [formPeca, setFormPeca] = useState({ id_produto: "", quantidade: 1 });
+  const [formPeca, setFormPeca] = useState({ id_produto: "", quantidade: 1, consumo: false, id_producao: "" });
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [expedicoesOs, setExpedicoesOs] = useState([]);
@@ -241,7 +245,7 @@ export default function OrdensServico({ usuario }) {
     if (produtos.length > 0) return;
     setLoadingProdutos(true);
     try {
-      const p = await sbQ("produtos", "select=id,referencia,nome,preco_venda&situacao=eq.ATIVO&order=nome");
+      const p = await sbQ("produtos", "select=id,referencia,nome,preco_venda,produzido&situacao=eq.ATIVO&order=nome");
       setProdutos(Array.isArray(p) ? p : []);
     } catch (e) { /* ignore */ }
     finally { setLoadingProdutos(false); }
@@ -265,11 +269,15 @@ export default function OrdensServico({ usuario }) {
         p_quantidade: num(formPeca.quantidade) || 1,
         p_valor_unitario: prod ? prod.preco_venda : 0,
         p_id_usuario: usuario.id,
+        p_consumo: !!formPeca.consumo,
+        p_id_producao: num(formPeca.id_producao) || null,
       });
-      setFormPeca({ id_produto: "", quantidade: 1 });
+      setFormPeca({ id_produto: "", quantidade: 1, consumo: false, id_producao: "" });
       setModalPeca(false);
       await carregarExpedicoesOs(osAtual.id);
-      notificar(`Peça solicitada → Separação ${res.numero}`);
+      const pecasAtu = await sbQ("os_pecas", `id_os=eq.${osAtual.id}&order=id`);
+      setOsPecas(Array.isArray(pecasAtu) ? pecasAtu : []);
+      notificar(formPeca.consumo ? `Consumo solicitado → Separação ${res.numero}` : `Peça solicitada → Separação ${res.numero}`);
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
@@ -327,11 +335,23 @@ export default function OrdensServico({ usuario }) {
     }
   }
 
-  async function confirmarFaturamento() {
+  async function confirmarFaturamento(libCredito = false) {
     if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
     setSaving(true);
     try {
-      await rpc("os_faturar", { p_id_os: osAtual.id, p_id_forma_pagamento: num(fatForma), p_id_condicao_pagamento: num(fatCond) || null });
+      const res = await rpc("os_faturar", { p: {
+        id_os: osAtual.id, id_forma_pagamento: num(fatForma),
+        id_condicao_pagamento: num(fatCond) || null, _ator: usuario.id,
+        _lib_credito: libCredito,
+      }});
+      if (res?.ok === false) {
+        if (res.credito?.permite_liberacao && perms.aprovar && !libCredito) {
+          setSaving(false);
+          if (window.confirm(res.msg + "\n\nVocê tem permissão de aprovação. Liberar o crédito e faturar mesmo assim?")) { confirmarFaturamento(true); }
+          return;
+        }
+        notificar(res.msg, "erro"); setSaving(false); return;
+      }
       setModalFaturar(false);
       const osAtualizada = await sbQ("ordens_servico", `id=eq.${osAtual.id}`);
       if (osAtualizada[0]) { setOsAtual(osAtualizada[0]); setLista(l => l.map(o => o.id === osAtualizada[0].id ? osAtualizada[0] : o)); }
@@ -339,6 +359,64 @@ export default function OrdensServico({ usuario }) {
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
+  }
+
+  /* ─── Produção (OP dentro da OS) ─────────────────────────────── */
+  const [modalProducao, setModalProducao] = useState(false);
+  const [formProd, setFormProd] = useState({ id_produto: "", quantidade: 1, valor_unitario: "", id_area: "" });
+
+  async function lancarProducao() {
+    if (!formProd.id_produto) { notificar("Selecione o produto a produzir.", "erro"); return; }
+    setSaving(true);
+    try {
+      await rpc("os_lancar_producao", { p: {
+        id_os: osAtual.id, id_produto: num(formProd.id_produto),
+        quantidade: num(formProd.quantidade) || 1,
+        valor_unitario: num(formProd.valor_unitario) || null,
+        id_area: num(formProd.id_area) || null, _ator: usuario.id,
+      }});
+      setModalProducao(false); setFormProd({ id_produto: "", quantidade: 1, valor_unitario: "", id_area: "" });
+      const [pecasAtu, osAtu] = await Promise.all([
+        sbQ("os_pecas", `id_os=eq.${osAtual.id}&order=id`),
+        sbQ("ordens_servico", `id=eq.${osAtual.id}`),
+      ]);
+      setOsPecas(Array.isArray(pecasAtu) ? pecasAtu : []);
+      if (osAtu[0]) setOsAtual(osAtu[0]);
+      notificar("Produção lançada — vai aparecer na Distribuição para o gestor designar o colaborador.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(false); }
+  }
+
+  async function concluirProducao(idOsPeca) {
+    if (!window.confirm("Concluir a produção? O produto acabado entra no estoque e sai imediatamente para esta OS.")) return;
+    setSaving(true);
+    try {
+      const res = await rpc("os_producao_concluir", { p_id_os_peca: idOsPeca, p_id_usuario: usuario.id });
+      if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
+      const [pecasAtu, osAtu] = await Promise.all([
+        sbQ("os_pecas", `id_os=eq.${osAtual.id}&order=id`),
+        sbQ("ordens_servico", `id=eq.${osAtual.id}`),
+      ]);
+      setOsPecas(Array.isArray(pecasAtu) ? pecasAtu : []);
+      if (osAtu[0]) setOsAtual(osAtu[0]);
+      notificar(`Produção concluída — custo ${res.modo_custo === "REAL" ? "real (consumo)" : "pela composição"}: ${fmtBRL(res.custo_usado)}`);
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(false); }
+  }
+
+  async function iniciarApontamentoProducao(idOsPeca) {
+    const agora = new Date();
+    try {
+      const res = await sbInsert("os_apontamentos", {
+        id_os: osAtual.id, id_os_peca: idOsPeca, id_colaborador: usuario.id,
+        data_apontamento: agora.toISOString().slice(0, 10),
+        hora_inicio: agora.toTimeString().slice(0, 8),
+        horas_trabalhadas: 0, fator: 0,
+      });
+      const saved = Array.isArray(res) ? res[0] : res;
+      setOsApontamentos((l) => [saved, ...l]);
+      notificar("Apontamento da produção iniciado.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
 
   /* ─── Apontamento: iniciar / finalizar ───────────────────────── */
@@ -695,7 +773,26 @@ export default function OrdensServico({ usuario }) {
 
                 {/* Form inline para adicionar serviço */}
                 {addServico && (
-                  <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14, display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
+                  <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  {areas.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 6 }}>Área do serviço</span>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {areas.map((a) => {
+                          const on = String(formServ.id_area) === String(a.id);
+                          return (
+                            <div key={a.id} onClick={() => setFormServ((f) => ({ ...f, id_area: on ? "" : String(a.id) }))} style={{
+                              padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                              border: on ? `2px solid ${C.primary}` : `2px solid ${C.border}`,
+                              background: on ? "rgba(0,170,238,0.08)" : "#fff",
+                              color: on ? C.primary : C.foreground,
+                            }}>{a.codigo ? `${a.codigo} · ` : ""}{a.descricao}</div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
                     <Campo label="Descrição do serviço *">
                       <input value={formServ.descricao} onChange={(e) => setFormServ((f) => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Trocar farol dianteiro" style={inp(true)} />
                     </Campo>
@@ -715,6 +812,7 @@ export default function OrdensServico({ usuario }) {
                       <button onClick={adicionarServico} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
                       <button onClick={() => setAddServico(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
                     </div>
+                  </div>
                   </div>
                 )}
 
@@ -768,11 +866,16 @@ export default function OrdensServico({ usuario }) {
             {abaDetalhe === "pecas" && (
               <div style={cardStyle()}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>Peças da OS</span>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Peças da OS{num(osAtual.valor_consumo) > 0 ? <span style={{ fontSize: 11, fontWeight: 500, color: C.warning, marginLeft: 10 }}>consumo interno: {fmtBRL(osAtual.valor_consumo)} (não cobrado)</span> : null}</span>
                   {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
-                    <button onClick={() => { carregarProdutos(); setModalPeca(true); }} style={btnPrimary()}>
-                      <Send size={14} /> Solicitar Peça
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => { carregarProdutos(); setModalProducao(true); }} style={btnGhost()}>
+                        <Wrench size={14} /> Lançar Produção
+                      </button>
+                      <button onClick={() => { carregarProdutos(); setModalPeca(true); }} style={btnPrimary()}>
+                        <Send size={14} /> Solicitar Peça
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -798,20 +901,48 @@ export default function OrdensServico({ usuario }) {
                 ) : osPecas.length > 0 && (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
-                      {["Descrição", "Referência", "Qtd", "Valor Unit.", "Total"].map((h, i) => (
-                        <th key={i} style={th(i >= 2)}>{h}</th>
+                      {["Descrição", "Referência", "Qtd", "Valor Unit.", "Total", ""].map((h, i) => (
+                        <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
-                      {osPecas.map((p) => (
-                        <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                          <td style={{ ...td(), fontWeight: 500 }}>{p.descricao}</td>
+                      {osPecas.map((p) => {
+                        const aptAbertoProd = p.produzido ? osApontamentos.find((a) => a.id_os_peca === p.id && !a.hora_termino) : null;
+                        return (
+                        <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: p.consumo ? 0.85 : 1 }}>
+                          <td style={{ ...td(), fontWeight: 500 }}>
+                            {p.descricao}
+                            {p.consumo && <span style={{ marginLeft: 8, background: C.warningBg, color: C.warning, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>CONSUMO</span>}
+                            {p.produzido && <span style={{ marginLeft: 8, background: "#E8E0F8", color: "#6B3FA0", fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>PRODUÇÃO · {p.status || "PENDENTE"}</span>}
+                            {p.id_encomenda && <span style={{ marginLeft: 8, background: C.bluePale, color: C.blueMid, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>ENCOMENDA</span>}
+                          </td>
                           <td style={{ ...td(), color: C.muted, fontFamily: mono }}>{p.referencia || "—"}</td>
                           <td style={{ ...td(), textAlign: "right" }}>{p.quantidade}</td>
                           <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(p.valor_unitario)}</td>
-                          <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(p.valor_total)}</td>
+                          <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{p.consumo ? "—" : fmtBRL(p.valor_total)}</td>
+                          <td style={{ ...td(), whiteSpace: "nowrap" }}>
+                            {p.produzido && p.status !== "CONCLUIDO" && (
+                              <span style={{ display: "inline-flex", gap: 6 }}>
+                                {aptAbertoProd ? (
+                                  <button onClick={() => finalizarApontamento(aptAbertoProd)} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30` }} title="Finalizar apontamento">
+                                    <Square size={14} />
+                                  </button>
+                                ) : (
+                                  <button onClick={() => iniciarApontamentoProducao(p.id)} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${C.success}30` }} title="Iniciar apontamento">
+                                    <Play size={14} />
+                                  </button>
+                                )}
+                                {perms.aprovar && (
+                                  <button onClick={() => concluirProducao(p.id)} style={{ ...btnIcon(), color: C.primary, borderColor: C.primary }} title="Concluir produção">
+                                    <CheckCircle2 size={14} />
+                                  </button>
+                                )}
+                              </span>
+                            )}
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -836,7 +967,7 @@ export default function OrdensServico({ usuario }) {
                     </tr></thead>
                     <tbody>
                       {osApontamentos.map((apt) => {
-                        const servDesc = (osServicos.find((s) => s.id === apt.id_servico_os) || {}).descricao || "—";
+                        const servDesc = apt.id_os_peca ? ("PRODUÇÃO: " + ((osPecas.find((x) => x.id === apt.id_os_peca) || {}).descricao || "—")) : ((osServicos.find((s) => s.id === apt.id_servico_os) || {}).descricao || "—");
                         const emAberto = !apt.hora_termino;
                         return (
                           <tr key={apt.id} style={{ borderBottom: `1px solid ${C.border}`, background: emAberto ? C.successBg : "transparent" }}>
@@ -872,6 +1003,64 @@ export default function OrdensServico({ usuario }) {
           </>
         )}
 
+        {/* ─── MODAL LANÇAR PRODUÇÃO ─────────────────────────── */}
+        {modalProducao && (
+          <div onClick={() => setModalProducao(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 480, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>Lançar Produção na OS</span>
+                <button onClick={() => setModalProducao(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+              </div>
+              <div style={{ padding: 20 }}>
+                {loadingProdutos ? <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Carregando produtos...</div> : (
+                  <>
+                    {produtos.filter(x => x.produzido).length === 0 && (
+                      <Aviso cor="warning"><AlertCircle size={15} /> Nenhum produto marcado como "produzido". Marque no cadastro de Produtos.</Aviso>
+                    )}
+                    <Campo label="Produto a produzir *">
+                      <select value={formProd.id_produto} onChange={e => {
+                        const pr = produtos.find(x => x.id === Number(e.target.value));
+                        setFormProd(f => ({ ...f, id_produto: e.target.value, valor_unitario: pr ? pr.preco_venda : "" }));
+                      }} style={sel(true)}>
+                        <option value="">Selecione...</option>
+                        {produtos.filter(x => x.produzido).map(x => <option key={x.id} value={x.id}>{x.referencia ? `${x.referencia} — ` : ""}{x.nome}</option>)}
+                      </select>
+                    </Campo>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+                      <Campo label="Quantidade"><input value={formProd.quantidade} onChange={e => setFormProd(f => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} /></Campo>
+                      <Campo label="Valor de venda unit."><input value={formProd.valor_unitario} onChange={e => setFormProd(f => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
+                    </div>
+                    {areas.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 6 }}>Área responsável</span>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {areas.map((a) => {
+                            const on = String(formProd.id_area) === String(a.id);
+                            return (
+                              <div key={a.id} onClick={() => setFormProd((f) => ({ ...f, id_area: on ? "" : String(a.id) }))} style={{
+                                padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                                border: on ? `2px solid ${C.primary}` : `2px solid ${C.border}`,
+                                background: on ? "rgba(0,170,238,0.08)" : "#fff",
+                                color: on ? C.primary : C.foreground,
+                              }}>{a.codigo ? `${a.codigo} · ` : ""}{a.descricao}</div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+                      <button onClick={() => setModalProducao(false)} style={btnGhost()}>Cancelar</button>
+                      <button onClick={lancarProducao} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                        <Wrench size={14} /> {saving ? "Lançando..." : "Lançar Produção"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ─── MODAL SOLICITAR PEÇA ──────────────────────────── */}
         {modalPeca && (
           <div onClick={() => setModalPeca(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
@@ -892,6 +1081,18 @@ export default function OrdensServico({ usuario }) {
                     <Campo label="Quantidade">
                       <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
                     </Campo>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 13, cursor: "pointer" }}>
+                      <input type="checkbox" checked={!!formPeca.consumo} onChange={e => setFormPeca(f => ({ ...f, consumo: e.target.checked }))} />
+                      <span><b>Item de consumo</b> — entra no custo da OS, não é cobrado do cliente</span>
+                    </label>
+                    {formPeca.consumo && osPecas.filter(x => x.produzido && x.status !== "CONCLUIDO").length > 0 && (
+                      <Campo label="Vincular à produção (opcional)">
+                        <select value={formPeca.id_producao} onChange={e => setFormPeca(f => ({ ...f, id_producao: e.target.value }))} style={sel(true)}>
+                          <option value="">— consumo geral da OS —</option>
+                          {osPecas.filter(x => x.produzido && x.status !== "CONCLUIDO").map(x => <option key={x.id} value={x.id}>{x.descricao}</option>)}
+                        </select>
+                      </Campo>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
                       <button onClick={() => setModalPeca(false)} style={btnGhost()}>Cancelar</button>
                       <button onClick={solicitarPeca} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
@@ -979,7 +1180,7 @@ export default function OrdensServico({ usuario }) {
                 </Campo>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
                   <button onClick={() => setModalFaturar(false)} style={btnGhost()}>Cancelar</button>
-                  <button onClick={confirmarFaturamento} disabled={saving} style={{ ...btnPrimary(), background: C.success, opacity: saving ? 0.6 : 1 }}>
+                  <button onClick={() => confirmarFaturamento()} disabled={saving} style={{ ...btnPrimary(), background: C.success, opacity: saving ? 0.6 : 1 }}>
                     <DollarSign size={14} /> {saving ? "Faturando..." : "Confirmar Faturamento"}
                   </button>
                 </div>
