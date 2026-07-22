@@ -869,6 +869,17 @@ export default function OrdensServico({ usuario }) {
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Peças da OS{num(osAtual.valor_consumo) > 0 ? <span style={{ fontSize: 11, fontWeight: 500, color: C.warning, marginLeft: 10 }}>consumo interno: {fmtBRL(osAtual.valor_consumo)} (não cobrado)</span> : null}</span>
                   {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
                     <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => {
+                        const desc = window.prompt("Encomenda — descreva o item que precisa ser comprado para esta OS:");
+                        if (!desc) return;
+                        const qtd = window.prompt("Quantidade:", "1");
+                        if (qtd === null) return;
+                        rpc("encomenda_solicitar", { p: { origem: "OS", id_os: osAtual.id, descricao: desc, quantidade: num(qtd) || 1, _ator: usuario.id } })
+                          .then((r) => notificar(`Encomenda ${r.numero} enviada para o Compras cotar.`))
+                          .catch((e) => notificar("Erro: " + e.message, "erro"));
+                      }} style={btnGhost()}>
+                        <Package size={14} /> Encomendar
+                      </button>
                       <button onClick={() => { carregarProdutos(); setModalProducao(true); }} style={btnGhost()}>
                         <Wrench size={14} /> Lançar Produção
                       </button>

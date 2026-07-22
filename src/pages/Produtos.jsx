@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc } from "../config";
+import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
 const SITUACOES = ["ATIVO", "INATIVO"];
 const ORIGENS = [
@@ -8,7 +8,7 @@ const ORIGENS = [
   { v: 3, t: "3 - Nacional >40% import." }, { v: 4, t: "4 - Nacional (PPB)" }, { v: 5, t: "5 - Nacional <40% import." },
   { v: 6, t: "6 - Estrangeira s/ similar (direta)" }, { v: 7, t: "7 - Estrangeira s/ similar (interno)" }, { v: 8, t: "8 - Nacional >70% import." },
 ];
-const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "" });
+const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "" });
 
 export default function Produtos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.produtos) || {};
@@ -115,7 +115,16 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
         <Campo label="Código de barras"><input value={form.codigo_barras} onChange={(e) => setF("codigo_barras", e.target.value)} disabled={!cadOk} style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="Situação"><select value={form.situacao} onChange={(e) => setF("situacao", e.target.value)} disabled={!cadOk} style={sel(true, !cadOk)}>{SITUACOES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Campo>
         <Campo label="Descrição" span={3}><textarea value={form.descricao} onChange={(e) => setF("descricao", e.target.value)} disabled={!cadOk} rows={2} style={{ ...inp(true, !cadOk), resize: "vertical", height: "auto", paddingTop: 10 }} /></Campo>
+        <Campo label="Produção" span={3}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: cadOk ? "pointer" : "default", height: 40 }}>
+            <input type="checkbox" checked={!!form.produzido} disabled={!cadOk} onChange={(e) => setF("produzido", e.target.checked)} />
+            <span><b>Produto produzido internamente</b> — aparece no botão "Lançar Produção" da OS e pode ter composição de custo</span>
+          </label>
+        </Campo>
       </Secao>
+
+      {form.produzido && form.id && <Composicao idProduto={form.id} podeEditar={cadOk} />}
+      {form.produzido && !form.id && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto primeiro para montar a composição (peças e serviços que formam o custo).</Aviso>}
 
       <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: `3px solid ${protOk ? C.blueMid : C.warning}` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
@@ -153,4 +162,116 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
 }
 function ReadStat({ label, valor }) {
   return (<div><span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 5 }}>{label}</span><div style={{ background: "#EEF1F6", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", height: 40, boxSizing: "border-box", fontFamily: mono, fontWeight: 600, color: C.muted }}>{valor}</div></div>);
+}
+
+/* ═══ COMPOSIÇÃO DO PRODUTO PRODUZIDO ═══════════════════════════ */
+function Composicao({ idProduto, podeEditar }) {
+  const [itens, setItens] = useState([]);
+  const [custoTotal, setCustoTotal] = useState(0);
+  const [prods, setProds] = useState([]);
+  const [servs, setServs] = useState([]);
+  const [carregado, setCarregado] = useState(false);
+  const [formC, setFormC] = useState({ tipo: "PECA", id_item: "", quantidade: 1, valor_unitario: "" });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function carregar() {
+    try {
+      const r = await rpc("produto_composicao_listar", { p_id_produto: idProduto });
+      setItens(Array.isArray(r?.itens) ? r.itens : []);
+      setCustoTotal(num(r?.custo_total));
+    } catch (e) { setMsg("Erro: " + e.message); }
+  }
+  useEffect(() => {
+    let a = true;
+    carregar();
+    const hdrs2 = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Accept-Profile": "Teste ERP", Range: "0-9999" };
+    Promise.all([
+      rpc("produtos_dados"),
+      fetch(`${SUPA_URL}/rest/v1/servicos?select=id,nome,preco&situacao=eq.ATIVO&order=nome`, { headers: hdrs2 }).then((r) => r.ok ? r.json() : []),
+    ]).then(([pd, sv]) => {
+      if (!a) return;
+      setProds((pd?.produtos || []).filter((x) => x.id !== idProduto && !x.produzido));
+      setServs(Array.isArray(sv) ? sv : []);
+      setCarregado(true);
+    }).catch(() => a && setCarregado(true));
+    return () => { a = false; };
+  }, [idProduto]);
+
+  async function adicionar() {
+    if (!formC.id_item) { setMsg("Selecione o item."); return; }
+    setSaving(true); setMsg("");
+    try {
+      await rpc("produto_composicao_salvar", { p: {
+        id_produto: idProduto, tipo: formC.tipo,
+        id_produto_componente: formC.tipo === "PECA" ? num(formC.id_item) : null,
+        id_servico: formC.tipo === "SERVICO" ? num(formC.id_item) : null,
+        quantidade: num(formC.quantidade) || 1,
+        valor_unitario: num(formC.valor_unitario) || null,
+      }});
+      setFormC({ tipo: formC.tipo, id_item: "", quantidade: 1, valor_unitario: "" });
+      await carregar();
+    } catch (e) { setMsg("Erro: " + e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function remover(id) {
+    try { await rpc("produto_composicao_excluir", { p_id: id }); await carregar(); }
+    catch (e) { setMsg("Erro: " + e.message); }
+  }
+
+  const lista = formC.tipo === "PECA" ? prods : servs;
+
+  return (
+    <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: "3px solid #6B3FA0" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6B3FA0", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+        <Boxes size={14} /> Composição do produto
+      </div>
+      <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 12 }}>Peças e serviços que formam o custo de referência. Custo total: <b style={{ fontFamily: mono, color: C.foreground }}>{fmtBRL(custoTotal)}</b></p>
+      {msg && <Aviso cor="destructive"><AlertCircle size={15} /> {msg}</Aviso>}
+
+      {podeEditar && carregado && (
+        <div style={{ display: "grid", gridTemplateColumns: "110px 2fr 90px 110px auto", gap: 8, alignItems: "end", marginBottom: 12, background: C.surface2, borderRadius: 10, padding: 12 }}>
+          <Campo label="Tipo">
+            <select value={formC.tipo} onChange={(e) => setFormC((f) => ({ ...f, tipo: e.target.value, id_item: "", valor_unitario: "" }))} style={sel(true)}>
+              <option value="PECA">Peça</option>
+              <option value="SERVICO">Serviço</option>
+            </select>
+          </Campo>
+          <Campo label={formC.tipo === "PECA" ? "Produto" : "Serviço"}>
+            <select value={formC.id_item} onChange={(e) => {
+              const it = lista.find((x) => x.id === Number(e.target.value));
+              setFormC((f) => ({ ...f, id_item: e.target.value, valor_unitario: it ? (formC.tipo === "PECA" ? (it.preco_custo || it.preco_venda) : it.preco) : "" }));
+            }} style={sel(true)}>
+              <option value="">Selecione...</option>
+              {lista.map((x) => <option key={x.id} value={x.id}>{x.referencia ? `${x.referencia} — ` : ""}{x.nome}</option>)}
+            </select>
+          </Campo>
+          <Campo label="Qtd"><input value={formC.quantidade} onChange={(e) => setFormC((f) => ({ ...f, quantidade: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
+          <Campo label="Custo unit."><input value={formC.valor_unitario} onChange={(e) => setFormC((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={{ ...inp(true), fontFamily: mono }} /></Campo>
+          <button onClick={adicionar} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Plus size={14} /></button>
+        </div>
+      )}
+
+      {itens.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "20px 0", color: C.textMuted, fontSize: 13 }}>Nenhum item na composição.</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr>{["Tipo", "Item", "Qtd", "Custo Unit.", "Subtotal", ""].map((h, i) => <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>)}</tr></thead>
+          <tbody>
+            {itens.map((it) => (
+              <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <td style={td()}><Badge texto={it.tipo === "PECA" ? "PEÇA" : "SERVIÇO"} cor={it.tipo === "PECA" ? "ATIVO" : "ABERTA"} /></td>
+                <td style={{ ...td(), fontWeight: 500 }}>{it.descricao}</td>
+                <td style={{ ...td(), textAlign: "right" }}>{num(it.quantidade)}</td>
+                <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.valor_unitario)}</td>
+                <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(num(it.quantidade) * num(it.valor_unitario))}</td>
+                <td style={{ ...td(), textAlign: "right" }}>{podeEditar && <button onClick={() => remover(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><X size={13} /></button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }

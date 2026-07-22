@@ -209,7 +209,7 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
             const falta = Number(it.qtd_input) < Number(it.quantidade_pedida);
             return (
               <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ ...td(), fontWeight: 600, maxWidth: 240 }}>{it.produto}</td>
+                <td style={{ ...td(), fontWeight: 600, maxWidth: 240 }}>{it.produto}{it.consumo && <span style={{ marginLeft: 8, background: C.warningBg, color: C.warning, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>CONSUMO</span>}</td>
                 <td style={{ ...td(), fontFamily: mono, fontSize: 12 }}>{it.referencia || "—"}</td>
                 <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{num(it.estoque_disponivel)}</td>
                 <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{num(it.quantidade_pedida)}</td>

@@ -20,6 +20,8 @@ import Separacao from "./pages/Separacao";
 import Administracao from "./pages/Administracao";
 import DistribuicaoServicos from "./pages/DistribuicaoServicos";
 import Servicos from "./pages/Servicos";
+import PrecosEspeciais from "./pages/PrecosEspeciais";
+import Encomendas from "./pages/Encomendas";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
@@ -30,6 +32,7 @@ const MENU_GROUPS = [
       { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
       { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
       { key: "distribuicao_os", label: "Distribuição OS", icon: Users, ok: true, permKey: "os" },
+      { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
     ],
   },
   {
@@ -40,6 +43,7 @@ const MENU_GROUPS = [
       { key: "veiculos", label: "Veículos", icon: Truck, ok: true },
       { key: "tipos_operacao", label: "Tipos de Operação", icon: Settings, ok: true },
       { key: "servicos", label: "Serviços", icon: Wrench, ok: true, permKey: "produtos" },
+      { key: "precos_especiais", label: "Preços Especiais", icon: DollarSign, ok: true, permKey: "produtos" },
     ],
   },
   {
@@ -191,6 +195,8 @@ export default function App() {
         {pagina === "separacao" && <Separacao usuario={usuario} />}
         {pagina === "financeiro" && <Financeiro usuario={usuario} />}
         {pagina === "servicos" && <Servicos usuario={usuario} />}
+        {pagina === "precos_especiais" && <PrecosEspeciais usuario={usuario} />}
+        {pagina === "encomendas" && <Encomendas usuario={usuario} />}
         {pagina === "admin" && <Administracao usuario={usuario} />}
         {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "admin"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>

@@ -10,6 +10,7 @@ const ABAS = [
   { key: "grupos", label: "Grupos de Acesso", icon: Shield },
   { key: "usuarios", label: "Usuários", icon: Users },
   { key: "desconto", label: "Política de Desconto", icon: Percent },
+  { key: "config", label: "Configurações", icon: KeyRound },
 ];
 
 export default function Administracao({ usuario }) {
@@ -53,6 +54,7 @@ export default function Administracao({ usuario }) {
       {aba === "grupos" && <AbaGrupos dados={dados} onReload={carregar} />}
       {aba === "usuarios" && <AbaUsuarios dados={dados} onReload={carregar} />}
       {aba === "desconto" && <AbaDesconto dados={dados} onReload={carregar} />}
+      {aba === "config" && <AbaConfig usuario={usuario} />}
     </div>
   );
 }
@@ -557,6 +559,80 @@ function AbaDesconto({ dados, onReload }) {
             </table>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══ ABA CONFIGURAÇÕES ═══════════════════════════════════════════ */
+const CONFIG_META = {
+  credito_bloqueia_vencido: { label: "Bloquear venda a prazo com título vencido", tipo: "sn" },
+  credito_dias_tolerancia: { label: "Dias de tolerância após o vencimento", tipo: "num" },
+  credito_permite_liberacao: { label: "Gestor pode liberar crédito na hora", tipo: "sn" },
+  op_custo_modo: { label: "Custo do produto produzido na OS", tipo: "opcao", opcoes: [["COMPOSICAO", "Pela composição (custo de referência)"], ["REAL", "Pelo consumo real apontado"]] },
+};
+
+function AbaConfig({ usuario }) {
+  const [configs, setConfigs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function carregar() {
+    setLoading(true);
+    try { const r = await rpc("erp_config_listar"); setConfigs(Array.isArray(r) ? r : []); }
+    catch (e) { console.error(e); }
+    setLoading(false);
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function salvar(chave, valor) {
+    setSalvando(chave);
+    try {
+      await rpc("erp_config_salvar", { p_chave: chave, p_valor: String(valor), p_id_usuario: usuario.id });
+      setConfigs((l) => l.map((c) => c.chave === chave ? { ...c, valor: String(valor) } : c));
+      setMsg("Salvo.");
+      setTimeout(() => setMsg(""), 2000);
+    } catch (e) { setMsg("Erro: " + e.message); }
+    finally { setSalvando(""); }
+  }
+
+  if (loading) return <div style={{ padding: 30, textAlign: "center", color: C.textMuted }}>Carregando...</div>;
+
+  return (
+    <div style={cardStyle()}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Configurações do sistema</div>
+      <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 16 }}>Valem para todas as empresas. {msg && <b style={{ color: C.success }}>{msg}</b>}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {configs.map((c) => {
+          const meta = CONFIG_META[c.chave] || { label: c.descricao || c.chave, tipo: "texto" };
+          return (
+            <div key={c.chave} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "12px 14px", background: C.surface2, borderRadius: 10 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{meta.label}</div>
+                {c.descricao && <div style={{ fontSize: 11.5, color: C.textMuted }}>{c.descricao}</div>}
+              </div>
+              <div style={{ opacity: salvando === c.chave ? 0.5 : 1 }}>
+                {meta.tipo === "sn" && (
+                  <select value={c.valor} onChange={(e) => salvar(c.chave, e.target.value)} style={sel()}>
+                    <option value="S">Sim</option><option value="N">Não</option>
+                  </select>
+                )}
+                {meta.tipo === "num" && (
+                  <input defaultValue={c.valor} onBlur={(e) => e.target.value !== c.valor && salvar(c.chave, e.target.value)} inputMode="numeric" style={{ ...inp(), width: 90, textAlign: "right" }} />
+                )}
+                {meta.tipo === "opcao" && (
+                  <select value={c.valor} onChange={(e) => salvar(c.chave, e.target.value)} style={sel()}>
+                    {meta.opcoes.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                )}
+                {meta.tipo === "texto" && (
+                  <input defaultValue={c.valor} onBlur={(e) => e.target.value !== c.valor && salvar(c.chave, e.target.value)} style={{ ...inp(), width: 160 }} />
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
