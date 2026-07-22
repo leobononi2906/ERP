@@ -42,6 +42,13 @@ function StatusBadge({ status, validade }) {
 
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
 
+function DescontoFeedback({ limite, origem, bloqueado, promocao }) {
+  if (bloqueado) return <span style={{ fontSize: 11, color: C.destructive, fontWeight: 600 }}>Sem desconto</span>;
+  if (promocao) return <span style={{ fontSize: 11, color: C.success, fontWeight: 600 }}>Promo</span>;
+  if (limite == null) return null;
+  return <span style={{ fontSize: 11, color: C.muted }}>Limite: {limite}%</span>;
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 export default function Orcamentos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.orcamentos) || {};
@@ -165,6 +172,22 @@ export default function Orcamentos({ usuario }) {
         setPrecoOrigem(r.origem === "CLIENTE_PRODUTO" ? "preço especial do cliente" : r.origem === "GERAL" ? "" : "tabela de preço");
       }
     } catch { /* mantém preço padrão */ }
+  }
+
+  /* ─── consulta limite de desconto em tempo real ──────────── */
+  const [limiteDesc, setLimiteDesc] = useState(null);
+  async function consultarLimiteDesconto(idProduto) {
+    if (!idProduto) { setLimiteDesc(null); return; }
+    try {
+      const r = await rpc("erp_consultar_limite_desconto", {
+        p_id_usuario: usuario.id, p_id_produto: Number(idProduto),
+      });
+      setLimiteDesc(r);
+    } catch { setLimiteDesc(null); }
+  }
+
+  function isAVista() {
+    return !orcAtual?.id_condicao_pagamento;
   }
 
   /* ─── itens ────────────────────────────────────────────────── */
@@ -391,8 +414,9 @@ export default function Orcamentos({ usuario }) {
                   <Campo label="Produto" span={2}>
                     <select value={formItem.id_produto} onChange={(e) => {
                       const p = produtos.find((x) => x.id === Number(e.target.value));
-                      setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "" }));
-                      if (e.target.value) resolverPreco(e.target.value);
+                      setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "", percentual_desconto: 0 }));
+                      if (e.target.value) { resolverPreco(e.target.value); consultarLimiteDesconto(e.target.value); }
+                      else setLimiteDesc(null);
                     }} style={sel(true)}>
                       <option value="">Selecione...</option>
                       {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
@@ -403,6 +427,7 @@ export default function Orcamentos({ usuario }) {
                     <select value={formItem.id_servico} onChange={(e) => {
                       const s = servicos.find((x) => x.id === Number(e.target.value));
                       setFormItem((f) => ({ ...f, id_servico: e.target.value, descricao: s ? s.nome : "", valor_unitario: s ? s.preco : "" }));
+                      setLimiteDesc(null);
                     }} style={sel(true)}>
                       <option value="">Selecione...</option>
                       {servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -414,7 +439,16 @@ export default function Orcamentos({ usuario }) {
                 <Campo label="Descrição"><input value={formItem.descricao} onChange={(e) => setFormItem((f) => ({ ...f, descricao: e.target.value }))} style={inp(true)} /></Campo>
                 <Campo label="Qtd"><input value={formItem.quantidade} onChange={(e) => setFormItem((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} /></Campo>
                 <Campo label={precoOrigem ? `Valor unit. (${precoOrigem})` : "Valor unit."}><input value={formItem.valor_unitario} onChange={(e) => setFormItem((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
-                <Campo label="Desc %"><input value={formItem.percentual_desconto} onChange={(e) => setFormItem((f) => ({ ...f, percentual_desconto: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
+                <Campo label={<span>Desc % {limiteDesc && <DescontoFeedback {...limiteDesc} />}</span>}>
+                  <input value={formItem.percentual_desconto} onChange={(e) => setFormItem((f) => ({ ...f, percentual_desconto: e.target.value }))} inputMode="decimal"
+                    disabled={limiteDesc?.bloqueado}
+                    style={{
+                      ...inp(true, limiteDesc?.bloqueado),
+                      borderColor: limiteDesc && num(formItem.percentual_desconto) > 0
+                        ? (num(formItem.percentual_desconto) > (isAVista() ? (limiteDesc.limite_vista ?? 999) : (limiteDesc.limite_prazo ?? 999)) ? C.destructive : C.success)
+                        : C.border,
+                    }} />
+                </Campo>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => lancarItem()} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
                   <button onClick={() => setAddItem(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>

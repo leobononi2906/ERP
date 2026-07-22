@@ -8,7 +8,7 @@ const ORIGENS = [
   { v: 3, t: "3 - Nacional >40% import." }, { v: 4, t: "4 - Nacional (PPB)" }, { v: 5, t: "5 - Nacional <40% import." },
   { v: 6, t: "6 - Estrangeira s/ similar (direta)" }, { v: 7, t: "7 - Estrangeira s/ similar (interno)" }, { v: 8, t: "8 - Nacional >70% import." },
 ];
-const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "" });
+const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, bloquear_desconto: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "" });
 
 export default function Produtos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.produtos) || {};
@@ -115,10 +115,16 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
         <Campo label="Código de barras"><input value={form.codigo_barras} onChange={(e) => setF("codigo_barras", e.target.value)} disabled={!cadOk} style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="Situação"><select value={form.situacao} onChange={(e) => setF("situacao", e.target.value)} disabled={!cadOk} style={sel(true, !cadOk)}>{SITUACOES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Campo>
         <Campo label="Descrição" span={3}><textarea value={form.descricao} onChange={(e) => setF("descricao", e.target.value)} disabled={!cadOk} rows={2} style={{ ...inp(true, !cadOk), resize: "vertical", height: "auto", paddingTop: 10 }} /></Campo>
-        <Campo label="Produção" span={3}>
+        <Campo label="Produção" span={2}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: cadOk ? "pointer" : "default", height: 40 }}>
             <input type="checkbox" checked={!!form.produzido} disabled={!cadOk} onChange={(e) => setF("produzido", e.target.checked)} />
-            <span><b>Produto produzido internamente</b> — aparece no botão "Lançar Produção" da OS e pode ter composição de custo</span>
+            <span><b>Produto produzido internamente</b> — composição de custo na OS</span>
+          </label>
+        </Campo>
+        <Campo label="Desconto">
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: cadOk ? "pointer" : "default", height: 40 }}>
+            <input type="checkbox" checked={!!form.bloquear_desconto} disabled={!cadOk} onChange={(e) => setF("bloquear_desconto", e.target.checked)} />
+            <span><b>Bloquear desconto</b> — nenhuma política se aplica, desconto sempre 0%</span>
           </label>
         </Campo>
       </Secao>

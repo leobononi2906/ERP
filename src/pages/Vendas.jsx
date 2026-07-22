@@ -20,6 +20,13 @@ async function sbQ(t, q = "") {
 
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
 
+function DescontoFeedback({ limite, origem, bloqueado, promocao }) {
+  if (bloqueado) return <span style={{ fontSize: 11, color: C.destructive, fontWeight: 600 }}>Sem desconto</span>;
+  if (promocao) return <span style={{ fontSize: 11, color: C.success, fontWeight: 600 }}>Promo: {promocao.nome}</span>;
+  if (limite == null) return null;
+  return <span style={{ fontSize: 11, color: C.muted }}>Limite: {limite}%</span>;
+}
+
 export default function Vendas({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.vendas) || {};
 
@@ -94,6 +101,38 @@ export default function Vendas({ usuario }) {
       id_tabela_preco: cli.id_tabela_preco || f.id_tabela_preco || "",
       percentual_comissao: vendedor?.percentual_comissao || f.percentual_comissao || 0,
     }));
+  }
+
+  /* ─── recalcular preços ao mudar cliente/tabela numa venda existente ── */
+  async function recalcularPrecos(novoIdTabela) {
+    if (!vendaAtual?.id) return;
+    try {
+      const res = await rpc("venda_recalcular_precos", {
+        p_id_venda: vendaAtual.id,
+        p_id_tabela_preco: novoIdTabela ? Number(novoIdTabela) : null,
+        p_ator: usuario.id,
+      });
+      if (res?.itens_alterados > 0) {
+        await recarregarDetalhe(vendaAtual.id);
+        notificar(`${res.itens_alterados} item(ns) atualizado(s) com novos preços.`);
+      }
+    } catch (e) { console.error("Erro ao recalcular:", e); }
+  }
+
+  /* ─── consulta limite de desconto em tempo real ──────────── */
+  const [limiteDesc, setLimiteDesc] = useState(null);
+  async function consultarLimiteDesconto(idProduto) {
+    if (!idProduto) { setLimiteDesc(null); return; }
+    try {
+      const r = await rpc("erp_consultar_limite_desconto", {
+        p_id_usuario: usuario.id, p_id_produto: Number(idProduto),
+      });
+      setLimiteDesc(r);
+    } catch { setLimiteDesc(null); }
+  }
+
+  function isAVista() {
+    return !vendaAtual?.id_condicao_pagamento;
   }
 
   /* ─── CFOP resolvido ───────────────────────────────────────── */
@@ -339,6 +378,12 @@ export default function Vendas({ usuario }) {
               {tabelasPreco.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
             </select>
           </Campo>
+          <Campo label="Condição de Pagamento">
+            <select value={form.id_condicao_pagamento || ""} onChange={(e) => setF("id_condicao_pagamento", e.target.value)} style={sel(true)}>
+              <option value="">À vista</option>
+              {condPag.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
+            </select>
+          </Campo>
           <Campo label="Comissão %">
             <input value={form.percentual_comissao || ""} onChange={(e) => setF("percentual_comissao", e.target.value)} inputMode="decimal" style={inp(true)} />
           </Campo>
@@ -377,6 +422,7 @@ export default function Vendas({ usuario }) {
             <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
               {nomeCliente(vendaAtual.id_cliente)}
               {vendaAtual.id_vendedor ? ` · Vendedor: ${nomeUsuario(vendaAtual.id_vendedor)}` : ""}
+              {` · ${vendaAtual.id_condicao_pagamento ? (condPag.find((c) => c.id === vendaAtual.id_condicao_pagamento)?.descricao || "A prazo") : "À vista"}`}
               {tipoSaidaDesc(vendaAtual.id_tipo_saida) ? ` · ${tipoSaidaDesc(vendaAtual.id_tipo_saida)}` : ""}
               {cfop ? ` · CFOP: ${cfop}` : ""}
             </p>
@@ -455,11 +501,12 @@ export default function Vendas({ usuario }) {
                   <Campo label="Produto" span={2}>
                     <select value={formItem.id_produto} onChange={(e) => {
                       const p = produtos.find((x) => x.id === Number(e.target.value));
-                      setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "" }));
-                      if (e.target.value) resolverPreco(e.target.value);
+                      setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "", percentual_desconto: 0 }));
+                      if (e.target.value) { resolverPreco(e.target.value); consultarLimiteDesconto(e.target.value); }
+                      else setLimiteDesc(null);
                     }} style={sel(true)}>
                       <option value="">Selecione...</option>
-                      {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
+                      {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}{p.bloquear_desconto ? " (sem desc.)" : ""}</option>)}
                     </select>
                   </Campo>
                 ) : (
@@ -467,6 +514,7 @@ export default function Vendas({ usuario }) {
                     <select value={formItem.id_servico} onChange={(e) => {
                       const s = servicos.find((x) => x.id === Number(e.target.value));
                       setFormItem((f) => ({ ...f, id_servico: e.target.value, descricao: s ? s.nome : "", valor_unitario: s ? s.preco : "" }));
+                      setLimiteDesc(null);
                     }} style={sel(true)}>
                       <option value="">Selecione...</option>
                       {servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -478,7 +526,16 @@ export default function Vendas({ usuario }) {
                 <Campo label="Descrição"><input value={formItem.descricao} onChange={(e) => setFormItem((f) => ({ ...f, descricao: e.target.value }))} style={inp(true)} /></Campo>
                 <Campo label="Qtd"><input value={formItem.quantidade} onChange={(e) => setFormItem((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} /></Campo>
                 <Campo label={precoOrigem ? `Valor unit. (${precoOrigem})` : "Valor unit."}><input value={formItem.valor_unitario} onChange={(e) => setFormItem((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
-                <Campo label="Desc %"><input value={formItem.percentual_desconto} onChange={(e) => setFormItem((f) => ({ ...f, percentual_desconto: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
+                <Campo label={<span>Desc % {limiteDesc && <DescontoFeedback {...limiteDesc} />}</span>}>
+                  <input value={formItem.percentual_desconto} onChange={(e) => setFormItem((f) => ({ ...f, percentual_desconto: e.target.value }))} inputMode="decimal"
+                    disabled={limiteDesc?.bloqueado}
+                    style={{
+                      ...inp(true, limiteDesc?.bloqueado),
+                      borderColor: limiteDesc && num(formItem.percentual_desconto) > 0
+                        ? (num(formItem.percentual_desconto) > (isAVista() ? (limiteDesc.limite_vista ?? 999) : (limiteDesc.limite_prazo ?? 999)) ? C.destructive : C.success)
+                        : C.border,
+                    }} />
+                </Campo>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => lancarItem()} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
                   <button onClick={() => setAddItem(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
@@ -566,7 +623,7 @@ export default function Vendas({ usuario }) {
         <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Vendas</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {lista.length}</p></div>
         {perms.incluir && <button onClick={() => {
           const tipoPadrao = tiposSaida.find((t) => t.padrao);
-          setForm({ id: null, id_empresa: fEmpresa || "", id_cliente: "", id_vendedor: "", id_tipo_saida: tipoPadrao?.id || "", observacao: "", percentual_comissao: 0 });
+          setForm({ id: null, id_empresa: fEmpresa || "", id_cliente: "", id_vendedor: "", id_tipo_saida: tipoPadrao?.id || "", id_condicao_pagamento: "", observacao: "", percentual_comissao: 0 });
           setErroForm(""); setView("form");
         }} style={btnPrimary()}><Plus size={16} /> Nova Venda</button>}
       </div>

@@ -404,12 +404,13 @@ function AbaDesconto({ dados, onReload }) {
   const [gruposProd, setGruposProd] = useState([]);
   const [subgruposProd, setSubgruposProd] = useState([]);
   const [tabelas, setTabelas] = useState([]);
+  const [produtosList, setProdutosList] = useState([]);
 
   async function selecionarGrupo(g) {
     setGrupoSel(g);
     try {
       const r = await rpc("erp_politica_desconto_listar", { p_id_grupo: g.id });
-      setPoliticas(r || []);
+      setPoliticas(Array.isArray(r) ? r : []);
     } catch (e) { console.error(e); }
   }
 
@@ -417,18 +418,15 @@ function AbaDesconto({ dados, onReload }) {
     let a = true;
     async function load() {
       try {
-        const [gp, sp, tp] = await Promise.all([
-          fetch(`${import.meta.env.VITE_SUPA_URL || "https://vishxwdxqiygbxmtpfoy.supabase.co"}/rest/v1/grupos_produto?select=id,descricao&order=descricao`, {
-            headers: { apikey: "sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", Authorization: "Bearer sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO" },
-          }).then((r) => r.json()).catch(() => []),
-          fetch(`${import.meta.env.VITE_SUPA_URL || "https://vishxwdxqiygbxmtpfoy.supabase.co"}/rest/v1/subgrupos_produto?select=id,descricao&order=descricao`, {
-            headers: { apikey: "sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", Authorization: "Bearer sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO" },
-          }).then((r) => r.json()).catch(() => []),
-          fetch(`${import.meta.env.VITE_SUPA_URL || "https://vishxwdxqiygbxmtpfoy.supabase.co"}/rest/v1/tabelas_preco?select=id,descricao&order=descricao`, {
-            headers: { apikey: "sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", Authorization: "Bearer sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO" },
-          }).then((r) => r.json()).catch(() => []),
+        const hdrs2 = { apikey: "sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", Authorization: "Bearer sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", "Accept-Profile": "Teste ERP", Range: "0-9999" };
+        const base = import.meta.env.VITE_SUPA_URL || "https://vishxwdxqiygbxmtpfoy.supabase.co";
+        const [gp, sp, tp, pr] = await Promise.all([
+          fetch(`${base}/rest/v1/grupos_produto?select=id,descricao&order=descricao`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
+          fetch(`${base}/rest/v1/subgrupos_produto?select=id,descricao&order=descricao`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
+          fetch(`${base}/rest/v1/tabelas_preco?select=id,descricao&order=descricao`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
+          fetch(`${base}/rest/v1/produtos?select=id,nome,referencia&situacao=eq.ATIVO&order=nome`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
         ]);
-        if (a) { setGruposProd(gp || []); setSubgruposProd(sp || []); setTabelas(tp || []); }
+        if (a) { setGruposProd(gp || []); setSubgruposProd(sp || []); setTabelas(tp || []); setProdutosList(pr || []); }
       } catch (e) { console.error(e); }
     }
     load();
@@ -452,6 +450,11 @@ function AbaDesconto({ dados, onReload }) {
       await selecionarGrupo(grupoSel);
     } catch (e) { alert("Erro ao excluir"); }
   }
+
+  const novaPolitica = () => setEditPol({
+    id: 0, id_grupo_produto: null, id_subgrupo_produto: null, id_produto: null,
+    id_tabela_preco: null, desconto_maximo_vista: 0, desconto_maximo_prazo: 0, requer_aprovacao: false,
+  });
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 16 }}>
@@ -481,22 +484,28 @@ function AbaDesconto({ dados, onReload }) {
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <span style={{ fontSize: 14, fontWeight: 700 }}>Descontos: {grupoSel.nome}</span>
-              <button onClick={() => setEditPol({ id: 0, id_grupo_produto: null, id_subgrupo_produto: null, id_produto: null, id_tabela_preco: null, desconto_maximo: 0, requer_aprovacao: false })} style={btnPrimary()}>
+              <button onClick={novaPolitica} style={btnPrimary()}>
                 <Plus size={14} /> Nova Política
               </button>
             </div>
 
             {editPol && (
               <div style={{ background: C.surface2, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, alignItems: "end" }}>
+                  <Campo label="Produto específico">
+                    <select value={editPol.id_produto || ""} onChange={(e) => setEditPol({ ...editPol, id_produto: e.target.value ? Number(e.target.value) : null })} style={sel(true)}>
+                      <option value="">Todos</option>
+                      {produtosList.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
+                    </select>
+                  </Campo>
                   <Campo label="Grupo Produto">
-                    <select value={editPol.id_grupo_produto || ""} onChange={(e) => setEditPol({ ...editPol, id_grupo_produto: e.target.value ? Number(e.target.value) : null })} style={sel(true)}>
+                    <select value={editPol.id_grupo_produto || ""} onChange={(e) => setEditPol({ ...editPol, id_grupo_produto: e.target.value ? Number(e.target.value) : null })} style={sel(true)} disabled={!!editPol.id_produto}>
                       <option value="">Todos</option>
                       {gruposProd.map((g) => <option key={g.id} value={g.id}>{g.descricao}</option>)}
                     </select>
                   </Campo>
                   <Campo label="Subgrupo Produto">
-                    <select value={editPol.id_subgrupo_produto || ""} onChange={(e) => setEditPol({ ...editPol, id_subgrupo_produto: e.target.value ? Number(e.target.value) : null })} style={sel(true)}>
+                    <select value={editPol.id_subgrupo_produto || ""} onChange={(e) => setEditPol({ ...editPol, id_subgrupo_produto: e.target.value ? Number(e.target.value) : null })} style={sel(true)} disabled={!!editPol.id_produto}>
                       <option value="">Todos</option>
                       {subgruposProd.map((s) => <option key={s.id} value={s.id}>{s.descricao}</option>)}
                     </select>
@@ -507,11 +516,13 @@ function AbaDesconto({ dados, onReload }) {
                       {tabelas.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
                     </select>
                   </Campo>
-                  <div />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "120px 120px auto auto", gap: 10, alignItems: "end", marginTop: 10 }}>
-                  <Campo label="Desc. Máximo %">
-                    <input type="number" step="0.01" value={editPol.desconto_maximo} onChange={(e) => setEditPol({ ...editPol, desconto_maximo: Number(e.target.value) })} style={inp(true)} />
+                <div style={{ display: "grid", gridTemplateColumns: "120px 120px 130px auto auto", gap: 10, alignItems: "end", marginTop: 10 }}>
+                  <Campo label="Desc. Vista %">
+                    <input type="number" step="0.01" value={editPol.desconto_maximo_vista} onChange={(e) => setEditPol({ ...editPol, desconto_maximo_vista: Number(e.target.value) })} style={inp(true)} />
+                  </Campo>
+                  <Campo label="Desc. Prazo %">
+                    <input type="number" step="0.01" value={editPol.desconto_maximo_prazo} onChange={(e) => setEditPol({ ...editPol, desconto_maximo_prazo: Number(e.target.value) })} style={inp(true)} />
                   </Campo>
                   <Campo label="Requer Aprovação">
                     <select value={editPol.requer_aprovacao ? "true" : "false"} onChange={(e) => setEditPol({ ...editPol, requer_aprovacao: e.target.value === "true" })} style={sel(true)}>
@@ -528,32 +539,41 @@ function AbaDesconto({ dados, onReload }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
-                  <th style={th()}>Grupo Produto</th>
-                  <th style={th()}>Subgrupo</th>
+                  <th style={th()}>Escopo</th>
                   <th style={th()}>Tabela Preço</th>
-                  <th style={{ ...th(), textAlign: "right" }}>Desc. Máx %</th>
+                  <th style={{ ...th(), textAlign: "right" }}>Vista %</th>
+                  <th style={{ ...th(), textAlign: "right" }}>Prazo %</th>
                   <th style={{ ...th(), textAlign: "center" }}>Aprovação</th>
                   <th style={{ ...th(), textAlign: "center" }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {politicas.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td style={td()}>{p.grupo_produto_nome || "Todos"}</td>
-                    <td style={td()}>{p.subgrupo_produto_nome || "Todos"}</td>
-                    <td style={td()}>{p.tabela_preco_nome || "Todas"}</td>
-                    <td style={{ ...td(), textAlign: "right", fontWeight: 600 }}>{p.desconto_maximo}%</td>
-                    <td style={{ ...td(), textAlign: "center" }}>{p.requer_aprovacao ? <Badge texto="SIM" cor="ABERTA" /> : "—"}</td>
-                    <td style={{ ...td(), textAlign: "center" }}>
-                      <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                        <button onClick={() => setEditPol({ ...p })} style={btnIcon()} title="Editar"><Pencil size={14} /></button>
-                        <button onClick={() => excluirPolitica(p.id)} style={{ ...btnIcon(), color: C.destructive }} title="Excluir"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {politicas.map((p) => {
+                  const escopo = p.produto_nome
+                    ? `Produto: ${p.produto_nome}`
+                    : p.subgrupo_produto_nome
+                      ? `Subgrupo: ${p.subgrupo_produto_nome}`
+                      : p.grupo_produto_nome
+                        ? `Grupo: ${p.grupo_produto_nome}`
+                        : "Regra geral";
+                  return (
+                    <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ ...td(), fontWeight: p.produto_nome ? 600 : 400 }}>{escopo}</td>
+                      <td style={td()}>{p.tabela_preco_nome || "Todas"}</td>
+                      <td style={{ ...td(), textAlign: "right", fontWeight: 600 }}>{p.desconto_maximo_vista}%</td>
+                      <td style={{ ...td(), textAlign: "right", fontWeight: 600 }}>{p.desconto_maximo_prazo}%</td>
+                      <td style={{ ...td(), textAlign: "center" }}>{p.requer_aprovacao ? <Badge texto="SIM" cor="ABERTA" /> : "—"}</td>
+                      <td style={{ ...td(), textAlign: "center" }}>
+                        <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                          <button onClick={() => setEditPol({ ...p })} style={btnIcon()} title="Editar"><Pencil size={14} /></button>
+                          <button onClick={() => excluirPolitica(p.id)} style={{ ...btnIcon(), color: C.destructive }} title="Excluir"><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {politicas.length === 0 && (
-                  <tr><td colSpan={6} style={{ ...td(), textAlign: "center", color: C.textMuted, padding: 30 }}>Nenhuma política configurada</td></tr>
+                  <tr><td colSpan={6} style={{ ...td(), textAlign: "center", color: C.textMuted, padding: 30 }}>Nenhuma política configurada para este grupo</td></tr>
                 )}
               </tbody>
             </table>
