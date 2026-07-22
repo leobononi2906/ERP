@@ -4,33 +4,8 @@ import {
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
   DollarSign, Send, Eye,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
-
-/* ─── Helpers Supabase REST direto ─────────────────────────────── */
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" };
-const schema = "Teste ERP";
-const schemaHdr = { ...hdrs, "Accept-Profile": schema, "Content-Profile": schema };
-
-async function sbQ(table, qs = "") {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${table}?${qs}`, { headers: { ...schemaHdr, Range: "0-9999" } });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  return r.json();
-}
-async function sbInsert(table, row) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${table}`, { method: "POST", headers: schemaHdr, body: JSON.stringify(row) });
-  if (!r.ok) { const t = await r.text(); throw new Error(t); }
-  return r.json();
-}
-async function sbUpdate(table, id, row) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`, { method: "PATCH", headers: schemaHdr, body: JSON.stringify(row) });
-  if (!r.ok) { const t = await r.text(); throw new Error(t); }
-  return r.json();
-}
-async function sbDelete(table, id) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers: schemaHdr });
-  if (!r.ok) throw new Error(`${r.status}`);
-}
 
 
 const STATUS_CORES = {
@@ -91,24 +66,16 @@ export default function OrdensServico({ usuario }) {
   /* ─── Carregar dados iniciais ────────────────────────────────── */
   useEffect(() => {
     let ok = true;
-    Promise.all([
-      sbQ("ordens_servico", "order=data_entrada.desc"),
-      sbQ("clientes", "select=id,nome,cpf_cnpj,telefone,celular,endereco,numero,bairro,cidade,uf,cep&order=nome"),
-      sbQ("tipos_os", "ativo=eq.true&order=descricao"),
-      sbQ("veiculos", "select=id,placa,id_cliente,marca,modelo,cor,ano_fabricacao,ano_modelo,km_atual,combustivel,chassi&ativo=eq.true&order=placa"),
-      sbQ("usuarios", "select=id,nome&order=nome"),
-      sbQ("servicos", "select=id,codigo,nome,preco&situacao=eq.ATIVO&order=nome"),
-      sbQ("grupos_servico", "ativo=eq.true&order=descricao"),
-    ])
-      .then(([os, cli, tip, veic, usr, serv, ars]) => {
+    rpc("os_dados")
+      .then((d) => {
         if (!ok) return;
-        setLista(Array.isArray(os) ? os : []);
-        setClientes(Array.isArray(cli) ? cli : []);
-        setTiposOs(Array.isArray(tip) ? tip : []);
-        setVeiculos(Array.isArray(veic) ? veic : []);
-        setUsuarios(Array.isArray(usr) ? usr : []);
-        setServicos(Array.isArray(serv) ? serv : []);
-        setAreas(Array.isArray(ars) ? ars : []);
+        setLista(Array.isArray(d.ordens_servico) ? d.ordens_servico : []);
+        setClientes(Array.isArray(d.clientes) ? d.clientes : []);
+        setTiposOs(Array.isArray(d.tipos_os) ? d.tipos_os : []);
+        setVeiculos(Array.isArray(d.veiculos) ? d.veiculos : []);
+        setUsuarios(Array.isArray(d.usuarios) ? d.usuarios : []);
+        setServicos(Array.isArray(d.servicos) ? d.servicos : []);
+        setAreas(Array.isArray(d.grupos_servico) ? d.grupos_servico : []);
       })
       .catch((e) => setErro(e.message))
       .finally(() => ok && setLoading(false));
@@ -122,18 +89,12 @@ export default function OrdensServico({ usuario }) {
     setLoadingDetalhe(true);
     setView("detalhe");
     try {
-      const [servs, pecas, apts, exps, defs] = await Promise.all([
-        sbQ("os_servicos", `id_os=eq.${os.id}&order=id`),
-        sbQ("os_pecas", `id_os=eq.${os.id}&order=id`),
-        sbQ("os_apontamentos", `id_os=eq.${os.id}&order=data_apontamento.desc,hora_inicio.desc`),
-        sbQ("expedicoes", `id_os=eq.${os.id}&order=criado_em.desc`),
-        sbQ("os_defeitos", `id_os=eq.${os.id}&order=id`),
-      ]);
-      setOsServicos(Array.isArray(servs) ? servs : []);
-      setOsPecas(Array.isArray(pecas) ? pecas : []);
-      setOsApontamentos(Array.isArray(apts) ? apts : []);
-      setExpedicoesOs(Array.isArray(exps) ? exps : []);
-      setOsDefeitos(Array.isArray(defs) ? defs : []);
+      const d = await rpc("os_detalhe_dados", { p_id_os: os.id });
+      setOsServicos(Array.isArray(d.servicos) ? d.servicos : []);
+      setOsPecas(Array.isArray(d.pecas) ? d.pecas : []);
+      setOsApontamentos(Array.isArray(d.apontamentos) ? d.apontamentos : []);
+      setExpedicoesOs(Array.isArray(d.expedicoes) ? d.expedicoes : []);
+      setOsDefeitos(Array.isArray(d.defeitos) ? d.defeitos : []);
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
     } finally {
@@ -153,28 +114,22 @@ export default function OrdensServico({ usuario }) {
     if (!form.id_tipo_os) { setErroForm("Selecione o Tipo de OS."); return; }
     if (!form.id_cliente) { setErroForm("Selecione o cliente."); return; }
     setErroForm(""); setSaving(true);
-    const payload = {
-      numero: form.numero || proximoNumero(),
-      id_empresa: num(form.id_empresa) || 1,
-      id_cliente: num(form.id_cliente),
-      id_veiculo: num(form.id_veiculo) || null,
-      id_tipo_os: num(form.id_tipo_os) || null,
-      id_usuario_abertura: num(form.id_usuario_abertura) || null,
-      id_usuario_responsavel: num(form.id_usuario_responsavel) || null,
-      status: form.status || "ABERTA",
-      data_prevista: form.data_prevista || null,
-      km_entrada: num(form.km_entrada) || null,
-      defeito_relatado: form.defeito_relatado || null,
-      observacao_interna: form.observacao_interna || null,
-    };
     try {
-      let res;
-      if (form.id) {
-        res = await sbUpdate("ordens_servico", form.id, payload);
-      } else {
-        res = await sbInsert("ordens_servico", payload);
-      }
-      const saved = Array.isArray(res) ? res[0] : res;
+      const saved = await rpc("os_salvar", {
+        p_id: form.id || null,
+        p_numero: form.numero || proximoNumero(),
+        p_id_empresa: num(form.id_empresa) || 1,
+        p_id_cliente: num(form.id_cliente),
+        p_id_veiculo: num(form.id_veiculo) || null,
+        p_id_tipo_os: num(form.id_tipo_os) || null,
+        p_id_usuario_abertura: num(form.id_usuario_abertura) || null,
+        p_id_usuario_responsavel: num(form.id_usuario_responsavel) || null,
+        p_status: form.status || "ABERTA",
+        p_data_prevista: form.data_prevista || null,
+        p_km_entrada: num(form.km_entrada) || null,
+        p_defeito_relatado: form.defeito_relatado || null,
+        p_observacao_interna: form.observacao_interna || null,
+      });
       setLista((l) => {
         const sem = l.filter((o) => o.id !== saved.id);
         return [saved, ...sem];
@@ -205,8 +160,8 @@ export default function OrdensServico({ usuario }) {
       setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: "" });
       setAddServico(false);
       // Recarregar OS para atualizar totais
-      const osAtualizada = await sbQ("ordens_servico", `id=eq.${osAtual.id}`);
-      if (osAtualizada[0]) setOsAtual(osAtualizada[0]);
+      const osAtualizada = await rpc("os_recarregar", { p_id_os: osAtual.id });
+      if (osAtualizada) setOsAtual(osAtualizada);
       notificar("Serviço adicionado.");
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
@@ -245,16 +200,18 @@ export default function OrdensServico({ usuario }) {
     if (produtos.length > 0) return;
     setLoadingProdutos(true);
     try {
-      const p = await sbQ("produtos", "select=id,referencia,nome,preco_venda,produzido&situacao=eq.ATIVO&order=nome");
+      const p = await rpc("os_produtos_dados");
       setProdutos(Array.isArray(p) ? p : []);
     } catch (e) { /* ignore */ }
     finally { setLoadingProdutos(false); }
   }
 
-  async function carregarExpedicoesOs(idOs) {
+  async function recarregarDetalheOs(idOs) {
     try {
-      const exp = await sbQ("expedicoes", `id_os=eq.${idOs}&order=criado_em.desc`);
-      setExpedicoesOs(Array.isArray(exp) ? exp : []);
+      const d = await rpc("os_detalhe_dados", { p_id_os: idOs });
+      setExpedicoesOs(Array.isArray(d.expedicoes) ? d.expedicoes : []);
+      setOsPecas(Array.isArray(d.pecas) ? d.pecas : []);
+      return d;
     } catch (e) { /* ignore */ }
   }
 
@@ -274,9 +231,7 @@ export default function OrdensServico({ usuario }) {
       });
       setFormPeca({ id_produto: "", quantidade: 1, consumo: false, id_producao: "" });
       setModalPeca(false);
-      await carregarExpedicoesOs(osAtual.id);
-      const pecasAtu = await sbQ("os_pecas", `id_os=eq.${osAtual.id}&order=id`);
-      setOsPecas(Array.isArray(pecasAtu) ? pecasAtu : []);
+      await recarregarDetalheOs(osAtual.id);
       notificar(formPeca.consumo ? `Consumo solicitado → Separação ${res.numero}` : `Peça solicitada → Separação ${res.numero}`);
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
@@ -322,12 +277,9 @@ export default function OrdensServico({ usuario }) {
 
   async function abrirFaturamento() {
     try {
-      const [fp, cp] = await Promise.all([
-        sbQ("formas_pagamento", "ativo=eq.true&order=descricao"),
-        sbQ("condicoes_pagamento", "ativo=eq.true&order=descricao"),
-      ]);
-      setFormasPag(Array.isArray(fp) ? fp : []);
-      setCondicoesPag(Array.isArray(cp) ? cp : []);
+      const d = await rpc("os_faturamento_dados");
+      setFormasPag(Array.isArray(d.formas_pagamento) ? d.formas_pagamento : []);
+      setCondicoesPag(Array.isArray(d.condicoes_pagamento) ? d.condicoes_pagamento : []);
       setFatForma(""); setFatCond("");
       setModalFaturar(true);
     } catch (e) {
@@ -353,8 +305,8 @@ export default function OrdensServico({ usuario }) {
         notificar(res.msg, "erro"); setSaving(false); return;
       }
       setModalFaturar(false);
-      const osAtualizada = await sbQ("ordens_servico", `id=eq.${osAtual.id}`);
-      if (osAtualizada[0]) { setOsAtual(osAtualizada[0]); setLista(l => l.map(o => o.id === osAtualizada[0].id ? osAtualizada[0] : o)); }
+      const osAtualizada = await rpc("os_recarregar", { p_id_os: osAtual.id });
+      if (osAtualizada) { setOsAtual(osAtualizada); setLista(l => l.map(o => o.id === osAtualizada.id ? osAtualizada : o)); }
       notificar("OS faturada com sucesso!");
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
@@ -376,12 +328,9 @@ export default function OrdensServico({ usuario }) {
         id_area: num(formProd.id_area) || null, _ator: usuario.id,
       }});
       setModalProducao(false); setFormProd({ id_produto: "", quantidade: 1, valor_unitario: "", id_area: "" });
-      const [pecasAtu, osAtu] = await Promise.all([
-        sbQ("os_pecas", `id_os=eq.${osAtual.id}&order=id`),
-        sbQ("ordens_servico", `id=eq.${osAtual.id}`),
-      ]);
-      setOsPecas(Array.isArray(pecasAtu) ? pecasAtu : []);
-      if (osAtu[0]) setOsAtual(osAtu[0]);
+      await recarregarDetalheOs(osAtual.id);
+      const osAtu = await rpc("os_recarregar", { p_id_os: osAtual.id });
+      if (osAtu) setOsAtual(osAtu);
       notificar("Produção lançada — vai aparecer na Distribuição para o gestor designar o colaborador.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setSaving(false); }
@@ -393,12 +342,9 @@ export default function OrdensServico({ usuario }) {
     try {
       const res = await rpc("os_producao_concluir", { p_id_os_peca: idOsPeca, p_id_usuario: usuario.id });
       if (res?.ok === false) { notificar(res.msg, "erro"); setSaving(false); return; }
-      const [pecasAtu, osAtu] = await Promise.all([
-        sbQ("os_pecas", `id_os=eq.${osAtual.id}&order=id`),
-        sbQ("ordens_servico", `id=eq.${osAtual.id}`),
-      ]);
-      setOsPecas(Array.isArray(pecasAtu) ? pecasAtu : []);
-      if (osAtu[0]) setOsAtual(osAtu[0]);
+      await recarregarDetalheOs(osAtual.id);
+      const osAtu = await rpc("os_recarregar", { p_id_os: osAtual.id });
+      if (osAtu) setOsAtual(osAtu);
       notificar(`Produção concluída — custo ${res.modo_custo === "REAL" ? "real (consumo)" : "pela composição"}: ${fmtBRL(res.custo_usado)}`);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setSaving(false); }
@@ -407,13 +353,12 @@ export default function OrdensServico({ usuario }) {
   async function iniciarApontamentoProducao(idOsPeca) {
     const agora = new Date();
     try {
-      const res = await sbInsert("os_apontamentos", {
-        id_os: osAtual.id, id_os_peca: idOsPeca, id_colaborador: usuario.id,
-        data_apontamento: agora.toISOString().slice(0, 10),
-        hora_inicio: agora.toTimeString().slice(0, 8),
-        horas_trabalhadas: 0, fator: 0,
+      const saved = await rpc("os_apontamento_salvar", {
+        p_id_os: osAtual.id, p_id_os_peca: idOsPeca, p_id_colaborador: usuario.id,
+        p_data_apontamento: agora.toISOString().slice(0, 10),
+        p_hora_inicio: agora.toTimeString().slice(0, 8),
+        p_horas_trabalhadas: 0, p_fator: 0,
       });
-      const saved = Array.isArray(res) ? res[0] : res;
       setOsApontamentos((l) => [saved, ...l]);
       notificar("Apontamento da produção iniciado.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -424,16 +369,15 @@ export default function OrdensServico({ usuario }) {
     const agora = new Date();
     const horaStr = agora.toTimeString().slice(0, 8);
     try {
-      const res = await sbInsert("os_apontamentos", {
-        id_os: osAtual.id,
-        id_servico_os: idServicoOs,
-        id_colaborador: usuario.id,
-        data_apontamento: agora.toISOString().slice(0, 10),
-        hora_inicio: horaStr,
-        horas_trabalhadas: 0,
-        fator: 0,
+      const saved = await rpc("os_apontamento_salvar", {
+        p_id_os: osAtual.id,
+        p_id_servico_os: idServicoOs,
+        p_id_colaborador: usuario.id,
+        p_data_apontamento: agora.toISOString().slice(0, 10),
+        p_hora_inicio: horaStr,
+        p_horas_trabalhadas: 0,
+        p_fator: 0,
       });
-      const saved = Array.isArray(res) ? res[0] : res;
       setOsApontamentos((l) => [saved, ...l]);
       setApontando(idServicoOs);
       notificar("Apontamento iniciado.");
@@ -446,17 +390,17 @@ export default function OrdensServico({ usuario }) {
     const agora = new Date();
     const horaStr = agora.toTimeString().slice(0, 8);
     // Calcular horas trabalhadas
-    const [hi, mi, si] = apt.hora_inicio.split(":").map(Number);
-    const [hf, mf, sf] = horaStr.split(":").map(Number);
+    const [hi, mi] = apt.hora_inicio.split(":").map(Number);
+    const [hf, mf] = horaStr.split(":").map(Number);
     const diffMin = (hf * 60 + mf) - (hi * 60 + mi);
     const horas = Math.max(0, +(diffMin / 60).toFixed(2));
     try {
-      const res = await sbUpdate("os_apontamentos", apt.id, {
-        hora_termino: horaStr,
-        horas_trabalhadas: horas,
-        fator: horas,
+      const saved = await rpc("os_apontamento_salvar", {
+        p_id: apt.id,
+        p_hora_termino: horaStr,
+        p_horas_trabalhadas: horas,
+        p_fator: horas,
       });
-      const saved = Array.isArray(res) ? res[0] : res;
       setOsApontamentos((l) => l.map((a) => a.id === saved.id ? saved : a));
       setApontando(null);
       notificar(`Apontamento finalizado — ${horas}h registradas.`);
@@ -468,7 +412,7 @@ export default function OrdensServico({ usuario }) {
   /* ─── Excluir apontamento ────────────────────────────────────── */
   async function excluirApontamento(id) {
     try {
-      await sbDelete("os_apontamentos", id);
+      await rpc("os_apontamento_excluir", { p_id: id });
       setOsApontamentos((l) => l.filter((a) => a.id !== id));
       notificar("Apontamento removido.");
     } catch (e) {
