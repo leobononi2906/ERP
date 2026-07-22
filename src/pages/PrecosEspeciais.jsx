@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, Save, X, AlertCircle, CheckCircle2, Trash2, Tag } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Campo, Badge, Skeleton } from "../ui";
-
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
-const schemaHdr = { ...hdrs, "Accept-Profile": "Teste ERP" };
-async function sbQ(t, q = "") {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${t}?${q}`, { headers: { ...schemaHdr, Range: "0-9999" } });
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
-}
 
 const VAZIO = { id: null, id_cliente: "", id_produto: "", preco: "", observacao: "" };
 
@@ -31,14 +23,13 @@ export default function PrecosEspeciais({ usuario }) {
   async function carregar() {
     setLoading(true);
     try {
-      const [precos, cli, prod] = await Promise.all([
+      const [precos, aux] = await Promise.all([
         rpc("erp_preco_cliente_listar", {}),
-        sbQ("clientes", "select=id,nome&situacao=eq.ATIVO&order=nome"),
-        sbQ("produtos", "select=id,referencia,nome,preco_venda&situacao=eq.ATIVO&order=nome"),
+        rpc("precos_especiais_dados"),
       ]);
       setLista(Array.isArray(precos) ? precos : []);
-      setClientes(Array.isArray(cli) ? cli : []);
-      setProdutos(Array.isArray(prod) ? prod : []);
+      setClientes(aux.clientes ?? []);
+      setProdutos(aux.produtos ?? []);
     } catch (e) { notificar("Erro ao carregar: " + e.message, "erro"); }
     finally { setLoading(false); }
   }

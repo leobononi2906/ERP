@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, Truck } from "lucide-react";
-import { C, mono, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
-
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" };
-const schemaHdr = { ...hdrs, "Accept-Profile": "Teste ERP", "Content-Profile": "Teste ERP" };
-
-async function sbQ(t, q = "") { const r = await fetch(`${SUPA_URL}/rest/v1/${t}?${q}`, { headers: { ...schemaHdr, Range: "0-9999" } }); if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.json(); }
-async function sbInsert(t, row) { const r = await fetch(`${SUPA_URL}/rest/v1/${t}`, { method: "POST", headers: schemaHdr, body: JSON.stringify(row) }); if (!r.ok) { const x = await r.text(); throw new Error(x); } return r.json(); }
-async function sbUpdate(t, id, row) { const r = await fetch(`${SUPA_URL}/rest/v1/${t}?id=eq.${id}`, { method: "PATCH", headers: schemaHdr, body: JSON.stringify(row) }); if (!r.ok) { const x = await r.text(); throw new Error(x); } return r.json(); }
 
 
 const VAZIO = () => ({ id: null, placa: "", marca: "", modelo: "", cor: "", ano_fabricacao: "", ano_modelo: "", chassi: "", renavam: "", km_atual: "", combustivel: "", id_cliente: "", observacao: "", ativo: true });
@@ -29,11 +22,9 @@ export default function Veiculos({ usuario }) {
 
   useEffect(() => {
     let ok = true;
-    Promise.all([
-      sbQ("veiculos", "order=placa"),
-      sbQ("clientes", "select=id,nome&order=nome"),
-    ]).then(([v, c]) => { if (ok) { setLista(Array.isArray(v) ? v : []); setClientes(Array.isArray(c) ? c : []); } })
-      .catch(() => {}).finally(() => ok && setLoading(false));
+    rpc("veiculos_dados").then((d) => {
+      if (ok) { setLista(d.veiculos ?? []); setClientes(d.clientes ?? []); }
+    }).catch(() => {}).finally(() => ok && setLoading(false));
     return () => { ok = false; };
   }, []);
 
@@ -44,6 +35,7 @@ export default function Veiculos({ usuario }) {
     if (!form.placa.trim()) { setErroForm("A placa é obrigatória."); return; }
     setErroForm(""); setSaving(true);
     const payload = {
+      id: form.id || null,
       placa: form.placa.toUpperCase().trim(),
       marca: form.marca || null, modelo: form.modelo || null, cor: form.cor || null,
       ano_fabricacao: Number(form.ano_fabricacao) || null, ano_modelo: Number(form.ano_modelo) || null,
@@ -53,10 +45,7 @@ export default function Veiculos({ usuario }) {
       ativo: form.ativo !== false,
     };
     try {
-      let res;
-      if (form.id) { res = await sbUpdate("veiculos", form.id, payload); }
-      else { res = await sbInsert("veiculos", payload); }
-      const saved = Array.isArray(res) ? res[0] : res;
+      const saved = await rpc("veiculo_salvar", { p: payload });
       setLista((l) => { const sem = l.filter((x) => x.id !== saved.id); return [...sem, saved].sort((a, b) => (a.placa || "").localeCompare(b.placa || "")); });
       notificar(form.id ? "Veículo atualizado." : "Veículo cadastrado.");
       setView("lista");

@@ -1,16 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, AlertCircle, CheckCircle2, Lock, Wrench } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
-
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" };
-const schema = "Teste ERP";
-const schemaHdr = { ...hdrs, "Accept-Profile": schema, "Content-Profile": schema };
-async function sbQ(table, qs = "") {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${table}?${qs}`, { headers: { ...schemaHdr, Range: "0-9999" } });
-  if (!r.ok) throw new Error(`${r.status}`);
-  return r.json();
-}
 
 const VAZIO = () => ({ id: null, codigo: "", nome: "", descricao: "", preco: "", unidade: "UN", situacao: "ATIVO", id_grupo: "" });
 
@@ -50,13 +41,10 @@ export default function Servicos({ usuario }) {
 
   useEffect(() => {
     let ok = true;
-    Promise.all([
-      sbQ("servicos", "order=nome"),
-      sbQ("grupos_servico", "order=descricao"),
-    ]).then(([s, g]) => {
+    rpc("servicos_dados").then((d) => {
       if (!ok) return;
-      setLista(Array.isArray(s) ? s : []);
-      setGrupos(Array.isArray(g) ? g : []);
+      setLista(d.servicos ?? []);
+      setGrupos(d.grupos_servico ?? []);
     }).catch(() => {}).finally(() => ok && setLoading(false));
     return () => { ok = false; };
   }, []);

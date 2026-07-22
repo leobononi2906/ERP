@@ -69,13 +69,13 @@ export default function OrdensServico({ usuario }) {
     rpc("os_dados")
       .then((d) => {
         if (!ok) return;
-        setLista(Array.isArray(d.ordens_servico) ? d.ordens_servico : []);
-        setClientes(Array.isArray(d.clientes) ? d.clientes : []);
-        setTiposOs(Array.isArray(d.tipos_os) ? d.tipos_os : []);
-        setVeiculos(Array.isArray(d.veiculos) ? d.veiculos : []);
-        setUsuarios(Array.isArray(d.usuarios) ? d.usuarios : []);
-        setServicos(Array.isArray(d.servicos) ? d.servicos : []);
-        setAreas(Array.isArray(d.grupos_servico) ? d.grupos_servico : []);
+        setLista(d.ordens_servico ?? []);
+        setClientes(d.clientes ?? []);
+        setTiposOs(d.tipos_os ?? []);
+        setVeiculos(d.veiculos ?? []);
+        setUsuarios(d.usuarios ?? []);
+        setServicos(d.servicos ?? []);
+        setAreas(d.grupos_servico ?? []);
       })
       .catch((e) => setErro(e.message))
       .finally(() => ok && setLoading(false));
@@ -90,11 +90,11 @@ export default function OrdensServico({ usuario }) {
     setView("detalhe");
     try {
       const d = await rpc("os_detalhe_dados", { p_id_os: os.id });
-      setOsServicos(Array.isArray(d.servicos) ? d.servicos : []);
-      setOsPecas(Array.isArray(d.pecas) ? d.pecas : []);
-      setOsApontamentos(Array.isArray(d.apontamentos) ? d.apontamentos : []);
-      setExpedicoesOs(Array.isArray(d.expedicoes) ? d.expedicoes : []);
-      setOsDefeitos(Array.isArray(d.defeitos) ? d.defeitos : []);
+      setOsServicos(d.servicos ?? []);
+      setOsPecas(d.pecas ?? []);
+      setOsApontamentos(d.apontamentos ?? []);
+      setExpedicoesOs(d.expedicoes ?? []);
+      setOsDefeitos(d.defeitos ?? []);
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
     } finally {
@@ -200,8 +200,8 @@ export default function OrdensServico({ usuario }) {
     if (produtos.length > 0) return;
     setLoadingProdutos(true);
     try {
-      const p = await rpc("os_produtos_dados");
-      setProdutos(Array.isArray(p) ? p : []);
+      const d = await rpc("os_produtos_dados");
+      setProdutos(d.produtos ?? []);
     } catch (e) { /* ignore */ }
     finally { setLoadingProdutos(false); }
   }
@@ -209,8 +209,8 @@ export default function OrdensServico({ usuario }) {
   async function recarregarDetalheOs(idOs) {
     try {
       const d = await rpc("os_detalhe_dados", { p_id_os: idOs });
-      setExpedicoesOs(Array.isArray(d.expedicoes) ? d.expedicoes : []);
-      setOsPecas(Array.isArray(d.pecas) ? d.pecas : []);
+      setExpedicoesOs(d.expedicoes ?? []);
+      setOsPecas(d.pecas ?? []);
       return d;
     } catch (e) { /* ignore */ }
   }
@@ -278,8 +278,8 @@ export default function OrdensServico({ usuario }) {
   async function abrirFaturamento() {
     try {
       const d = await rpc("os_faturamento_dados");
-      setFormasPag(Array.isArray(d.formas_pagamento) ? d.formas_pagamento : []);
-      setCondicoesPag(Array.isArray(d.condicoes_pagamento) ? d.condicoes_pagamento : []);
+      setFormasPag(d.formas_pagamento ?? []);
+      setCondicoesPag(d.condicoes_pagamento ?? []);
       setFatForma(""); setFatCond("");
       setModalFaturar(true);
     } catch (e) {
@@ -389,7 +389,6 @@ export default function OrdensServico({ usuario }) {
   async function finalizarApontamento(apt) {
     const agora = new Date();
     const horaStr = agora.toTimeString().slice(0, 8);
-    // Calcular horas trabalhadas
     const [hi, mi] = apt.hora_inicio.split(":").map(Number);
     const [hf, mf] = horaStr.split(":").map(Number);
     const diffMin = (hf * 60 + mf) - (hi * 60 + mi);

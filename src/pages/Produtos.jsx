@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
 const SITUACOES = ["ATIVO", "INATIVO"];
 const ORIGENS = [
@@ -191,14 +191,13 @@ function Composicao({ idProduto, podeEditar }) {
   useEffect(() => {
     let a = true;
     carregar();
-    const hdrs2 = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Accept-Profile": "Teste ERP", Range: "0-9999" };
     Promise.all([
       rpc("produtos_dados"),
-      fetch(`${SUPA_URL}/rest/v1/servicos?select=id,nome,preco&situacao=eq.ATIVO&order=nome`, { headers: hdrs2 }).then((r) => r.ok ? r.json() : []),
+      rpc("produtos_servicos_dados"),
     ]).then(([pd, sv]) => {
       if (!a) return;
       setProds((pd?.produtos || []).filter((x) => x.id !== idProduto && !x.produzido));
-      setServs(Array.isArray(sv) ? sv : []);
+      setServs(sv.servicos ?? []);
       setCarregado(true);
     }).catch(() => a && setCarregado(true));
     return () => { a = false; };

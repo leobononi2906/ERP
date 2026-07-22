@@ -3,19 +3,11 @@ import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao,
 } from "../ui";
-
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
-const schemaHdr = { ...hdrs, "Accept-Profile": "Teste ERP", "Content-Profile": "Teste ERP" };
-async function sbQ(t, q = "") {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${t}?${q}`, { headers: { ...schemaHdr, Range: "0-9999" } });
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
-}
 
 
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
@@ -155,21 +147,17 @@ export default function Vendas({ usuario }) {
   async function abrirDetalhe(venda) {
     setVendaAtual(venda); setLoadDet(true); setView("detalhe"); setAddItem(false);
     try {
-      const it = await sbQ("vendas_itens", `id_venda=eq.${venda.id}&order=id`);
-      setItens(Array.isArray(it) ? it : []);
+      const d = await rpc("vendas_detalhe_dados", { p_id_venda: venda.id });
+      setItens(d.itens ?? []);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoadDet(false); }
   }
 
   async function recarregarDetalhe(id) {
-    const [vds, it] = await Promise.all([
-      sbQ("vendas", `id=eq.${id}`),
-      sbQ("vendas_itens", `id_venda=eq.${id}&order=id`),
-    ]);
-    const atualizado = Array.isArray(vds) ? vds[0] : vds;
-    setVendaAtual(atualizado);
-    setItens(Array.isArray(it) ? it : []);
-    setLista((l) => l.map((x) => x.id === atualizado.id ? atualizado : x));
+    const d = await rpc("vendas_detalhe_dados", { p_id_venda: id });
+    setVendaAtual(d.venda);
+    setItens(d.itens ?? []);
+    setLista((l) => l.map((x) => x.id === d.venda.id ? d.venda : x));
   }
 
   /* ─── salvar venda ─────────────────────────────────────────── */

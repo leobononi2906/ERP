@@ -4,20 +4,11 @@ import {
   ShoppingCart, Package, Wrench, FileText, Trash2, Eye, ThumbsUp, ThumbsDown,
   ArrowRightCircle, Clock, Calendar,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, fmtBRL, num, rpc } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao,
 } from "../ui";
-
-/* ─── helpers ──────────────────────────────────────────────────── */
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
-const schemaHdr = { ...hdrs, "Accept-Profile": "Teste ERP", "Content-Profile": "Teste ERP" };
-async function sbQ(t, q = "") {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${t}?${q}`, { headers: { ...schemaHdr, Range: "0-9999" } });
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
-}
 
 
 const STATUS_BADGE = {
@@ -114,21 +105,17 @@ export default function Orcamentos({ usuario }) {
   async function abrirDetalhe(orc) {
     setOrcAtual(orc); setLoadDet(true); setView("detalhe"); setAddItem(false);
     try {
-      const it = await sbQ("orcamentos_venda_itens", `id_orcamento=eq.${orc.id}&order=id`);
-      setItens(Array.isArray(it) ? it : []);
+      const d = await rpc("orcamentos_detalhe_dados", { p_id_orcamento: orc.id });
+      setItens(d.itens ?? []);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoadDet(false); }
   }
 
   async function recarregarDetalhe(id) {
-    const [orcs, it] = await Promise.all([
-      sbQ("orcamentos_venda", `id=eq.${id}`),
-      sbQ("orcamentos_venda_itens", `id_orcamento=eq.${id}&order=id`),
-    ]);
-    const atualizado = Array.isArray(orcs) ? orcs[0] : orcs;
-    setOrcAtual(atualizado);
-    setItens(Array.isArray(it) ? it : []);
-    setLista((l) => l.map((x) => x.id === atualizado.id ? atualizado : x));
+    const d = await rpc("orcamentos_detalhe_dados", { p_id_orcamento: id });
+    setOrcAtual(d.orcamento);
+    setItens(d.itens ?? []);
+    setLista((l) => l.map((x) => x.id === d.orcamento.id ? d.orcamento : x));
   }
 
   /* ─── defaults do cliente ──────────────────────────────────── */

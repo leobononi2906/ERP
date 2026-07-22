@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Settings, Star } from "lucide-react";
-import { C, mono, rpc, SUPA_URL, SUPA_KEY } from "../config";
+import { C, mono, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
-
-const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
-const schemaHdr = { ...hdrs, "Accept-Profile": "Teste ERP", "Content-Profile": "Teste ERP" };
-async function sbQ(t, q = "") {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${t}?${q}`, { headers: { ...schemaHdr, Range: "0-9999" } });
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
-}
 
 const VAZIO = () => ({
   id: null, descricao: "", mov_estoque: true, mov_financeiro: true, gera_nf: true,
@@ -53,16 +45,11 @@ export default function TiposOperacao({ usuario }) {
   async function carregar() {
     setLoading(true);
     try {
-      const [tp, nat, cc, pc] = await Promise.all([
-        sbQ("tipos_saida", "order=descricao"),
-        sbQ("naturezas_operacao", "ativo=eq.true&order=cfop"),
-        sbQ("centros_custo", "ativo=eq.true&order=descricao"),
-        sbQ("plano_contas", "order=codigo"),
-      ]);
-      setLista(Array.isArray(tp) ? tp : []);
-      setNaturezas(Array.isArray(nat) ? nat : []);
-      setCentrosCusto(Array.isArray(cc) ? cc : []);
-      setPlanoContas(Array.isArray(pc) ? pc : []);
+      const d = await rpc("tipos_operacao_dados");
+      setLista(d.tipos_saida ?? []);
+      setNaturezas(d.naturezas ?? []);
+      setCentrosCusto(d.centros_custo ?? []);
+      setPlanoContas(d.plano_contas ?? []);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoading(false); }
   }

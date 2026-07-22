@@ -416,20 +416,9 @@ function AbaDesconto({ dados, onReload }) {
 
   useEffect(() => {
     let a = true;
-    async function load() {
-      try {
-        const hdrs2 = { apikey: "sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", Authorization: "Bearer sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO", "Accept-Profile": "Teste ERP", Range: "0-9999" };
-        const base = import.meta.env.VITE_SUPA_URL || "https://vishxwdxqiygbxmtpfoy.supabase.co";
-        const [gp, sp, tp, pr] = await Promise.all([
-          fetch(`${base}/rest/v1/grupos_produto?select=id,descricao&order=descricao`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
-          fetch(`${base}/rest/v1/subgrupos_produto?select=id,descricao&order=descricao`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
-          fetch(`${base}/rest/v1/tabelas_preco?select=id,descricao&order=descricao`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
-          fetch(`${base}/rest/v1/produtos?select=id,nome,referencia&situacao=eq.ATIVO&order=nome`, { headers: hdrs2 }).then((r) => r.json()).catch(() => []),
-        ]);
-        if (a) { setGruposProd(gp || []); setSubgruposProd(sp || []); setTabelas(tp || []); setProdutosList(pr || []); }
-      } catch (e) { console.error(e); }
-    }
-    load();
+    rpc("erp_admin_desconto_auxiliares").then((d) => {
+      if (a) { setGruposProd(d.grupos_produto ?? []); setSubgruposProd(d.subgrupos_produto ?? []); setTabelas(d.tabelas_preco ?? []); setProdutosList(d.produtos ?? []); }
+    }).catch((e) => console.error(e));
     return () => { a = false; };
   }, []);
 
