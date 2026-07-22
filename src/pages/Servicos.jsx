@@ -30,11 +30,29 @@ export default function Servicos({ usuario }) {
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
 
+  /* ─── Gerenciar Áreas (grupos de serviço) ───────────────── */
+  const [modalAreas, setModalAreas] = useState(false);
+  const [formArea, setFormArea] = useState({ id: null, codigo: "", descricao: "", ativo: true });
+  async function salvarArea() {
+    if (!formArea.descricao.trim()) { notificar("Descrição da área é obrigatória.", "erro"); return; }
+    setSaving(true);
+    try {
+      const res = await rpc("grupo_servico_salvar", {
+        p_id: formArea.id || null, p_codigo: formArea.codigo || null,
+        p_descricao: formArea.descricao, p_ativo: formArea.ativo !== false,
+      });
+      setGrupos((l) => { const sem = l.filter((x) => x.id !== res.id); return [...sem, res].sort((a, b) => (a.descricao || "").localeCompare(b.descricao || "")); });
+      setFormArea({ id: null, codigo: "", descricao: "", ativo: true });
+      notificar("Área salva.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(false); }
+  }
+
   useEffect(() => {
     let ok = true;
     Promise.all([
       sbQ("servicos", "order=nome"),
-      sbQ("grupos_servico", "ativo=eq.true&order=descricao"),
+      sbQ("grupos_servico", "order=descricao"),
     ]).then(([s, g]) => {
       if (!ok) return;
       setLista(Array.isArray(s) ? s : []);
@@ -139,9 +157,14 @@ export default function Servicos({ usuario }) {
           <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} serviços</p>
         </div>
         {perms.incluir ? (
-          <button onClick={() => { setForm(VAZIO()); setErroForm(""); setView("form"); }} style={btnPrimary()}>
-            <Plus size={16} /> Novo Serviço
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setModalAreas(true)} style={btnGhost()}>
+              <Wrench size={14} /> Áreas de Serviço
+            </button>
+            <button onClick={() => { setForm(VAZIO()); setErroForm(""); setView("form"); }} style={btnPrimary()}>
+              <Plus size={16} /> Novo Serviço
+            </button>
+          </div>
         ) : (
           <span style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6 }}><Lock size={14} /> Sem permissão</span>
         )}
@@ -158,6 +181,42 @@ export default function Servicos({ usuario }) {
           <option value="INATIVO">Inativos</option>
         </select>
       </div>
+
+      {modalAreas && (
+        <div onClick={() => setModalAreas(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 520, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>Áreas de Serviço</span>
+              <button onClick={() => setModalAreas(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <p style={{ fontSize: 12, color: C.muted, marginTop: 0 }}>As áreas (auto elétrica, radiador, tacógrafo...) organizam a Distribuição de serviços por setor.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr auto auto", gap: 8, alignItems: "end", marginBottom: 14 }}>
+                <Campo label="Código"><input value={formArea.codigo || ""} onChange={(e) => setFormArea((f) => ({ ...f, codigo: e.target.value.toUpperCase() }))} maxLength={10} style={inp(true)} /></Campo>
+                <Campo label="Descrição *"><input value={formArea.descricao} onChange={(e) => setFormArea((f) => ({ ...f, descricao: e.target.value }))} style={inp(true)} /></Campo>
+                <button onClick={salvarArea} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
+                {formArea.id && <button onClick={() => setFormArea({ id: null, codigo: "", descricao: "", ativo: true })} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>}
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead><tr>{["Código", "Descrição", "Situação", ""].map((h, i) => <th key={i} style={th()}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {grupos.map((g) => (
+                    <tr key={g.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: g.ativo === false ? 0.5 : 1 }}>
+                      <td style={{ ...td(), fontFamily: mono, fontWeight: 700 }}>{g.codigo || "—"}</td>
+                      <td style={{ ...td(), fontWeight: 500 }}>{g.descricao}</td>
+                      <td style={td()}><Badge texto={g.ativo === false ? "INATIVO" : "ATIVO"} /></td>
+                      <td style={{ ...td(), whiteSpace: "nowrap" }}>
+                        <button onClick={() => setFormArea({ id: g.id, codigo: g.codigo || "", descricao: g.descricao, ativo: g.ativo !== false })} style={btnIcon()} title="Editar"><Pencil size={13} /></button>
+                        <button onClick={async () => { try { const r = await rpc("grupo_servico_salvar", { p_id: g.id, p_ativo: g.ativo === false }); setGrupos((l) => l.map((x) => x.id === r.id ? r : x)); } catch (e) { notificar("Erro: " + e.message, "erro"); } }} style={{ ...btnIcon(), marginLeft: 4 }} title={g.ativo === false ? "Reativar" : "Inativar"}>{g.ativo === false ? <CheckCircle2 size={13} /> : <X size={13} />}</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
         {loading ? (
