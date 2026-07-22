@@ -4,7 +4,7 @@ import {
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
   Boxes, PackageOpen,
 } from "lucide-react";
-import { C } from "./config";
+import { C, setLogUsuario } from "./config";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
@@ -91,7 +91,7 @@ export default function App() {
   const [pagina, setPagina] = useState("dashboard");
   const [gruposAbertos, setGruposAbertos] = useState({ comercial: true });
 
-  if (!usuario) return <Login onLogin={setUsuario} />;
+  if (!usuario) return <Login onLogin={(u) => { setLogUsuario(u); setUsuario(u); }} />;
 
   const perms = usuario.permissoes || {};
 
@@ -177,7 +177,7 @@ export default function App() {
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 4, padding: "0 6px" }}>
             {(usuario.grupos || []).map((g) => g.nome).join(", ") || "Sem grupo"}
           </div>
-          <div onClick={() => setUsuario(null)} style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer" }}>
+          <div onClick={() => { setLogUsuario(null); setUsuario(null); }} style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer" }}>
             <LogOut size={16} /> Sair ({usuario.nome})
           </div>
         </div>

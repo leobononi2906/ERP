@@ -6,7 +6,7 @@ import {
 import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
-  Aviso, Badge, Skeleton,
+  Aviso, Badge, Skeleton, ModalAprovacao,
 } from "../ui";
 
 const hdrs = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
@@ -67,6 +67,7 @@ export default function Vendas({ usuario }) {
   const [fatCond, setFatCond] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [motivoCancel, setMotivoCancel] = useState("");
+  const [aprovModal, setAprovModal] = useState({ aberto: false, mensagem: "", contexto: {} });
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
   const nomeCliente = (id) => (clientes.find((c) => c.id === id) || {}).nome || "—";
@@ -203,7 +204,7 @@ export default function Vendas({ usuario }) {
   }
 
   /* ─── lançar item ──────────────────────────────────────────── */
-  async function lancarItem(libDesconto = false) {
+  async function lancarItem(libDesconto = false, aprovador = null) {
     if (!formItem.descricao.trim()) { notificar("Descrição obrigatória.", "erro"); return; }
     const qty = num(formItem.quantidade) || 1;
     const vu = num(formItem.valor_unitario) || 0;
@@ -223,6 +224,7 @@ export default function Vendas({ usuario }) {
           p_percentual_desconto: descP, p_valor_desconto: vDesc, p_valor_total: vt,
           p_id_usuario: usuario.id,
           p_lib_desconto: libDesconto,
+          p_id_aprovador: aprovador?.id || null,
         });
         await recarregarDetalhe(vendaAtual.id);
         setFormItem({ ...ITEM_VAZIO }); setAddItem(false); setPrecoOrigem("");
@@ -245,12 +247,12 @@ export default function Vendas({ usuario }) {
     } catch (e) {
       if (String(e.message).includes("DESCONTO_EXCEDIDO")) {
         const msg = String(e.message).split("|")[1] || "Desconto acima do permitido.";
-        if (perms.aprovar) {
-          setSaving(false);
-          if (window.confirm(msg + "\n\nVocê tem permissão de aprovação. Liberar este desconto?")) { lancarItem(true); }
-          return;
-        }
-        notificar(msg + " Peça liberação a um gestor.", "erro");
+        setSaving(false);
+        setAprovModal({
+          aberto: true, mensagem: msg,
+          contexto: { id_venda: vendaAtual.id, id_produto: formItem.id_produto, percentual: num(formItem.percentual_desconto) },
+        });
+        return;
       } else notificar("Erro: " + e.message, "erro");
     }
     finally { setSaving(false); }
@@ -612,6 +614,20 @@ export default function Vendas({ usuario }) {
             </div>
           </div>
         )}
+
+        <ModalAprovacao
+          aberto={aprovModal.aberto}
+          titulo="Liberar desconto acima do permitido"
+          mensagem={aprovModal.mensagem}
+          modulo="vendas"
+          acao="DESCONTO_LIBERADO"
+          contexto={aprovModal.contexto}
+          onAprovado={(aprovador) => {
+            setAprovModal({ aberto: false, mensagem: "", contexto: {} });
+            lancarItem(true, aprovador);
+          }}
+          onCancelar={() => setAprovModal({ aberto: false, mensagem: "", contexto: {} })}
+        />
       </div>
     );
   }

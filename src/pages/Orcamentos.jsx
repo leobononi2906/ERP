@@ -7,7 +7,7 @@ import {
 import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
-  Aviso, Badge, Skeleton,
+  Aviso, Badge, Skeleton, ModalAprovacao,
 } from "../ui";
 
 /* ─── helpers ──────────────────────────────────────────────────── */
@@ -85,6 +85,7 @@ export default function Orcamentos({ usuario }) {
   /* ─── state: modais ────────────────────────────────────────── */
   const [reprovarOpen, setReprovarOpen] = useState(false);
   const [motivoRepr, setMotivoRepr] = useState("");
+  const [aprovModal, setAprovModal] = useState({ aberto: false, mensagem: "", contexto: {} });
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
   const nomeCliente = (id) => (clientes.find((c) => c.id === id) || {}).nome || "—";
@@ -191,7 +192,7 @@ export default function Orcamentos({ usuario }) {
   }
 
   /* ─── itens ────────────────────────────────────────────────── */
-  async function lancarItem(libDesconto = false) {
+  async function lancarItem(libDesconto = false, aprovador = null) {
     if (!formItem.descricao.trim()) { notificar("Descrição obrigatória.", "erro"); return; }
     const qty = num(formItem.quantidade) || 1;
     const vu = num(formItem.valor_unitario) || 0;
@@ -208,6 +209,7 @@ export default function Orcamentos({ usuario }) {
         quantidade: qty, valor_unitario: vu, percentual_desconto: descP,
         valor_desconto: vDesc, valor_total: vt, _ator: usuario.id,
         _lib_desconto: libDesconto,
+        _id_aprovador: aprovador?.id || null,
       }});
       await recarregarDetalhe(orcAtual.id);
       setFormItem({ ...ITEM_VAZIO }); setAddItem(false); setPrecoOrigem("");
@@ -215,12 +217,12 @@ export default function Orcamentos({ usuario }) {
     } catch (e) {
       if (String(e.message).includes("DESCONTO_EXCEDIDO")) {
         const msg = String(e.message).split("|")[1] || "Desconto acima do permitido.";
-        if (perms.aprovar) {
-          setSaving(false);
-          if (window.confirm(msg + "\n\nVocê tem permissão de aprovação. Liberar este desconto?")) { lancarItem(true); }
-          return;
-        }
-        notificar(msg + " Peça liberação a um gestor.", "erro");
+        setSaving(false);
+        setAprovModal({
+          aberto: true, mensagem: msg,
+          contexto: { id_orcamento: orcAtual.id, id_produto: formItem.id_produto, percentual: descP },
+        });
+        return;
       } else notificar("Erro: " + e.message, "erro");
     }
     finally { setSaving(false); }
@@ -492,6 +494,20 @@ export default function Orcamentos({ usuario }) {
             </div>
           </div>
         )}
+
+        <ModalAprovacao
+          aberto={aprovModal.aberto}
+          titulo="Liberar desconto acima do permitido"
+          mensagem={aprovModal.mensagem}
+          modulo="orcamentos"
+          acao="DESCONTO_LIBERADO"
+          contexto={aprovModal.contexto}
+          onAprovado={(aprovador) => {
+            setAprovModal({ aberto: false, mensagem: "", contexto: {} });
+            lancarItem(true, aprovador);
+          }}
+          onCancelar={() => setAprovModal({ aberto: false, mensagem: "", contexto: {} })}
+        />
       </div>
     );
   }

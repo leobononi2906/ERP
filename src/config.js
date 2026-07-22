@@ -2,6 +2,10 @@
 export const SUPA_URL = "https://vishxwdxqiygbxmtpfoy.supabase.co";
 export const SUPA_KEY = "sb_publishable_nEfc7eXcI1zcai3WcRo84g_ZTg9ArSO";
 
+// Contexto do usuário logado para logging (setado pelo App após login)
+let _logUsuario = null;
+export function setLogUsuario(u) { _logUsuario = u; }
+
 export async function rpc(fn, body = {}) {
   const res = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -11,6 +15,19 @@ export async function rpc(fn, body = {}) {
   if (!res.ok) {
     let msg = "HTTP " + res.status;
     try { const j = await res.json(); msg = j.message || j.hint || msg; } catch { /* corpo não-JSON */ }
+    // Log automático de erros (fire-and-forget, não bloqueia o fluxo)
+    if (fn !== "erp_log_frontend") {
+      fetch(`${SUPA_URL}/rest/v1/rpc/erp_log_frontend`, {
+        method: "POST",
+        headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          p_id_usuario: _logUsuario?.id || null,
+          p_modulo: "FRONTEND", p_acao: fn,
+          p_mensagem: msg.substring(0, 500),
+          p_detalhes: { funcao: fn, status: res.status, usuario: _logUsuario?.nome || null },
+        }),
+      }).catch(() => {});
+    }
     throw new Error(msg);
   }
   return res.json();

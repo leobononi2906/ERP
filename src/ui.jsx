@@ -1,4 +1,5 @@
-import { C, mono } from "./config";
+import { useState } from "react";
+import { C, mono, rpc } from "./config";
 
 export function cardStyle() { return { background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(15,29,53,0.04)", minWidth: 0 }; }
 export function inp(full, ro) { return { background: ro ? "#EEF1F6" : C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", color: ro ? C.muted : C.foreground, outline: "none", height: 40, width: full ? "100%" : "auto", boxSizing: "border-box", cursor: ro ? "not-allowed" : "text" }; }
@@ -34,4 +35,76 @@ export function Badge({ texto, cor }) {
   const map = { ATIVO: [C.successBg, C.success], INATIVO: [C.surface2, C.muted], BLOQUEADO: [C.destructiveBg, C.destructive], FATURADA: [C.successBg, C.success], ABERTA: [C.bluePale, C.blueMid], CANCELADA: [C.destructiveBg, C.destructive] };
   const [bg, fg] = map[cor || texto] || [C.surface2, C.muted];
   return <span style={{ background: bg, color: fg, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", padding: "2px 8px", borderRadius: 4 }}>{texto}</span>;
+}
+
+/**
+ * ModalAprovacao — modal de re-autenticação para operações críticas.
+ * Props:
+ *   aberto: boolean
+ *   titulo: string (ex: "Liberar desconto acima do permitido")
+ *   mensagem: string (ex: "Desconto de 15% acima do limite de 8%")
+ *   modulo: string (chave do módulo — "vendas", "orcamentos", etc.)
+ *   acao: string (ação para log — "DESCONTO_LIBERADO", etc.)
+ *   contexto: object (dados extras para o log — {id_venda, percentual, ...})
+ *   onAprovado: (aprovador) => void — chamado com {id, nome, login} do aprovador
+ *   onCancelar: () => void
+ */
+export function ModalAprovacao({ aberto, titulo, mensagem, modulo, acao, contexto, onAprovado, onCancelar }) {
+  const [login, setLogin] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  if (!aberto) return null;
+
+  async function autenticar(e) {
+    e.preventDefault();
+    if (!login.trim() || !senha.trim()) { setErro("Preencha login e senha."); return; }
+    setLoading(true); setErro("");
+    try {
+      const res = await rpc("erp_autenticar_aprovador", {
+        p_login: login.trim(), p_senha: senha, p_modulo: modulo,
+        p_acao: acao || "APROVACAO", p_contexto: contexto || {},
+      });
+      if (res?.ok) {
+        setLogin(""); setSenha(""); setErro("");
+        onAprovado(res.aprovador);
+      } else {
+        setErro(res?.erro || "Falha na autenticação.");
+      }
+    } catch (err) {
+      setErro(err.message || "Erro de conexão.");
+    } finally { setLoading(false); }
+  }
+
+  function fechar() { setLogin(""); setSenha(""); setErro(""); onCancelar(); }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={fechar}>
+      <form onSubmit={autenticar} onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 28, width: 380, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.foreground, marginBottom: 6 }}>{titulo || "Aprovação necessária"}</div>
+        {mensagem && <div style={{ fontSize: 13, color: C.warning, background: C.warningBg, padding: "8px 12px", borderRadius: 8, marginBottom: 14 }}>{mensagem}</div>}
+        <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 14 }}>Informe as credenciais de um aprovador autorizado.</div>
+
+        <label style={{ display: "block", marginBottom: 10 }}>
+          <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>Login</span>
+          <input value={login} onChange={(e) => setLogin(e.target.value)} autoFocus style={inp(true)} autoComplete="username" />
+        </label>
+
+        <label style={{ display: "block", marginBottom: 14 }}>
+          <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>Senha</span>
+          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} style={inp(true)} autoComplete="current-password" />
+        </label>
+
+        {erro && <div style={{ fontSize: 12, color: C.destructive, background: C.destructiveBg, padding: "6px 10px", borderRadius: 6, marginBottom: 10 }}>{erro}</div>}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" onClick={fechar} style={btnGhost()} disabled={loading}>Cancelar</button>
+          <button type="submit" style={{ ...btnPrimary(), background: C.success, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+            {loading ? "Verificando..." : "Aprovar"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
