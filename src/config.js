@@ -15,22 +15,42 @@ export async function rpc(fn, body = {}) {
   if (!res.ok) {
     let msg = "HTTP " + res.status;
     try { const j = await res.json(); msg = j.message || j.hint || msg; } catch { /* corpo não-JSON */ }
-    // Log automático de erros (fire-and-forget, não bloqueia o fluxo)
-    if (fn !== "erp_log_frontend") {
-      fetch(`${SUPA_URL}/rest/v1/rpc/erp_log_frontend`, {
-        method: "POST",
-        headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          p_id_usuario: _logUsuario?.id || null,
-          p_modulo: "FRONTEND", p_acao: fn,
-          p_mensagem: msg.substring(0, 500),
-          p_detalhes: { funcao: fn, status: res.status, usuario: _logUsuario?.nome || null },
-        }),
-      }).catch(() => {});
-    }
+    // Log automático de erros RPC (fire-and-forget)
+    logFrontend("ERROR", msg.substring(0, 500), null, fn, null, { status: res.status });
     throw new Error(msg);
   }
   return res.json();
+}
+
+/* ─── Log centralizado de erros frontend → Supabase ────────────── */
+export function logFrontend(nivel, mensagem, modulo, acao, stack, extra) {
+  if (!mensagem) return;
+  fetch(`${SUPA_URL}/rest/v1/rpc/erp_log_frontend`, {
+    method: "POST",
+    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      p_nivel: nivel || "ERROR",
+      p_mensagem: String(mensagem).substring(0, 1000),
+      p_modulo: modulo || null,
+      p_acao: acao || null,
+      p_stack: stack ? String(stack).substring(0, 2000) : null,
+      p_url: typeof location !== "undefined" ? location.href : null,
+      p_id_usuario: _logUsuario?.id || null,
+      p_navegador: typeof navigator !== "undefined" ? navigator.userAgent.substring(0, 200) : null,
+      p_payload: extra ? JSON.parse(JSON.stringify(extra)) : null,
+    }),
+  }).catch(() => {});
+}
+
+// Captura global de erros não tratados
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (e) => {
+    logFrontend("ERROR", e.message, "GLOBAL", "window.onerror", e.error?.stack);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const msg = e.reason?.message || String(e.reason);
+    logFrontend("ERROR", msg, "GLOBAL", "unhandledrejection", e.reason?.stack);
+  });
 }
 
 export const C = {
