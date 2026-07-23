@@ -49,6 +49,8 @@ export default function Vendas({ usuario }) {
   /* ─── detalhe ──────────────────────────────────────────────── */
   const [vendaAtual, setVendaAtual] = useState(null);
   const [itens, setItens] = useState([]);
+  const [titulos, setTitulos] = useState([]);
+  const [rateio, setRateio] = useState([]);
   const [loadDet, setLoadDet] = useState(false);
   const [addItem, setAddItem] = useState(false);
   const [formItem, setFormItem] = useState({ ...ITEM_VAZIO });
@@ -149,6 +151,8 @@ export default function Vendas({ usuario }) {
     try {
       const d = await rpc("vendas_detalhe_dados", { p_id_venda: venda.id });
       setItens(d.itens ?? []);
+      setTitulos(d.titulos ?? []);
+      setRateio(d.rateio ?? []);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoadDet(false); }
   }
@@ -157,6 +161,8 @@ export default function Vendas({ usuario }) {
     const d = await rpc("vendas_detalhe_dados", { p_id_venda: id });
     setVendaAtual(d.venda);
     setItens(d.itens ?? []);
+    setTitulos(d.titulos ?? []);
+    setRateio(d.rateio ?? []);
     setLista((l) => l.map((x) => x.id === d.venda.id ? d.venda : x));
   }
 
@@ -554,6 +560,62 @@ export default function Vendas({ usuario }) {
                 ))}</tbody>
               </table>}
         </div>
+
+        {/* ─── Financeiro (rateio + títulos) ─────────────────── */}
+        {isFaturada && (rateio.length > 0 || titulos.length > 0) && (
+          <div style={cardStyle()}>
+            <span style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 14 }}>
+              <DollarSign size={15} style={{ verticalAlign: "middle", marginRight: 6 }} />
+              Financeiro
+            </span>
+
+            {/* Rateio contábil */}
+            {rateio.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textMuted, marginBottom: 8 }}>Rateio Contábil</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 16 }}>
+                  <thead><tr>
+                    {["Descrição", "Valor", "Plano de Contas", "Centro de Custo"].map((h, i) => <th key={i} style={th(i === 1)}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {rateio.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <td style={{ ...td(), fontWeight: 500 }}>{r.descricao}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600, color: r.valor < 0 ? C.destructive : C.foreground }}>{fmtBRL(r.valor)}</td>
+                        <td style={{ ...td(), color: C.muted, fontSize: 12 }}>{r.id_plano_conta ? `Cód ${r.id_plano_conta}` : "—"}</td>
+                        <td style={{ ...td(), color: C.muted, fontSize: 12 }}>{r.id_centro_custo ? `CC ${r.id_centro_custo}` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {/* Títulos (parcelas) */}
+            {titulos.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textMuted, marginBottom: 8 }}>Parcelas / Títulos</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead><tr>
+                    {["Parcela", "Vencimento", "Valor", "Pago", "Saldo", "Status"].map((h, i) => <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {titulos.map((t) => (
+                      <tr key={t.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <td style={{ ...td(), fontFamily: mono, fontWeight: 600 }}>{t.parcela}</td>
+                        <td style={{ ...td(), color: C.muted }}>{t.data_vencimento ? new Date(t.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(t.valor)}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.success }}>{fmtBRL(t.valor_pago)}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(t.valor_saldo ?? t.valor)}</td>
+                        <td style={td()}><Badge texto={t.status} cor={t.status === "PAGO" ? "ATIVO" : t.status === "ABERTO" ? "ABERTA" : t.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Modal Faturar */}
         {fatOpen && (
