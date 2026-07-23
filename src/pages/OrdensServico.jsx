@@ -5,7 +5,7 @@ import {
   DollarSign, Send, Eye,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca } from "../ui";
 
 
 const STATUS_CORES = {
@@ -51,11 +51,11 @@ export default function OrdensServico({ usuario }) {
   // defeitos
   const [osDefeitos, setOsDefeitos] = useState([]);
   const [addDefeito, setAddDefeito] = useState(false);
-  const [formDefeito, setFormDefeito] = useState("");
+  const [formDefeito, setFormDefeito] = useState({ descricao: "", id_area: "" });
 
   // servico inline
   const [addServico, setAddServico] = useState(false);
-  const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: "" });
+  const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
   const [areas, setAreas] = useState([]);
 
   // apontamento
@@ -142,7 +142,6 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Adicionar serviço na OS ─────────────────────────────── */
   async function adicionarServico() {
-    if (!formServ.id_area) { notificar("Selecione a área/setor do serviço.", "erro"); return; }
     if (!formServ.descricao.trim()) { notificar("Descrição do serviço é obrigatória.", "erro"); return; }
     setSaving(true);
     try {
@@ -154,10 +153,9 @@ export default function OrdensServico({ usuario }) {
         p_valor_unitario: num(formServ.valor_unitario) || 0,
         p_valor_total: (num(formServ.quantidade) || 1) * (num(formServ.valor_unitario) || 0),
         p_id_tecnico: num(formServ.id_tecnico) || null,
-        p_id_area: num(formServ.id_area) || null,
       });
       setOsServicos((l) => [...l, res]);
-      setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: "" });
+      setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
       setAddServico(false);
       // Recarregar OS para atualizar totais
       const osAtualizada = await rpc("os_recarregar", { p_id_os: osAtual.id });
@@ -170,12 +168,16 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Defeitos ──────────────────────────────────────────── */
   async function adicionarDefeito() {
-    if (!formDefeito.trim()) { notificar("Descrição do defeito é obrigatória.", "erro"); return; }
+    if (!formDefeito.descricao.trim()) { notificar("Descrição do defeito é obrigatória.", "erro"); return; }
     setSaving(true);
     try {
-      const res = await rpc("os_defeito_salvar", { p_id_os: osAtual.id, p_descricao: formDefeito.trim() });
+      const res = await rpc("os_defeito_salvar", {
+        p_id_os: osAtual.id,
+        p_descricao: formDefeito.descricao.trim(),
+        p_id_area: num(formDefeito.id_area) || null,
+      });
       setOsDefeitos((l) => [...l, res]);
-      setFormDefeito(""); setAddDefeito(false);
+      setFormDefeito({ descricao: "", id_area: "" }); setAddDefeito(false);
       notificar("Defeito adicionado.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setSaving(false); }
@@ -462,22 +464,31 @@ export default function OrdensServico({ usuario }) {
 
         <Secao titulo="Dados da OS">
           <Campo label="Cliente *" span={2}>
-            <select value={form.id_cliente} onChange={(e) => setF("id_cliente", e.target.value)} style={sel(true)}>
-              <option value="">Selecione...</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <SelectBusca
+              opcoes={clientes.map((c) => ({ id: c.id, label: c.nome }))}
+              value={form.id_cliente}
+              onChange={(id) => setF("id_cliente", id)}
+              placeholder="Selecione o cliente..."
+              full={true}
+            />
           </Campo>
           <Campo label="Veículo">
-            <select value={form.id_veiculo} onChange={(e) => setF("id_veiculo", e.target.value)} style={sel(true)}>
-              <option value="">Nenhum</option>
-              {veicCliente.map((v) => <option key={v.id} value={v.id}>{v.placa}</option>)}
-            </select>
+            <SelectBusca
+              opcoes={veicCliente.map((v) => ({ id: v.id, label: v.placa, sub: v.marca ? v.marca + " " + (v.modelo || "") : "" }))}
+              value={form.id_veiculo}
+              onChange={(id) => setF("id_veiculo", id)}
+              placeholder="Nenhum"
+              full={true}
+            />
           </Campo>
           <Campo label="Responsável">
-            <select value={form.id_usuario_responsavel} onChange={(e) => setF("id_usuario_responsavel", e.target.value)} style={sel(true)}>
-              <option value="">Selecione...</option>
-              {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-            </select>
+            <SelectBusca
+              opcoes={usuarios.map((u) => ({ id: u.id, label: u.nome }))}
+              value={form.id_usuario_responsavel}
+              onChange={(id) => setF("id_usuario_responsavel", id)}
+              placeholder="Selecione..."
+              full={true}
+            />
           </Campo>
           <Campo label="Data prevista">
             <input type="date" value={form.data_prevista} onChange={(e) => setF("data_prevista", e.target.value)} style={inp(true)} />
@@ -648,14 +659,27 @@ export default function OrdensServico({ usuario }) {
                 </div>
 
                 {addDefeito && (
-                  <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14, display: "flex", gap: 10, alignItems: "end" }}>
-                    <Campo label="Descrição do defeito *" span={1}>
-                      <input value={formDefeito} onChange={(e) => setFormDefeito(e.target.value)} placeholder="Ex: Vazamento de óleo no motor" style={{ ...inp(true), width: "100%", minWidth: 300 }}
-                        onKeyDown={(e) => { if (e.key === "Enter") adicionarDefeito(); }} />
-                    </Campo>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={adicionarDefeito} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
-                      <button onClick={() => setAddDefeito(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
+                  <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
+                      <Campo label="Descrição do defeito *" span={1}>
+                        <input value={formDefeito.descricao} onChange={(e) => setFormDefeito((f) => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Vazamento de óleo no motor" style={{ ...inp(true), width: "100%", minWidth: 300 }}
+                          onKeyDown={(e) => { if (e.key === "Enter") adicionarDefeito(); }} />
+                      </Campo>
+                      {areas.length > 0 && (
+                        <Campo label="Área / Setor">
+                          <SelectBusca
+                            opcoes={areas.map((a) => ({ id: a.id, label: a.descricao, sub: a.codigo || "" }))}
+                            value={formDefeito.id_area}
+                            onChange={(id) => setFormDefeito((f) => ({ ...f, id_area: id }))}
+                            placeholder="Selecione a área..."
+                            full={true}
+                          />
+                        </Campo>
+                      )}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={adicionarDefeito} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
+                        <button onClick={() => setAddDefeito(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -696,24 +720,6 @@ export default function OrdensServico({ usuario }) {
                 {/* Form inline para adicionar serviço */}
                 {addServico && (
                   <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14 }}>
-                  {areas.length > 0 && (
-                    <div style={{ marginBottom: 12 }}>
-                      <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 6 }}>Área / Setor *</span>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {areas.map((a) => {
-                          const on = String(formServ.id_area) === String(a.id);
-                          return (
-                            <div key={a.id} onClick={() => setFormServ((f) => ({ ...f, id_area: on ? "" : String(a.id) }))} style={{
-                              padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600,
-                              border: on ? `2px solid ${C.primary}` : `2px solid ${C.border}`,
-                              background: on ? "rgba(0,170,238,0.08)" : "#fff",
-                              color: on ? C.primary : C.foreground,
-                            }}>{a.codigo ? `${a.codigo} · ` : ""}{a.descricao}</div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
                     <Campo label="Descrição do serviço *">
                       <input value={formServ.descricao} onChange={(e) => setFormServ((f) => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Trocar farol dianteiro" style={inp(true)} />
@@ -725,10 +731,13 @@ export default function OrdensServico({ usuario }) {
                       <input value={formServ.valor_unitario} onChange={(e) => setFormServ((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} />
                     </Campo>
                     <Campo label="Técnico">
-                      <select value={formServ.id_tecnico} onChange={(e) => setFormServ((f) => ({ ...f, id_tecnico: e.target.value }))} style={sel(true)}>
-                        <option value="">—</option>
-                        {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                      </select>
+                      <SelectBusca
+                        opcoes={usuarios.map((u) => ({ id: u.id, label: u.nome }))}
+                        value={formServ.id_tecnico}
+                        onChange={(id) => setFormServ((f) => ({ ...f, id_tecnico: id }))}
+                        placeholder="—"
+                        full={true}
+                      />
                     </Campo>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button onClick={adicionarServico} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>

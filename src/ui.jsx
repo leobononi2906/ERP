@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { C, mono, rpc } from "./config";
 
 export function cardStyle() { return { background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(15,29,53,0.04)", minWidth: 0 }; }
@@ -35,6 +35,94 @@ export function Badge({ texto, cor }) {
   const map = { ATIVO: [C.successBg, C.success], INATIVO: [C.surface2, C.muted], BLOQUEADO: [C.destructiveBg, C.destructive], FATURADA: [C.successBg, C.success], ABERTA: [C.bluePale, C.blueMid], CANCELADA: [C.destructiveBg, C.destructive] };
   const [bg, fg] = map[cor || texto] || [C.surface2, C.muted];
   return <span style={{ background: bg, color: fg, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", padding: "2px 8px", borderRadius: 4 }}>{texto}</span>;
+}
+
+/**
+ * SelectBusca — combobox com filtro de texto para listas grandes.
+ * Props:
+ *   opcoes: [{id, label, sub?}] — lista de opções
+ *   value: id selecionado
+ *   onChange: (id) => void
+ *   placeholder: string
+ *   disabled: boolean
+ *   full: boolean (width 100%)
+ */
+export function SelectBusca({ opcoes = [], value, onChange, placeholder = "Selecione...", disabled, full }) {
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const ref = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    function fora(e) { if (ref.current && !ref.current.contains(e.target)) setAberto(false); }
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+
+  useEffect(() => { if (aberto && inputRef.current) inputRef.current.focus(); }, [aberto]);
+
+  const selecionado = opcoes.find((o) => String(o.id) === String(value));
+  const q = busca.trim().toLowerCase();
+  const filtradas = q ? opcoes.filter((o) => (o.label || "").toLowerCase().includes(q) || (o.sub || "").toLowerCase().includes(q)) : opcoes;
+
+  function selecionar(id) {
+    onChange(String(id));
+    setAberto(false);
+    setBusca("");
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: full ? "100%" : "auto" }}>
+      <div onClick={() => !disabled && setAberto(!aberto)} style={{
+        ...inp(true, disabled), display: "flex", alignItems: "center", justifyContent: "space-between",
+        cursor: disabled ? "not-allowed" : "pointer", userSelect: "none", minHeight: 40,
+      }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, color: selecionado ? C.foreground : C.textMuted }}>
+          {selecionado ? selecionado.label : placeholder}
+        </span>
+        <span style={{ fontSize: 10, color: C.textMuted, marginLeft: 8 }}>&#9662;</span>
+      </div>
+
+      {aberto && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+          background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4, maxHeight: 280, display: "flex", flexDirection: "column",
+        }}>
+          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.border}` }}>
+            <input ref={inputRef} value={busca} onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar..." style={{ ...inp(true), height: 34, fontSize: 13, padding: "6px 10px" }}
+              onKeyDown={(e) => { if (e.key === "Escape") setAberto(false); if (e.key === "Enter" && filtradas.length === 1) selecionar(filtradas[0].id); }}
+            />
+          </div>
+          <div style={{ overflowY: "auto", maxHeight: 230 }}>
+            <div onClick={() => { onChange(""); setAberto(false); setBusca(""); }}
+              style={{ padding: "8px 12px", fontSize: 13, color: C.textMuted, cursor: "pointer", borderBottom: `1px solid ${C.border}` }}
+              onMouseEnter={(e) => e.currentTarget.style.background = C.surface2}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+              {placeholder}
+            </div>
+            {filtradas.length === 0 ? (
+              <div style={{ padding: "14px 12px", fontSize: 12, color: C.textMuted, textAlign: "center" }}>Nenhum resultado</div>
+            ) : filtradas.map((o) => (
+              <div key={o.id} onClick={() => selecionar(o.id)}
+                style={{
+                  padding: "8px 12px", fontSize: 13, cursor: "pointer",
+                  background: String(o.id) === String(value) ? C.bluePale : "transparent",
+                  fontWeight: String(o.id) === String(value) ? 600 : 400,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = String(o.id) === String(value) ? C.bluePale : C.surface2}
+                onMouseLeave={(e) => e.currentTarget.style.background = String(o.id) === String(value) ? C.bluePale : "transparent"}>
+                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</div>
+                {o.sub && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{o.sub}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**

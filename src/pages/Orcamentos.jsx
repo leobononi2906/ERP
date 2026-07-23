@@ -7,7 +7,7 @@ import {
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
-  Aviso, Badge, Skeleton, ModalAprovacao,
+  Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
 } from "../ui";
 
 
@@ -287,16 +287,22 @@ export default function Orcamentos({ usuario }) {
             </select>
           </Campo>
           <Campo label="Cliente *" span={2}>
-            <select value={form.id_cliente || ""} onChange={(e) => aplicarDefaultsCliente(e.target.value)} style={sel(true)}>
-              <option value="">Selecione...</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <SelectBusca
+              opcoes={clientes.map(c => ({id: c.id, label: c.nome}))}
+              value={form.id_cliente || ""}
+              onChange={(id) => aplicarDefaultsCliente(id)}
+              placeholder="Selecione..."
+              full={true}
+            />
           </Campo>
           <Campo label="Vendedor">
-            <select value={form.id_vendedor || ""} onChange={(e) => setF("id_vendedor", e.target.value)} style={sel(true)}>
-              <option value="">—</option>
-              {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-            </select>
+            <SelectBusca
+              opcoes={usuarios.map(u => ({id: u.id, label: u.nome}))}
+              value={form.id_vendedor || ""}
+              onChange={(id) => setF("id_vendedor", id)}
+              placeholder="—"
+              full={true}
+            />
           </Campo>
           <Campo label="Tabela de Preço">
             <select value={form.id_tabela_preco || ""} onChange={(e) => setF("id_tabela_preco", e.target.value)} style={sel(true)}>
@@ -401,26 +407,32 @@ export default function Orcamentos({ usuario }) {
                 </Campo>
                 {formItem.tipo === "PRODUTO" ? (
                   <Campo label="Produto" span={2}>
-                    <select value={formItem.id_produto} onChange={(e) => {
-                      const p = produtos.find((x) => x.id === Number(e.target.value));
-                      setFormItem((f) => ({ ...f, id_produto: e.target.value, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "", percentual_desconto: 0 }));
-                      if (e.target.value) { resolverPreco(e.target.value); consultarLimiteDesconto(e.target.value); }
-                      else setLimiteDesc(null);
-                    }} style={sel(true)}>
-                      <option value="">Selecione...</option>
-                      {produtos.map((p) => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
-                    </select>
+                    <SelectBusca
+                      opcoes={produtos.map(p => ({id: p.id, label: p.nome, sub: p.referencia || ""}))}
+                      value={formItem.id_produto}
+                      onChange={(id) => {
+                        const p = produtos.find((x) => x.id === Number(id));
+                        setFormItem((f) => ({ ...f, id_produto: id, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "", percentual_desconto: 0 }));
+                        if (id) { resolverPreco(id); consultarLimiteDesconto(id); }
+                        else setLimiteDesc(null);
+                      }}
+                      placeholder="Selecione..."
+                      full={true}
+                    />
                   </Campo>
                 ) : (
                   <Campo label="Serviço" span={2}>
-                    <select value={formItem.id_servico} onChange={(e) => {
-                      const s = servicos.find((x) => x.id === Number(e.target.value));
-                      setFormItem((f) => ({ ...f, id_servico: e.target.value, descricao: s ? s.nome : "", valor_unitario: s ? s.preco : "" }));
-                      setLimiteDesc(null);
-                    }} style={sel(true)}>
-                      <option value="">Selecione...</option>
-                      {servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                    </select>
+                    <SelectBusca
+                      opcoes={servicos.map(s => ({id: s.id, label: s.nome}))}
+                      value={formItem.id_servico}
+                      onChange={(id) => {
+                        const s = servicos.find((x) => x.id === Number(id));
+                        setFormItem((f) => ({ ...f, id_servico: id, descricao: s ? s.nome : "", valor_unitario: s ? s.preco : "" }));
+                        setLimiteDesc(null);
+                      }}
+                      placeholder="Selecione..."
+                      full={true}
+                    />
                   </Campo>
                 )}
               </div>
