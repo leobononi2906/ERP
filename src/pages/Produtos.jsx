@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt } from "lucide-react";
+import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
 const SITUACOES = ["ATIVO", "INATIVO"];
@@ -51,7 +51,7 @@ export default function Produtos({ usuario }) {
 
   const filtrados = produtos.filter((p) => { const q = busca.trim().toLowerCase(); const okB = !q || (p.nome || "").toLowerCase().includes(q) || (p.referencia || "").toLowerCase().includes(q); return okB && (!fGrupo || String(p.id_grupo) === fGrupo); });
 
-  if (view === "form") return <FormProduto form={form} setF={setF} grupos={grupos} marcas={marcas} unidades={unidades} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} perms={perms} prot={prot} destravar={() => setProt(true)} toast={toast} />;
+  if (view === "form") return <FormProduto form={form} setF={setF} grupos={grupos} marcas={marcas} unidades={unidades} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} perms={perms} prot={prot} destravar={() => setProt(true)} toast={toast} ator={usuario.id} />;
 
   return (
     <>
@@ -89,7 +89,7 @@ function Toast({ toast }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: toast.tipo === "warn" ? C.warningBg : C.successBg, color: toast.tipo === "warn" ? C.warning : C.success }}>{toast.tipo === "warn" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}{toast.msg}</div>;
 }
 
-function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, voltar, erro, perms, prot, destravar, toast }) {
+function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, voltar, erro, perms, prot, destravar, toast, ator }) {
   const novo = !form.id;
   const cadOk = novo ? perms.incluir : perms.editar;
   const protOk = novo ? perms.incluir : (prot && perms.aprovar);
@@ -155,6 +155,9 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
         </div>
       </div>
 
+      {!novo && <PrecosEmpresa idProduto={form.id} ator={ator} podeEditar={protOk} custoBase={form.preco_custo} />}
+      {novo && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto para configurar preços por empresa e tabela (markup, margem ou preço manual).</Aviso>}
+
       <div style={{ ...cardStyle(), borderLeft: `3px solid ${C.border}` }}>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Boxes size={14} /> Estoque <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: C.textMuted }}>· somente leitura (movimenta no módulo Estoque)</span></div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
@@ -168,6 +171,144 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
 }
 function ReadStat({ label, valor }) {
   return (<div><span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 5 }}>{label}</span><div style={{ background: "#EEF1F6", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", height: 40, boxSizing: "border-box", fontFamily: mono, fontWeight: 600, color: C.muted }}>{valor}</div></div>);
+}
+
+/* ═══ PREÇOS POR EMPRESA / TABELA (markup, margem ou preço manual) ═══ */
+const TIPOS_PRECO = [
+  { v: "MARKUP", t: "Markup sobre custo" },
+  { v: "MARGEM", t: "Margem fixa (s/ venda)" },
+  { v: "MANUAL", t: "Preço manual" },
+];
+function normTipo(t) { return t === "MARKUP" || t === "MARGEM" ? t : "MANUAL"; }
+function calcPreco(tipo, custo, margem, manual) {
+  const c = num(custo), m = num(margem);
+  if (tipo === "MARKUP") return c * (1 + m / 100);
+  if (tipo === "MARGEM") return m < 100 && m >= 0 ? c / (1 - m / 100) : 0;
+  return num(manual);
+}
+function PrecosEmpresa({ idProduto, ator, podeEditar, custoBase }) {
+  const [empresas, setEmpresas] = useState([]);
+  const [idEmpresa, setIdEmpresa] = useState("");
+  const [custoMedio, setCustoMedio] = useState(0);
+  const [linhas, setLinhas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    let a = true;
+    rpc("erp_list", { p_tabela: "empresas", p_limit: 9999 })
+      .then((rows) => { if (!a) return; const es = rows || []; setEmpresas(es); if (es[0]) setIdEmpresa(String(es[0].id)); })
+      .catch(() => a && setEmpresas([]));
+    return () => { a = false; };
+  }, []);
+
+  async function carregar(emp) {
+    if (!emp) return;
+    setLoading(true);
+    try {
+      const d = await rpc("produto_precos_dados", { p: { id_produto: idProduto, id_empresa: num(emp) } });
+      setCustoMedio(num(d?.custo_medio));
+      setLinhas((d?.precos || []).map((x) => {
+        const tipo = normTipo(x.tipo_calculo);
+        return { id_tabela_preco: x.id_tabela_preco, tabela_nome: x.tabela_nome, tipo, margem: x.margem_percentual ?? "", preco: x.preco_venda ?? "" };
+      }));
+    } catch (e) { setMsg({ tipo: "warn", txt: "Erro ao carregar preços: " + e.message }); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { if (idEmpresa) carregar(idEmpresa); /* eslint-disable-next-line */ }, [idEmpresa, idProduto]);
+
+  const custo = custoMedio > 0 ? custoMedio : num(custoBase);
+  const upd = (i, patch) => setLinhas((ls) => ls.map((l, j) => j === i ? { ...l, ...patch } : l));
+
+  function precoLinha(l) {
+    if (l.tipo === "MANUAL") return num(l.preco);
+    return calcPreco(l.tipo, custo, l.margem, l.preco);
+  }
+  function margemReal(preco) { const p = num(preco); return p > 0 ? ((p - custo) / p) * 100 : 0; }
+
+  async function salvarLinha(i) {
+    const l = linhas[i];
+    const preco = Number(precoLinha(l).toFixed(2));
+    if (l.tipo !== "MANUAL" && !(num(l.margem) >= 0)) { setMsg({ tipo: "warn", txt: "Informe a margem/markup." }); return; }
+    if (preco <= 0) { setMsg({ tipo: "warn", txt: "Preço resultante inválido (confira o custo)." }); return; }
+    setSavingId(l.id_tabela_preco); setMsg(null);
+    try {
+      await rpc("produto_preco_salvar", { p: {
+        id_produto: idProduto, id_empresa: num(idEmpresa), id_tabela_preco: l.id_tabela_preco,
+        tipo_calculo: l.tipo, margem_percentual: l.tipo === "MANUAL" ? null : num(l.margem), preco_venda: preco, _ator: ator,
+      }});
+      upd(i, { preco });
+      setMsg({ tipo: "ok", txt: `Preço de "${l.tabela_nome}" salvo (${fmtBRL(preco)}).` });
+    } catch (e) { setMsg({ tipo: "warn", txt: "Erro ao salvar: " + e.message }); }
+    finally { setSavingId(null); }
+  }
+
+  return (
+    <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: "3px solid #0F9D6E" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0F9D6E", display: "flex", alignItems: "center", gap: 6 }}>
+          <Tag size={14} /> Preços por empresa / tabela
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Building2 size={15} style={{ color: C.textMuted }} />
+          <select value={idEmpresa} onChange={(e) => setIdEmpresa(e.target.value)} style={{ ...sel(), minWidth: 200 }}>
+            {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome || e.nome_fantasia || `Empresa ${e.id}`}</option>)}
+          </select>
+        </div>
+      </div>
+      <p style={{ fontSize: 12, color: C.muted, margin: "0 0 12px" }}>
+        Custo de referência: <b style={{ fontFamily: mono, color: C.foreground }}>{fmtBRL(custo)}</b>
+        {custoMedio > 0 ? " (custo médio do estoque)" : " (preço de custo do cadastro)"}
+        . Escolha por tabela: <b>Markup</b> (custo + %), <b>Margem fixa</b> (% sobre a venda) ou <b>Preço manual</b>.
+      </p>
+      {msg && <Aviso cor={msg.tipo === "ok" ? "success" : "warning"}>{msg.tipo === "ok" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />} {msg.txt}</Aviso>}
+
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{[0, 1, 2].map((i) => <div key={i} style={{ height: 40, background: C.surface2, borderRadius: 6, animation: "pulse 1.4s ease-in-out infinite" }} />)}</div>
+      ) : linhas.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "18px 0", color: C.textMuted, fontSize: 13 }}>Nenhuma tabela de preço ativa cadastrada.</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr>{["Tabela", "Cálculo", "Markup/Margem %", "Preço de venda", "Margem real", ""].map((h, i) => <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>)}</tr></thead>
+          <tbody>
+            {linhas.map((l, i) => {
+              const preco = precoLinha(l);
+              const manual = l.tipo === "MANUAL";
+              return (
+                <tr key={l.id_tabela_preco} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ ...td(), fontWeight: 500 }}>{l.tabela_nome}</td>
+                  <td style={td()}>
+                    <select value={l.tipo} disabled={!podeEditar} onChange={(e) => upd(i, { tipo: e.target.value })} style={{ ...sel(true, !podeEditar), minWidth: 160 }}>
+                      {TIPOS_PRECO.map((t) => <option key={t.v} value={t.v}>{t.t}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ ...td(), textAlign: "right" }}>
+                    <input value={manual ? "" : l.margem} disabled={!podeEditar || manual} placeholder={manual ? "—" : "0"}
+                      onChange={(e) => upd(i, { margem: e.target.value.replace(/[^\d.,]/g, "") })}
+                      style={{ ...inp(true, !podeEditar || manual), fontFamily: mono, textAlign: "right", width: 110 }} />
+                  </td>
+                  <td style={{ ...td(), textAlign: "right" }}>
+                    {manual ? (
+                      <input value={l.preco} disabled={!podeEditar} onChange={(e) => upd(i, { preco: e.target.value.replace(/[^\d.,]/g, "") })}
+                        style={{ ...inp(true, !podeEditar), fontFamily: mono, textAlign: "right", width: 120, fontWeight: 600 }} />
+                    ) : (
+                      <span style={{ fontFamily: mono, fontWeight: 700 }}>{fmtBRL(preco)}</span>
+                    )}
+                  </td>
+                  <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: margemReal(preco) >= 0 ? C.success : C.destructive }}>{margemReal(preco).toFixed(1).replace(".", ",")}%</td>
+                  <td style={{ ...td(), textAlign: "right" }}>
+                    {podeEditar && <button onClick={() => salvarLinha(i)} disabled={savingId === l.id_tabela_preco} style={{ ...btnPrimary(), padding: "8px 12px" }}><Save size={14} /> {savingId === l.id_tabela_preco ? "..." : "Salvar"}</button>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {!podeEditar && <div style={{ fontSize: 12, color: C.textMuted, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}><Lock size={13} /> Edição de preços requer destravar “Preços e fiscal” acima.</div>}
+    </div>
+  );
 }
 
 /* ═══ COMPOSIÇÃO DO PRODUTO PRODUZIDO ═══════════════════════════ */
