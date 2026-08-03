@@ -73,23 +73,36 @@ export function barcode128(texto, opts = {}) {
 }
 
 /* ---------- Etiqueta de produto (térmica 50x30mm) ---------- */
-export function imprimirEtiquetaProduto(produto = {}, qtd = 1) {
-  const n = Math.max(1, Number(qtd) || 1);
+function _etqUnidade(produto = {}) {
   const cod = String(produto.codigo_barras || produto.referencia || produto.id || "");
   const nome = esc(String(produto.nome || "").slice(0, 42));
-  const preco = produto.preco_venda != null ? fmtBRL(produto.preco_venda) : "";
+  const preco = produto.preco_venda != null && produto.preco_venda !== "" ? fmtBRL(produto.preco_venda) : "";
   const bc = barcode128(cod, { mod: 1.3, h: 40 });
-  const uma = `<div class="etq"><div class="nome">${nome}</div><div class="ref">Ref: ${esc(produto.referencia || "—")}</div><div class="bc">${bc}</div><div class="cod">${esc(cod)}</div>${preco ? `<div class="preco">${preco}</div>` : ""}</div>`;
-  let et = ""; for (let i = 0; i < n; i++) et += uma;
-  const w = window.open("", "_blank", "width=420,height=520"); if (!w) { alert("Permita pop-ups para imprimir."); return; }
+  return `<div class="etq"><div class="nome">${nome}</div><div class="ref">Ref: ${esc(produto.referencia || "—")}</div><div class="bc">${bc}</div><div class="cod">${esc(cod)}</div>${preco ? `<div class="preco">${preco}</div>` : ""}</div>`;
+}
+function _abrirEtiquetas(html) {
+  const w = window.open("", "_blank", "width=440,height=560"); if (!w) { alert("Permita pop-ups para imprimir."); return; }
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas</title><style>
     @page{size:50mm 30mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif}
     .etq{width:50mm;height:30mm;padding:1.5mm 2mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between}
     .nome{font-size:8pt;font-weight:bold;line-height:1.05;max-height:2.4em;overflow:hidden}.ref{font-size:7pt}.bc{margin:.5mm 0}.bc svg{display:block}
     .cod{font-size:7pt;text-align:center;letter-spacing:1px;margin-top:-.5mm}.preco{font-size:12pt;font-weight:bold;text-align:right}
     @media screen{body{background:#eee;padding:10px}.etq{background:#fff;border:1px solid #ccc;margin:0 auto 8px}}@media print{.noprint{display:none}}
-    </style></head><body>${et}<div class="noprint" style="text-align:center;margin:10px 0"><button onclick="window.print()" style="padding:8px 16px">Imprimir</button></div></body></html>`);
+    </style></head><body>${html}<div class="noprint" style="text-align:center;margin:10px 0"><button onclick="window.print()" style="padding:8px 16px">Imprimir</button></div></body></html>`);
   w.document.close(); setTimeout(() => { try { w.focus(); w.print(); } catch { /* */ } }, 350);
+}
+export function imprimirEtiquetaProduto(produto = {}, qtd = 1) {
+  const n = Math.max(1, Number(qtd) || 1);
+  const uma = _etqUnidade(produto);
+  let et = ""; for (let i = 0; i < n; i++) et += uma;
+  _abrirEtiquetas(et);
+}
+/* Etiquetas em lote: itens = [{...produto, qtd}] — usado na entrada/recebimento. */
+export function imprimirEtiquetasLote(itens = []) {
+  let et = "";
+  (itens || []).forEach((it) => { const n = Math.max(0, Number(it.qtd) || 0); const uma = _etqUnidade(it); for (let i = 0; i < n; i++) et += uma; });
+  if (!et) { alert("Nenhuma etiqueta para imprimir (defina as quantidades)."); return; }
+  _abrirEtiquetas(et);
 }
 
 /* ---------- Etiqueta de expedição (100x60mm) ---------- */
