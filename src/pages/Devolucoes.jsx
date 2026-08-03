@@ -10,7 +10,7 @@ const VAZIA = () => ({ id: null, id_empresa: "", origem: "VENDA", id_origem: "",
 
 export default function Devolucoes({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.vendas) || {};
-  const permBoqueta = (usuario && usuario.permissoes && usuario.permissoes.estoque) || {};
+  const permBoqueta = (usuario && usuario.permissoes && usuario.permissoes.separacao) || {};
   const [loading, setLoading] = useState(true);
   const [dados, setDados] = useState(null);
   const [fEmpresa, setFEmpresa] = useState("");

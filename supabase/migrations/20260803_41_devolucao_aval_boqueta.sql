@@ -16,6 +16,6 @@ BEGIN
 END $function$;
 GRANT EXECUTE ON FUNCTION public.erp_devolucao_solicitar(int,int) TO anon, authenticated;
 
--- erp_devolucao_confirmar: exige status AGUARDANDO e permissão ESTOQUE.aprovar (boqueta).
+-- erp_devolucao_confirmar: exige status AGUARDANDO e permissão SEPARACAO.aprovar (boqueta).
 -- erp_devolucao_cancelar: permite cancelar rascunho OU aguardando (boqueta recusa).
 -- (corpo completo aplicado no Supabase — dá entrada no estoque com origem DEVOLUCAO_VENDA e gera clientes_creditos)
