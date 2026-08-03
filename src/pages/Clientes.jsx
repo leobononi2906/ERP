@@ -11,6 +11,23 @@ function mascaraDoc(v, pessoa) {
   if (pessoa === "F") return d.slice(0, 11).replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   return d.slice(0, 14).replace(/(\d{2})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1/$2").replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 }
+const soDigitos = (v) => (v || "").replace(/\D/g, "");
+function mascaraTel(v) {
+  const d = soDigitos(v).slice(0, 11);
+  if (d.length <= 10) return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+  return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+}
+function validaCPF(v) {
+  const c = soDigitos(v); if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  let s = 0; for (let i = 0; i < 9; i++) s += +c[i] * (10 - i); let d1 = (s * 10) % 11; if (d1 === 10) d1 = 0; if (d1 !== +c[9]) return false;
+  s = 0; for (let i = 0; i < 10; i++) s += +c[i] * (11 - i); let d2 = (s * 10) % 11; if (d2 === 10) d2 = 0; return d2 === +c[10];
+}
+function validaCNPJ(v) {
+  const c = soDigitos(v); if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false;
+  const calc = (base) => { const p = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]; let s = 0; for (let i = 0; i < base.length; i++) s += +base[i] * p[i]; const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  const d1 = calc(c.slice(0, 12)); const d2 = calc(c.slice(0, 12) + d1); return d1 === +c[12] && d2 === +c[13];
+}
+const docValido = (doc, pessoa) => { const d = soDigitos(doc); if (!d) return true; return pessoa === "F" ? validaCPF(d) : validaCNPJ(d); };
 const vazio = () => ({ id: null, tipo_pessoa: "J", tipo: "CLIENTE", nome: "", nome_fantasia: "", cpf_cnpj: "", rg_ie: "", inscricao_municipal: "", email: "", telefone: "", celular: "", whatsapp: "", cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", limite_credito: "", situacao: "ATIVO", id_empresa: "", observacao: "", indicador_ie: 9, inscricao_suframa: "", iss_retido: false, email_nfe: "" });
 
 export default function Clientes({ usuario }) {
@@ -43,8 +60,32 @@ export default function Clientes({ usuario }) {
     const cep = (form.cep || "").replace(/\D/g, ""); if (cep.length !== 8) return;
     try { const d = await (await fetch(`https://viacep.com.br/ws/${cep}/json/`)).json(); if (!d.erro) setForm((f) => ({ ...f, endereco: d.logradouro || f.endereco, bairro: d.bairro || f.bairro, cidade: d.localidade || f.cidade, uf: d.uf || f.uf })); } catch (e) { }
   }
+  async function buscarCnpj() {
+    const c = soDigitos(form.cpf_cnpj);
+    if (c.length !== 14) { notificar("Digite o CNPJ completo para buscar.", "warn"); return; }
+    try {
+      const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${c}`);
+      if (!r.ok) throw new Error("não encontrado");
+      const d = await r.json();
+      setForm((f) => ({
+        ...f,
+        nome: f.nome || d.razao_social || f.nome,
+        nome_fantasia: d.nome_fantasia || f.nome_fantasia,
+        email: f.email || d.email || f.email,
+        telefone: f.telefone || (d.ddd_telefone_1 ? mascaraTel(d.ddd_telefone_1) : f.telefone),
+        cep: d.cep ? soDigitos(String(d.cep)) : f.cep,
+        endereco: d.logradouro || f.endereco,
+        numero: d.numero || f.numero,
+        bairro: d.bairro || f.bairro,
+        cidade: d.municipio || f.cidade,
+        uf: d.uf || f.uf,
+      }));
+      notificar("Dados do CNPJ preenchidos.");
+    } catch (e) { notificar("Não foi possível buscar o CNPJ (verifique o número).", "warn"); }
+  }
   async function salvar() {
     if (!form.nome.trim()) { setErroForm("O nome / razão social é obrigatório."); return; }
+    if (form.cpf_cnpj && !docValido(form.cpf_cnpj, form.tipo_pessoa)) { setErroForm((form.tipo_pessoa === "F" ? "CPF" : "CNPJ") + " inválido — confira os dígitos."); return; }
     setErroForm(""); setSaving(true);
     const empNome = empresas.find((e) => String(e.id) === String(form.id_empresa))?.nome_fantasia || null;
     const salvo = { ...form, empresa_nome: empNome };
@@ -59,7 +100,7 @@ export default function Clientes({ usuario }) {
 
   const filtrados = clientes.filter((c) => { const q = busca.trim().toLowerCase(); const okB = !q || (c.nome || "").toLowerCase().includes(q) || (c.nome_fantasia || "").toLowerCase().includes(q) || (c.cpf_cnpj || "").includes(q); return okB && (!fEmpresa || String(c.id_empresa) === fEmpresa); });
 
-  if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} buscarCep={buscarCep} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} />;
+  if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} buscarCep={buscarCep} buscarCnpj={buscarCnpj} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} />;
 
   return (
     <>
@@ -97,8 +138,9 @@ function Toast({ toast }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: toast.tipo === "warn" ? C.warningBg : C.successBg, color: toast.tipo === "warn" ? C.warning : C.success }}>{toast.tipo === "warn" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}{toast.msg}</div>;
 }
 
-function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, buscarCep, perms, fisc, destravar, toast }) {
+function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, buscarCep, buscarCnpj, perms, fisc, destravar, toast }) {
   const pf = form.tipo_pessoa === "F"; const novo = !form.id;
+  const docOk = docValido(form.cpf_cnpj, form.tipo_pessoa);
   const cadOk = novo ? perms.incluir : perms.editar;
   const fiscOk = novo ? perms.incluir : (fisc && perms.aprovar);
   const podeSalvar = cadOk || fiscOk;
@@ -116,9 +158,9 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
       <Secao titulo="Dados cadastrais">
         <Campo label="Nome fantasia"><input value={form.nome_fantasia} onChange={(e) => setF("nome_fantasia", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
         <Campo label="E-mail"><input value={form.email} onChange={(e) => setF("email", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
-        <Campo label="Telefone"><input value={form.telefone} onChange={(e) => setF("telefone", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
-        <Campo label="Celular"><input value={form.celular} onChange={(e) => setF("celular", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
-        <Campo label="WhatsApp"><input value={form.whatsapp} onChange={(e) => setF("whatsapp", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
+        <Campo label="Telefone"><input value={form.telefone} onChange={(e) => setF("telefone", mascaraTel(e.target.value))} disabled={!cadOk} placeholder="(00) 0000-0000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
+        <Campo label="Celular"><input value={form.celular} onChange={(e) => setF("celular", mascaraTel(e.target.value))} disabled={!cadOk} placeholder="(00) 00000-0000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
+        <Campo label="WhatsApp"><input value={form.whatsapp} onChange={(e) => setF("whatsapp", mascaraTel(e.target.value))} disabled={!cadOk} placeholder="(00) 00000-0000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="CEP"><input value={form.cep} onChange={(e) => setF("cep", e.target.value)} onBlur={buscarCep} disabled={!cadOk} placeholder="00000-000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="Endereço" span={2}><input value={form.endereco} onChange={(e) => setF("endereco", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
         <Campo label="Número"><input value={form.numero} onChange={(e) => setF("numero", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
@@ -137,7 +179,14 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           <Campo label="Tipo de pessoa"><select value={form.tipo_pessoa} onChange={(e) => setF("tipo_pessoa", e.target.value)} disabled={!fiscOk} style={sel(true, !fiscOk)}><option value="J">Jurídica</option><option value="F">Física</option></select></Campo>
           <Campo label={pf ? "Nome completo *" : "Razão social *"} span={2}><input value={form.nome} onChange={(e) => setF("nome", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
-          <Campo label={pf ? "CPF" : "CNPJ"}><input value={form.cpf_cnpj} onChange={(e) => setF("cpf_cnpj", mascaraDoc(e.target.value, form.tipo_pessoa))} disabled={!fiscOk} style={{ ...inp(true, !fiscOk), fontFamily: mono }} /></Campo>
+          <Campo label={pf ? "CPF" : "CNPJ"}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={form.cpf_cnpj} onChange={(e) => setF("cpf_cnpj", mascaraDoc(e.target.value, form.tipo_pessoa))} disabled={!fiscOk}
+                style={{ ...inp(true, !fiscOk), fontFamily: mono, flex: 1, borderColor: form.cpf_cnpj && !docOk ? C.destructive : undefined }} />
+              {!pf && fiscOk && <button type="button" onClick={buscarCnpj} style={{ ...btnGhost(), padding: "0 12px", whiteSpace: "nowrap" }}><Search size={14} /> Buscar</button>}
+            </div>
+            {form.cpf_cnpj && !docOk && <span style={{ fontSize: 11, color: C.destructive }}>{pf ? "CPF" : "CNPJ"} inválido — confira os dígitos.</span>}
+          </Campo>
           <Campo label={pf ? "RG" : "Inscrição estadual"}><input value={form.rg_ie} onChange={(e) => setF("rg_ie", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
           <Campo label="Inscrição municipal"><input value={form.inscricao_municipal} onChange={(e) => setF("inscricao_municipal", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
           <Campo label="Indicador de IE" span={2}><select value={form.indicador_ie} onChange={(e) => setF("indicador_ie", Number(e.target.value))} disabled={!fiscOk} style={sel(true, !fiscOk)}>{IND_IE.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}</select></Campo>
@@ -145,7 +194,10 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
           <Campo label="E-mail para NF-e"><input value={form.email_nfe} onChange={(e) => setF("email_nfe", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
           <Campo label="ISS retido"><label style={{ display: "flex", alignItems: "center", gap: 8, height: 40, opacity: fiscOk ? 1 : 0.6 }}><input type="checkbox" checked={!!form.iss_retido} onChange={(e) => setF("iss_retido", e.target.checked)} disabled={!fiscOk} style={{ width: 16, height: 16, accentColor: C.primary }} /><span style={{ fontSize: 13, color: C.muted }}>Retém ISS</span></label></Campo>
           <Campo label="Empresa do grupo"><select value={form.id_empresa} onChange={(e) => setF("id_empresa", e.target.value)} disabled={!fiscOk} style={sel(true, !fiscOk)}><option value="">Selecione...</option>{empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia}</option>)}</select></Campo>
-          <Campo label="Limite de crédito (R$)"><input value={form.limite_credito} onChange={(e) => setF("limite_credito", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!fiscOk} style={{ ...inp(true, !fiscOk), fontFamily: mono }} /></Campo>
+          <Campo label="Limite de crédito (R$)">
+            <input value={form.limite_credito} onChange={(e) => setF("limite_credito", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!perms.aprovar} style={{ ...inp(true, !perms.aprovar), fontFamily: mono }} />
+            {!perms.aprovar && <span style={{ fontSize: 11, color: C.textMuted }}>Cliente nasce sem crédito; liberação exige aprovação.</span>}
+          </Campo>
           <Campo label="Situação"><select value={form.situacao} onChange={(e) => setF("situacao", e.target.value)} disabled={!fiscOk} style={sel(true, !fiscOk)}>{SITUACOES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Campo>
         </div>
       </div>

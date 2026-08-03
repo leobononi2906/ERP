@@ -4,6 +4,9 @@ import { C, mono, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
 
 
+const mascaraPlaca = (v) => (v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
+const RE_PLACA = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/; // antiga ABC1234 e Mercosul ABC1D23
+const placaValida = (v) => RE_PLACA.test(mascaraPlaca(v));
 const VAZIO = () => ({ id: null, placa: "", marca: "", modelo: "", cor: "", ano_fabricacao: "", ano_modelo: "", chassi: "", renavam: "", km_atual: "", combustivel: "", id_cliente: "", observacao: "", ativo: true });
 
 export default function Veiculos({ usuario }) {
@@ -33,6 +36,7 @@ export default function Veiculos({ usuario }) {
 
   async function salvar() {
     if (!form.placa.trim()) { setErroForm("A placa é obrigatória."); return; }
+    if (!placaValida(form.placa)) { setErroForm("Placa inválida. Use o formato ABC1234 ou Mercosul ABC1D23."); return; }
     setErroForm(""); setSaving(true);
     const payload = {
       id: form.id || null,
@@ -73,7 +77,10 @@ export default function Veiculos({ usuario }) {
       </div>
       {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
       <Secao titulo="Dados do Veículo">
-        <Campo label="Placa *"><input value={form.placa} onChange={(e) => setF("placa", e.target.value.toUpperCase())} maxLength={8} style={inp(true)} /></Campo>
+        <Campo label="Placa *">
+          <input value={form.placa} onChange={(e) => setF("placa", mascaraPlaca(e.target.value))} maxLength={7} placeholder="ABC1D23" style={{ ...inp(true), fontFamily: mono, fontWeight: 700, borderColor: form.placa && !placaValida(form.placa) ? C.destructive : undefined }} />
+          {form.placa && !placaValida(form.placa) && <span style={{ fontSize: 11, color: C.destructive }}>Formato ABC1234 ou ABC1D23</span>}
+        </Campo>
         <Campo label="Renavam"><input value={form.renavam} onChange={(e) => setF("renavam", e.target.value)} style={inp(true)} /></Campo>
         <Campo label="Marca"><input value={form.marca} onChange={(e) => setF("marca", e.target.value)} placeholder="Ex: Mercedes-Benz" style={inp(true)} /></Campo>
         <Campo label="Modelo"><input value={form.modelo} onChange={(e) => setF("modelo", e.target.value)} placeholder="Ex: Actros 2651" style={inp(true)} /></Campo>
