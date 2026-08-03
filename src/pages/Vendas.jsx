@@ -371,7 +371,7 @@ export default function Vendas({ usuario }) {
           </Campo>
           <Campo label="Tipo de Operação">
             <select value={form.id_tipo_saida || ""} onChange={(e) => setF("id_tipo_saida", e.target.value)} style={sel(true)}>
-              {tiposSaida.filter((t) => t.ativo).map((t) => <option key={t.id} value={t.id}>{t.descricao}{t.padrao ? " ★" : ""}</option>)}
+              {tiposSaida.filter((t) => t.ativo && (!t.restrito || perms.aprovar || String(t.id) === String(form.id_tipo_saida))).map((t) => <option key={t.id} value={t.id}>{t.descricao}{t.restrito ? " 🔒" : ""}{t.padrao ? " ★" : ""}</option>)}
             </select>
           </Campo>
           <Campo label="Tabela de Preço">
