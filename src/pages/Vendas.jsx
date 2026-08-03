@@ -370,7 +370,7 @@ export default function Vendas({ usuario }) {
               <div style={{ marginTop: 6, fontSize: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                 <span style={{ fontWeight: 700, color: num(credito.disponivel) > 0 ? C.success : C.destructive }}>A prazo disponível: {fmtBRL(credito.disponivel)}</span>
                 <span style={{ color: C.muted }}>Limite {fmtBRL(credito.limite)} · Em aberto {fmtBRL(credito.devedor)}</span>
-                {num(credito.saldo) > 0 && <span style={{ fontWeight: 600, color: C.blueMid }}>💳 Vale-compra {fmtBRL(credito.saldo)}</span>}
+                {num(credito.saldo) > 0 && <span style={{ fontWeight: 600, color: C.blueMid }}>💰 Saldo a favor {fmtBRL(credito.saldo)}</span>}
                 {num(credito.qtd_vencidos) > 0 && <span style={{ fontWeight: 700, color: C.destructive }}>⚠ {credito.qtd_vencidos} vencido(s): {fmtBRL(credito.vencidos)}</span>}
               </div>
             )}
@@ -450,7 +450,7 @@ export default function Vendas({ usuario }) {
             {credito && <p style={{ fontSize: 12, margin: "2px 0 0", display: "flex", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontWeight: 700, color: num(credito.disponivel) > 0 ? C.success : C.destructive }}>A prazo disponível: {fmtBRL(credito.disponivel)}</span>
               <span style={{ color: C.muted }}>Limite {fmtBRL(credito.limite)} · Em aberto {fmtBRL(credito.devedor)}</span>
-              {num(credito.saldo) > 0 && <span style={{ fontWeight: 600, color: C.blueMid }}>💳 Vale-compra {fmtBRL(credito.saldo)}</span>}
+              {num(credito.saldo) > 0 && <span style={{ fontWeight: 600, color: C.blueMid }}>💰 Saldo a favor {fmtBRL(credito.saldo)}</span>}
               {num(credito.qtd_vencidos) > 0 && <span style={{ fontWeight: 700, color: C.destructive }}>⚠ {credito.qtd_vencidos} vencido(s)</span>}
             </p>}
           </div>
