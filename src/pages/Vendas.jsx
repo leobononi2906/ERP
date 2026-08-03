@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
-  ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban, Printer, Tag,
+  ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban, Printer, Tag, Undo2,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
+import { irPara } from "../nav";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
@@ -50,6 +51,12 @@ export default function Vendas({ usuario }) {
   /* ─── detalhe ──────────────────────────────────────────────── */
   const [vendaAtual, setVendaAtual] = useState(null);
   const [itens, setItens] = useState([]);
+  const [credito, setCredito] = useState(null);
+  async function carregarCredito(idCliente, idEmpresa) {
+    if (!idCliente) { setCredito(null); return; }
+    try { const r = await rpc("erp_cliente_credito", { p_id_cliente: Number(idCliente), p_id_empresa: idEmpresa ? Number(idEmpresa) : null }); setCredito(r); }
+    catch { setCredito(null); }
+  }
   const [titulos, setTitulos] = useState([]);
   const [rateio, setRateio] = useState([]);
   const [loadDet, setLoadDet] = useState(false);
@@ -97,6 +104,7 @@ export default function Vendas({ usuario }) {
       id_tabela_preco: cli.id_tabela_preco || f.id_tabela_preco || "",
       percentual_comissao: vendedor?.percentual_comissao || f.percentual_comissao || 0,
     }));
+    carregarCredito(idCliente, form.id_empresa || fEmpresa);
   }
 
   /* ─── recalcular preços ao mudar cliente/tabela numa venda existente ── */
@@ -149,6 +157,7 @@ export default function Vendas({ usuario }) {
   /* ─── abrir detalhe ────────────────────────────────────────── */
   async function abrirDetalhe(venda) {
     setVendaAtual(venda); setLoadDet(true); setView("detalhe"); setAddItem(false);
+    carregarCredito(venda.id_cliente, venda.id_empresa);
     try {
       const d = await rpc("vendas_detalhe_dados", { p_id_venda: venda.id });
       setItens(d.itens ?? []);
@@ -357,6 +366,11 @@ export default function Vendas({ usuario }) {
               placeholder="Selecione..."
               full={true}
             />
+            {form.id_cliente && credito && num(credito.saldo) > 0 && (
+              <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: C.success, display: "flex", alignItems: "center", gap: 6 }}>
+                💳 Crédito disponível: {fmtBRL(credito.saldo)} <span style={{ fontWeight: 400, color: C.muted }}>(abatível no faturamento)</span>
+              </div>
+            )}
           </Campo>
           <Campo label="Vendedor">
             <SelectBusca
@@ -430,11 +444,13 @@ export default function Vendas({ usuario }) {
               {cfop ? ` · CFOP: ${cfop}` : ""}
             </p>
             {vendaAtual.id_orcamento_origem && <p style={{ fontSize: 12, color: C.blueMid, margin: "2px 0 0" }}>Origem: Orçamento</p>}
+            {credito && num(credito.saldo) > 0 && <p style={{ fontSize: 12, fontWeight: 600, color: C.success, margin: "2px 0 0" }}>💳 Crédito disponível do cliente: {fmtBRL(credito.saldo)}</p>}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {podeEditar && <button onClick={() => { setForm({ ...vendaAtual }); setView("form"); }} style={btnGhost()}><Pencil size={14} /> Editar</button>}
             <button onClick={() => imprimirVendaDoc({ venda: vendaAtual, itens, cliente: nomeCliente(vendaAtual.id_cliente), empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "", pagamento: vendaAtual.id_condicao_pagamento ? ((condPag.find((c) => c.id === vendaAtual.id_condicao_pagamento) || {}).descricao || "A prazo") : "À vista" })} style={btnGhost()}><Printer size={14} /> Imprimir</button>
             <button onClick={() => imprimirEtiquetaExpedicao({ venda: vendaAtual, cliente: clientes.find((c) => c.id === vendaAtual.id_cliente) || { nome: nomeCliente(vendaAtual.id_cliente) }, empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "" })} style={btnGhost()}><Tag size={14} /> Etiqueta</button>
+            {!isCancelada && <button onClick={() => irPara("devolucoes", { origem: "VENDA", id: vendaAtual.id, numero: vendaAtual.numero })} style={btnGhost()}><Undo2 size={14} /> Devolver</button>}
             {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
               <button onClick={() => { setFatForma(vendaAtual.id_forma_pagamento || ""); setFatCond(vendaAtual.id_condicao_pagamento || ""); setFatOpen(true); }} style={btnPrimary()}>

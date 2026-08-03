@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3,
+  Boxes, PackageOpen, BarChart3, Undo2,
 } from "lucide-react";
 import { C, setLogUsuario } from "./config";
+import { navHandoff } from "./nav";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
@@ -25,6 +26,7 @@ import Encomendas from "./pages/Encomendas";
 import Promocoes from "./pages/Promocoes";
 import Relatorios from "./pages/Relatorios";
 import Entradas from "./pages/Entradas";
+import Devolucoes from "./pages/Devolucoes";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
@@ -34,6 +36,7 @@ const MENU_GROUPS = [
       { key: "orcamentos", label: "Orçamentos", icon: ClipboardList, ok: true },
       { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
       { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
+      { key: "devolucoes", label: "Devoluções", icon: Undo2, ok: true, permKey: "vendas" },
       { key: "distribuicao_os", label: "Distribuição OS", icon: Users, ok: true, permKey: "os" },
       { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
       { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
@@ -99,6 +102,12 @@ export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [pagina, setPagina] = useState("dashboard");
   const [gruposAbertos, setGruposAbertos] = useState({ comercial: true });
+
+  useEffect(() => {
+    const h = () => { if (navHandoff.pagina) setPagina(navHandoff.pagina); };
+    window.addEventListener("erp-nav", h);
+    return () => window.removeEventListener("erp-nav", h);
+  }, []);
 
   if (!usuario) return <Login onLogin={(u) => { setLogUsuario(u); setUsuario(u); }} />;
 
@@ -212,7 +221,8 @@ export default function App() {
         {pagina === "admin" && <Administracao usuario={usuario} />}
         {pagina === "relatorios" && <Relatorios usuario={usuario} />}
         {pagina === "entradas" && <Entradas usuario={usuario} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas"].includes(pagina) && (
+        {pagina === "devolucoes" && <Devolucoes usuario={usuario} />}
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
