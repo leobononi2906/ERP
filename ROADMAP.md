@@ -174,3 +174,10 @@ Cotacao → Pedido de Compra → Entrada (NF de entrada)
 | 5 | Relatorios | Fases 1-4 | Gestao e tomada de decisao |
 | 6 | Complementos Fin. | Fase 4 | Automacao financeira |
 | 7 | Secundarios | Fase 5 | Funcionalidades de apoio |
+
+---
+
+## Atualização 2026-08-03 (sessão)
+Entregue (PRs #1–#12, em produção): Relatórios + DRE; Preços por empresa/tabela; Etiquetas (produto/expedição + lote); validações de cadastro (CPF/CNPJ, telefone, placa, busca CNPJ, crédito); impressão de Venda/OS; Entradas (NF) com vínculo de pedido; Tipos de Operação restritos; Devoluções com aval da boqueta (Separação) gerando saldo a favor do cliente; painel de crédito na venda.
+
+Ver **docs/STATUS-ATUAL.md** para detalhes e pendências (saldo no Financeiro, encaminhamento pós-boqueta/Expedição, busca de placa, fiscal por empresa, tela de pedido de compra, NF-e de devolução, go-live servidor interno).
