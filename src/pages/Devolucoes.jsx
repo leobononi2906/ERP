@@ -4,11 +4,13 @@ import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca } from "../ui";
 import { consumirCtx } from "../nav";
 
-const statusCor = (s) => ({ DIGITACAO: "ABERTA", CONFIRMADA: "FATURADA", CANCELADA: "CANCELADA" }[s] || "muted");
+const statusCor = (s) => ({ DIGITACAO: "muted", AGUARDANDO: "ABERTA", CONFIRMADA: "FATURADA", CANCELADA: "CANCELADA" }[s] || "muted");
+const statusLabel = (s) => ({ DIGITACAO: "RASCUNHO", AGUARDANDO: "AGUARDANDO BOQUETA", CONFIRMADA: "CONFIRMADA", CANCELADA: "CANCELADA" }[s] || s);
 const VAZIA = () => ({ id: null, id_empresa: "", origem: "VENDA", id_origem: "", numero_origem: "", id_cliente: "", cliente_nome: "", id_centro_estoque: "", motivo: "", observacao: "", numero_nf: "", serie_nf: "", chave_nfe: "", itens: [] });
 
 export default function Devolucoes({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.vendas) || {};
+  const permBoqueta = (usuario && usuario.permissoes && usuario.permissoes.estoque) || {};
   const [loading, setLoading] = useState(true);
   const [dados, setDados] = useState(null);
   const [fEmpresa, setFEmpresa] = useState("");
@@ -57,11 +59,27 @@ export default function Devolucoes({ usuario }) {
   }
   const abrirNova = () => { setForm(VAZIA()); setErroForm(""); setView("form"); };
   const abrirDetalhe = (d) => { setAtual(d); setView("detalhe"); };
+  async function abrirEditar(d) {
+    setErroForm("");
+    try {
+      const r = await rpc("erp_devolucao_origem", { p_origem: d.origem, p_id_origem: d.id_origem });
+      const saved = {}; (d.itens || []).forEach((it) => { saved[it.id_produto] = num(it.quantidade); });
+      const itens = (r.itens || []).map((i) => ({ id_item_origem: i.id_item_origem, id_produto: i.id_produto, descricao: i.descricao, valor_unitario: num(i.valor_unitario), max: num(i.quantidade), quantidade: saved[i.id_produto] || 0 }));
+      setForm({ ...VAZIA(), id: d.id, origem: d.origem, id_origem: String(d.id_origem), numero_origem: d.numero_origem || "", id_empresa: d.id_empresa ? String(d.id_empresa) : "", id_cliente: d.id_cliente ? String(d.id_cliente) : "", id_centro_estoque: d.id_centro_estoque ? String(d.id_centro_estoque) : "", motivo: d.motivo || "", observacao: d.observacao || "", numero_nf: d.numero_nf || "", serie_nf: d.serie_nf || "", chave_nfe: d.chave_nfe || "", itens });
+      setView("form");
+    } catch (e) { notificar("Erro ao abrir edição: " + (e.message || e), "erro"); }
+  }
 
   const setQtd = (idx, v) => setForm((f) => ({ ...f, itens: f.itens.map((x, i) => i === idx ? { ...x, quantidade: Math.min(num(v), x.max) } : x) }));
   const total = form.itens.reduce((s, i) => s + num(i.quantidade) * num(i.valor_unitario), 0);
 
-  async function salvar(confirmar) {
+  async function recarregarE(idFoco) {
+    const d = await rpc("erp_devolucao_dados", { p_id_empresa: fEmpresa ? Number(fEmpresa) : null }); setDados(d);
+    const alvo = (d.devolucoes || []).find((x) => x.id === idFoco);
+    if (alvo) setAtual(alvo);
+    return alvo;
+  }
+  async function salvar(acao) {
     if (!form.id_origem) { setErroForm("Selecione o documento de origem."); return; }
     const itens = form.itens.filter((i) => num(i.quantidade) > 0);
     if (itens.length === 0) { setErroForm("Informe a quantidade a devolver em ao menos um item."); return; }
@@ -74,16 +92,26 @@ export default function Devolucoes({ usuario }) {
         p_itens: itens.map((i) => ({ id_produto: i.id_produto, descricao: i.descricao, quantidade: num(i.quantidade), valor_unitario: num(i.valor_unitario), id_item_origem: i.id_item_origem })),
       });
       if (r && r.ok === false) { setErroForm(r.erro || "Falha ao salvar."); setSaving(false); return; }
-      let idSalvo = r.id;
-      if (confirmar) {
-        const rc = await rpc("erp_devolucao_confirmar", { p_id: idSalvo, p_id_usuario: usuario.id });
-        if (rc && rc.ok === false) { notificar(rc.erro || "Falha ao confirmar.", "erro"); }
-        else notificar(`Devolução confirmada — saldo de ${fmtBRL(rc.credito || total)} a favor do cliente (uso no Financeiro).`);
-      } else notificar("Devolução salva (em digitação).");
-      const d = await rpc("erp_devolucao_dados", { p_id_empresa: fEmpresa ? Number(fEmpresa) : null }); setDados(d);
-      const nova = (d.devolucoes || []).find((x) => x.id === idSalvo);
-      if (nova) abrirDetalhe(nova); else setView("lista");
+      const idSalvo = r.id;
+      if (acao === "solicitar") {
+        const rs = await rpc("erp_devolucao_solicitar", { p_id: idSalvo, p_id_usuario: usuario.id });
+        if (rs && rs.ok === false) { notificar(rs.erro || "Falha ao solicitar.", "erro"); }
+        else notificar("Devolução enviada para a boqueta confirmar o recebimento.");
+      } else notificar("Rascunho salvo.");
+      const alvo = await recarregarE(idSalvo);
+      if (alvo) setView("detalhe"); else setView("lista");
     } catch (e) { setErroForm("Erro: " + (e.message || e)); }
+    finally { setSaving(false); }
+  }
+  async function confirmarBoqueta() {
+    if (!window.confirm("Confirmar o RECEBIMENTO físico da peça? Isso dá entrada no estoque e gera o saldo a favor do cliente.")) return;
+    setSaving(true);
+    try {
+      const rc = await rpc("erp_devolucao_confirmar", { p_id: atual.id, p_id_usuario: usuario.id });
+      if (rc && rc.ok === false) { notificar(rc.erro || "Falha ao confirmar.", "erro"); }
+      else notificar(`Recebimento confirmado — saldo de ${fmtBRL(rc.credito || atual.valor_total)} a favor do cliente (uso no Financeiro).`);
+      await recarregarE(atual.id);
+    } catch (e) { notificar("Erro: " + (e.message || e), "erro"); }
     finally { setSaving(false); }
   }
 
@@ -104,8 +132,8 @@ export default function Devolucoes({ usuario }) {
           <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{form.numero_origem ? `${form.origem} ${form.numero_origem}` : "Selecione o documento de origem"}</p></div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button onClick={() => setView("lista")} style={btnGhost()}><X size={16} /> Cancelar</button>
-          <button onClick={() => salvar(false)} disabled={saving} style={btnGhost()}><Save size={16} /> Salvar rascunho</button>
-          {perms.aprovar && <button onClick={() => salvar(true)} disabled={saving} style={btnPrimary()}><CheckCircle2 size={16} /> {saving ? "..." : "Confirmar devolução"}</button>}
+          <button onClick={() => salvar("rascunho")} disabled={saving} style={btnGhost()}><Save size={16} /> Salvar rascunho</button>
+          {perms.incluir && <button onClick={() => salvar("solicitar")} disabled={saving} style={btnPrimary()}><CheckCircle2 size={16} /> {saving ? "..." : "Solicitar (enviar à boqueta)"}</button>}
         </div>
       </div>
       {erroForm && <Aviso cor="destructive"><AlertCircle size={15} /> {erroForm}</Aviso>}
@@ -157,13 +185,17 @@ export default function Devolucoes({ usuario }) {
         {toast && <Toast toast={toast} />}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
           <button onClick={() => setView("lista")} style={btnIcon()}><ArrowLeft size={18} /></button>
-          <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Devolução {atual.numero} <Badge texto={atual.status} cor={statusCor(atual.status)} /></h1>
+          <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Devolução {atual.numero} <Badge texto={statusLabel(atual.status)} cor={statusCor(atual.status)} /></h1>
             <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{atual.cliente_nome} · {atual.origem} {atual.numero_origem || ""}</p></div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            {dig && perms.excluir && <button onClick={cancelar} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {dig && perms.editar && <button onClick={() => abrirEditar(atual)} style={btnGhost()}><Save size={14} /> Editar</button>}
+            {dig && perms.incluir && <button onClick={async () => { const rs = await rpc("erp_devolucao_solicitar", { p_id: atual.id, p_id_usuario: usuario.id }); if (rs && rs.ok === false) notificar(rs.erro, "erro"); else { notificar("Enviada para a boqueta confirmar."); await recarregarE(atual.id); } }} style={btnPrimary()}><CheckCircle2 size={14} /> Solicitar</button>}
+            {atual.status === "AGUARDANDO" && permBoqueta.aprovar && <button onClick={confirmarBoqueta} disabled={saving} style={{ ...btnPrimary(), background: C.success }}><CheckCircle2 size={14} /> Confirmar recebimento</button>}
+            {(dig || atual.status === "AGUARDANDO") && (perms.excluir || permBoqueta.aprovar) && <button onClick={cancelar} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> {atual.status === "AGUARDANDO" ? "Recusar" : "Cancelar"}</button>}
           </div>
         </div>
-        {atual.status === "CONFIRMADA" && <Aviso cor="success"><CheckCircle2 size={15} /> Confirmada — itens retornados ao estoque e saldo de {fmtBRL(atual.valor_total)} lançado a favor do cliente (uso manual no Financeiro).</Aviso>}
+        {atual.status === "AGUARDANDO" && <Aviso cor="warning"><AlertCircle size={15} /> Aguardando a <b>boqueta</b> confirmar o recebimento físico da peça. O saldo só é gerado após essa confirmação.</Aviso>}
+        {atual.status === "CONFIRMADA" && <Aviso cor="success"><CheckCircle2 size={15} /> Recebida pela boqueta — itens retornados ao estoque e saldo de {fmtBRL(atual.valor_total)} lançado a favor do cliente (uso manual no Financeiro).</Aviso>}
         <div style={{ ...cardStyle(), padding: 0, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead><tr>{["Produto", "Qtd", "Vlr unit.", "Total"].map((h, i) => <th key={i} style={th(i >= 1)}>{h}</th>)}</tr></thead>
@@ -206,7 +238,7 @@ export default function Devolucoes({ usuario }) {
                   <td style={td()}>{d.cliente_nome}</td>
                   <td style={{ ...td(), color: C.muted }}>{d.origem} {d.numero_origem || ""}</td>
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(d.valor_total)}</td>
-                  <td style={td()}><Badge texto={d.status} cor={statusCor(d.status)} /></td>
+                  <td style={td()}><Badge texto={statusLabel(d.status)} cor={statusCor(d.status)} /></td>
                   <td style={{ ...td(), textAlign: "right" }}><button style={btnIcon()}><Eye size={15} /></button></td>
                 </tr>))}
               </tbody>
