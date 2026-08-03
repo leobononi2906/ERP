@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PackageOpen, Plus, Search, ArrowLeft, Save, X, Printer, CheckCircle2, AlertCircle, Ban, Link2, DollarSign, Tag, Trash2, Eye } from "lucide-react";
+import { PackageOpen, Plus, Search, ArrowLeft, Save, X, Printer, CheckCircle2, AlertCircle, Ban, Link2, DollarSign, Tag, Trash2, Eye, ClipboardCheck } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca } from "../ui";
 import { EtiquetasLote } from "../EtiquetasLoteModal";
@@ -20,6 +20,7 @@ export default function Entradas({ usuario }) {
   const [toast, setToast] = useState(null);
   const [busca, setBusca] = useState("");
   const [finOpen, setFinOpen] = useState(false);
+  const [conferOpen, setConferOpen] = useState(false);
   const [loteOpen, setLoteOpen] = useState(false);
   const [loteItens, setLoteItens] = useState([]);
   // linha de item em edição
@@ -111,6 +112,21 @@ export default function Entradas({ usuario }) {
     finally { setSaving(false); }
   }
 
+  async function conferir(itensConferidos) {
+    setSaving(true);
+    try {
+      const r = await rpc("erp_entrada_conferir", { p_id: atual.id, p_itens: itensConferidos, p_id_usuario: usuario.id, p_finalizar: true });
+      if (r && r.ok === false) { notificar(r.erro || "Falha ao conferir.", "erro"); setSaving(false); return null; }
+      const nd = r.total_divergencias || 0;
+      notificar(nd > 0 ? `Conferência concluída — ${nd} divergência(s).` : "Conferência concluída — sem divergências.", nd > 0 ? "erro" : "ok");
+      const d = await rpc("erp_entrada_dados", { p_id_empresa: fEmpresa ? Number(fEmpresa) : null }); setDados(d);
+      const at = (d.entradas || []).find((x) => x.id === atual.id); setAtual(at || null);
+      setConferOpen(false);
+      return r;
+    } catch (e) { notificar("Erro: " + (e.message || e), "erro"); return null; }
+    finally { setSaving(false); }
+  }
+
   async function cancelar() {
     if (!window.confirm("Cancelar esta entrada em digitação?")) return;
     try {
@@ -137,35 +153,42 @@ export default function Entradas({ usuario }) {
     return (
       <>
         {toast && <Toast toast={toast} />}
-        {finOpen && <FinalizarModal total={atual.valor_total} planoContas={planoContas} centrosCusto={centrosCusto} onClose={() => setFinOpen(false)} onConfirm={finalizar} saving={saving} />}
+        {finOpen && <FinalizarModal total={atual.valor_total} conferida={atual.conferida} planoContas={planoContas} centrosCusto={centrosCusto} onClose={() => setFinOpen(false)} onConfirm={finalizar} saving={saving} />}
+        {conferOpen && <ConferenciaModal entrada={atual} onClose={() => setConferOpen(false)} onConfirm={conferir} saving={saving} />}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
           <button onClick={() => setView("lista")} style={btnIcon()}><ArrowLeft size={18} /></button>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Entrada {atual.numero} <Badge texto={atual.status} cor={statusCor(atual.status)} /></h1>
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Entrada {atual.numero} <Badge texto={atual.status} cor={statusCor(atual.status)} />{atual.conferida && <span style={{ marginLeft: 6, background: C.successBg, color: C.success, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", padding: "2px 8px", borderRadius: 4 }}>Conferida</span>}</h1>
             <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{nomeForn(atual.id_fornecedor)} · {nomeTipo(atual.id_tipo_entrada)}{atual.pedido_numero ? ` · Pedido ${atual.pedido_numero}` : ""}{atual.numero_nf_fornecedor ? ` · NF ${atual.numero_nf_fornecedor}` : ""}</p>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={() => imprimirEtiquetas(atual)} style={btnGhost()}><Tag size={14} /> Etiquetas</button>
             {dig && perms.editar && <button onClick={() => abrirEditar(atual)} style={btnGhost()}><Save size={14} /> Editar</button>}
+            {dig && perms.editar && <button onClick={() => setConferOpen(true)} style={{ ...btnGhost(), color: atual.conferida ? C.success : C.blueMid, borderColor: atual.conferida ? C.success : C.blueMid }}><ClipboardCheck size={14} /> {atual.conferida ? "Reconferir" : "Conferir"}</button>}
             {dig && perms.excluir && <button onClick={cancelar} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {dig && perms.aprovar && <button onClick={() => setFinOpen(true)} style={btnPrimary()}><CheckCircle2 size={14} /> Finalizar (dar entrada)</button>}
           </div>
         </div>
         <div style={{ ...cardStyle(), padding: 0, overflowX: "auto", marginBottom: 14 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr>{["Produto", "Ref.", "Qtd", "Vlr unit.", "IPI", "Total", "Custo final"].map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}</tr></thead>
+            <thead><tr>{["Produto", "Ref.", "Qtd NF", "Conferida", "Vlr unit.", "IPI", "Total", "Custo final"].map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}</tr></thead>
             <tbody>
-              {(atual.itens || []).map((i) => (
+              {(atual.itens || []).map((i) => {
+                const conf = i.quantidade_conferida;
+                const dif = conf != null ? num(conf) - num(i.quantidade) : 0;
+                return (
                 <tr key={i.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                   <td style={{ ...td(), fontWeight: 500 }}>{i.descricao}</td>
                   <td style={{ ...td(), fontFamily: mono, color: C.muted }}>{i.produto_ref || "—"}</td>
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{num(i.quantidade)}</td>
+                  <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: dif !== 0 ? 700 : 400, color: conf == null ? C.textMuted : dif === 0 ? C.success : C.destructive }}>{conf == null ? "—" : num(conf) + (dif !== 0 ? ` (${dif > 0 ? "+" : ""}${dif})` : "")}</td>
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(i.valor_unitario)}</td>
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(i.valor_ipi)}</td>
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(i.valor_total)}</td>
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.blueMid }}>{fmtBRL(i.custo_unitario_final)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -216,6 +239,82 @@ export default function Entradas({ usuario }) {
 
 function Toast({ toast }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: toast.tipo === "erro" ? C.destructiveBg : C.successBg, color: toast.tipo === "erro" ? C.destructive : C.success }}>{toast.tipo === "erro" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}{toast.msg}</div>;
+}
+
+// Conferência de recebimento (contagem física, opcionalmente cega)
+function ConferenciaModal({ entrada, onClose, onConfirm, saving }) {
+  const [cega, setCega] = useState(entrada.conferencia_cega !== false);
+  const [conf, setConf] = useState(() => {
+    const m = {}; (entrada.itens || []).forEach((i) => { m[i.id] = i.quantidade_conferida != null ? String(i.quantidade_conferida) : ""; });
+    return m;
+  });
+  const [revisar, setRevisar] = useState(false); // etapa de revisão das divergências antes de gravar
+
+  const itens = entrada.itens || [];
+  const preenchidos = itens.filter((i) => conf[i.id] !== "" && conf[i.id] != null).length;
+  const linhas = itens.map((i) => {
+    const c = conf[i.id] === "" || conf[i.id] == null ? null : num(conf[i.id]);
+    const dif = c == null ? null : c - num(i.quantidade);
+    return { ...i, conferida: c, dif };
+  });
+  const divergentes = linhas.filter((l) => l.dif != null && l.dif !== 0);
+  const semContagem = linhas.filter((l) => l.conferida == null);
+
+  function gravar() {
+    const payload = itens.map((i) => ({ id: i.id, quantidade_conferida: conf[i.id] === "" ? null : num(conf[i.id]) }));
+    onConfirm(payload);
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,29,53,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 200, padding: 24, overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle(), width: 720, maxWidth: "100%" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <ClipboardCheck size={18} color={C.blueMid} />
+          <div style={{ fontSize: 16, fontWeight: 700 }}>Conferência da entrada {entrada.numero}</div>
+          <div style={{ marginLeft: "auto" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", color: C.muted }}>
+              <input type="checkbox" checked={cega} onChange={(e) => setCega(e.target.checked)} /> Conferência cega
+            </label>
+          </div>
+        </div>
+        <Aviso cor="muted"><AlertCircle size={15} /> Conte fisicamente e informe a quantidade recebida por item.{cega ? " Modo cego: a quantidade da NF fica oculta até revisar." : " A quantidade da NF é exibida ao lado."}</Aviso>
+
+        <div style={{ ...cardStyle(), padding: 0, overflowX: "auto", marginBottom: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead><tr>{["Produto", "Ref.", ...(cega && !revisar ? [] : ["Qtd NF"]), "Contado", ...(revisar ? ["Diferença"] : [])].map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}</tr></thead>
+            <tbody>
+              {linhas.map((l) => (
+                <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}`, background: revisar && l.dif ? C.destructiveBg : "transparent" }}>
+                  <td style={{ ...td(), fontWeight: 500 }}>{l.descricao}</td>
+                  <td style={{ ...td(), fontFamily: mono, color: C.muted }}>{l.produto_ref || "—"}</td>
+                  {(!cega || revisar) && <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{num(l.quantidade)}</td>}
+                  <td style={{ ...td(), textAlign: "right" }}>
+                    <input value={conf[l.id] ?? ""} onChange={(e) => setConf((x) => ({ ...x, [l.id]: e.target.value.replace(/[^\d.,]/g, "") }))} disabled={revisar} inputMode="decimal" placeholder="—" style={{ ...inp(), width: 90, textAlign: "right", fontFamily: mono, height: 34 }} />
+                  </td>
+                  {revisar && <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: l.dif ? 700 : 400, color: l.conferida == null ? C.textMuted : l.dif === 0 ? C.success : C.destructive }}>{l.conferida == null ? "sem contagem" : l.dif === 0 ? "OK" : (l.dif > 0 ? "+" : "") + l.dif}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12, color: C.muted }}>
+            {preenchidos}/{itens.length} contado(s)
+            {revisar && <> · {divergentes.length > 0 ? <span style={{ color: C.destructive, fontWeight: 600 }}>{divergentes.length} divergência(s)</span> : <span style={{ color: C.success, fontWeight: 600 }}>sem divergências</span>}{semContagem.length > 0 && <span style={{ color: C.warning }}> · {semContagem.length} sem contagem</span>}</>}
+          </div>
+          <div style={{ flex: 1 }} />
+          <button onClick={onClose} style={btnGhost()}><X size={15} /> Cancelar</button>
+          {!revisar
+            ? <button onClick={() => setRevisar(true)} style={btnPrimary()}>Revisar divergências</button>
+            : <>
+              <button onClick={() => setRevisar(false)} style={btnGhost()}><ArrowLeft size={15} /> Voltar</button>
+              <button onClick={gravar} disabled={saving} style={{ ...btnPrimary(), background: C.success }}><CheckCircle2 size={15} /> {saving ? "Gravando..." : "Concluir conferência"}</button>
+            </>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function FormEntrada({ form, setF, erroForm, saving, salvar, voltar, empresas, fornecedores, produtos, tiposEntrada, centrosEstoque, condPag, pedidosAbertos, centrosCusto, vincularPedido, it, setIt, addItem, rmItem, totalProdutos, totalIpi, totalGeral, nomeProd }) {
@@ -289,7 +388,7 @@ function FormEntrada({ form, setF, erroForm, saving, salvar, voltar, empresas, f
   );
 }
 
-function FinalizarModal({ total, planoContas, centrosCusto, onClose, onConfirm, saving }) {
+function FinalizarModal({ total, conferida, planoContas, centrosCusto, onClose, onConfirm, saving }) {
   const [gerar, setGerar] = useState(false);
   const [idPlano, setIdPlano] = useState("");
   const [venc, setVenc] = useState("");
@@ -305,6 +404,8 @@ function FinalizarModal({ total, planoContas, centrosCusto, onClose, onConfirm, 
       <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle(), width: 520, maxWidth: "100%" }}>
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Finalizar entrada</div>
         <Aviso cor="warning"><AlertCircle size={15} /> Isto dá <b>entrada no estoque</b> (com custo médio) e atualiza o pedido vinculado. Não pode ser desfeito.</Aviso>
+        {!conferida && <Aviso cor="destructive"><AlertCircle size={15} /> Esta entrada <b>não foi conferida</b>. O estoque entrará pela quantidade da NF. Recomendado conferir antes de finalizar.</Aviso>}
+        {conferida && <Aviso cor="success"><CheckCircle2 size={15} /> Entrada conferida — o estoque entra pela <b>quantidade conferida</b>.</Aviso>}
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, margin: "8px 0", cursor: "pointer" }}>
           <input type="checkbox" checked={gerar} onChange={(e) => setGerar(e.target.checked)} /> <span>Gerar conta a pagar (título)</span>
         </label>
