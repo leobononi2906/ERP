@@ -24,6 +24,7 @@ import PrecosEspeciais from "./pages/PrecosEspeciais";
 import Encomendas from "./pages/Encomendas";
 import Promocoes from "./pages/Promocoes";
 import Relatorios from "./pages/Relatorios";
+import Entradas from "./pages/Entradas";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
@@ -54,6 +55,12 @@ const MENU_GROUPS = [
     items: [
       { key: "estoque", label: "Estoque", icon: Package, ok: true },
       { key: "separacao", label: "Separação", icon: PackageOpen, ok: true },
+    ],
+  },
+  {
+    groupKey: "compras_g", label: "Compras", icon: Truck,
+    items: [
+      { key: "entradas", label: "Entradas (NF)", icon: PackageOpen, ok: true, permKey: "compras" },
     ],
   },
   {
@@ -204,7 +211,8 @@ export default function App() {
         {pagina === "promocoes" && <Promocoes usuario={usuario} />}
         {pagina === "admin" && <Administracao usuario={usuario} />}
         {pagina === "relatorios" && <Relatorios usuario={usuario} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios"].includes(pagina) && (
+        {pagina === "entradas" && <Entradas usuario={usuario} />}
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
