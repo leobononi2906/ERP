@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
-  DollarSign, Send, Eye,
+  DollarSign, Send, Eye, Printer,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
+import { imprimirOSDoc } from "../print";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca } from "../ui";
 
 
@@ -560,6 +561,9 @@ export default function OrdensServico({ usuario }) {
                 <Pencil size={14} /> Editar
               </button>
             )}
+            <button onClick={() => imprimirOSDoc({ os: osAtual, pecas: osPecas, servicos: osServicos, cliente: nomeCliente(osAtual.id_cliente), empresa: osAtual.empresa || "" })} style={btnGhost()}>
+              <Printer size={14} /> Imprimir
+            </button>
           </div>
         </div>
 

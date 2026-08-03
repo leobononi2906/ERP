@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
-  ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban,
+  ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban, Printer, Tag,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
+import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
@@ -432,6 +433,8 @@ export default function Vendas({ usuario }) {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {podeEditar && <button onClick={() => { setForm({ ...vendaAtual }); setView("form"); }} style={btnGhost()}><Pencil size={14} /> Editar</button>}
+            <button onClick={() => imprimirVendaDoc({ venda: vendaAtual, itens, cliente: nomeCliente(vendaAtual.id_cliente), empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "", pagamento: vendaAtual.id_condicao_pagamento ? ((condPag.find((c) => c.id === vendaAtual.id_condicao_pagamento) || {}).descricao || "A prazo") : "À vista" })} style={btnGhost()}><Printer size={14} /> Imprimir</button>
+            <button onClick={() => imprimirEtiquetaExpedicao({ venda: vendaAtual, cliente: clientes.find((c) => c.id === vendaAtual.id_cliente) || { nome: nomeCliente(vendaAtual.id_cliente) }, empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "" })} style={btnGhost()}><Tag size={14} /> Etiqueta</button>
             {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
               <button onClick={() => { setFatForma(vendaAtual.id_forma_pagamento || ""); setFatCond(vendaAtual.id_condicao_pagamento || ""); setFatOpen(true); }} style={btnPrimary()}>

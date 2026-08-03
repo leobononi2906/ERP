@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
+import { imprimirEtiquetaProduto } from "../print";
 const SITUACOES = ["ATIVO", "INATIVO"];
 const ORIGENS = [
   { v: 0, t: "0 - Nacional" }, { v: 1, t: "1 - Estrangeira (import. direta)" }, { v: 2, t: "2 - Estrangeira (merc. interno)" },
@@ -77,7 +78,7 @@ export default function Produtos({ usuario }) {
                   <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(p.preco_venda)}</td>
                   <td style={td()}><span style={{ fontFamily: mono }}>{num(p.estoque_atual)}</span> <span style={{ fontSize: 11, color: C.textMuted }}>{p.unidade_sigla}</span>{baixo && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, background: C.warningBg, color: C.warning, padding: "1px 6px", borderRadius: 4 }}>BAIXO</span>}</td>
                   <td style={td()}><Badge texto={p.situacao} /></td>
-                  <td style={{ ...td(), textAlign: "right" }}><button onClick={() => abrirEditar(p)} style={btnIcon()}>{(perms.editar || perms.aprovar) ? <Pencil size={15} /> : <Eye size={15} />}</button></td>
+                  <td style={{ ...td(), textAlign: "right", whiteSpace: "nowrap" }}><button onClick={() => imprimirEtiquetaProduto(p, 1)} style={{ ...btnIcon(), marginRight: 6 }} title="Imprimir etiqueta"><Tag size={15} /></button><button onClick={() => abrirEditar(p)} style={btnIcon()}>{(perms.editar || perms.aprovar) ? <Pencil size={15} /> : <Eye size={15} />}</button></td>
                 </tr>); })}</tbody>
             </table></div>}
       </div>
