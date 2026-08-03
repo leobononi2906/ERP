@@ -7,7 +7,7 @@ const VAZIO = () => ({
   id: null, descricao: "", mov_estoque: true, mov_financeiro: true, gera_nf: true,
   gera_comissao: false, contabiliza_lucro: false, padrao: false, ativo: true,
   id_natureza_dentro: "", id_natureza_fora: "",
-  tipo: "SAIDA", atualiza_custo: false, id_centro_custo: "", id_categoria_despesa: "",
+  tipo: "SAIDA", atualiza_custo: false, id_centro_custo: "", id_categoria_despesa: "", restrito: false,
 });
 
 function Toggle({ label, value, onChange, disabled }) {
@@ -115,6 +115,7 @@ export default function TiposOperacao({ usuario }) {
           <Campo label=""><Toggle label="Gera Comissão" value={form.gera_comissao} onChange={(v) => setF("gera_comissao", v)} /></Campo>
           <Campo label=""><Toggle label="Contabiliza Lucro" value={form.contabiliza_lucro} onChange={(v) => setF("contabiliza_lucro", v)} /></Campo>
           <Campo label=""><Toggle label="Tipo Padrão" value={form.padrao} onChange={(v) => setF("padrao", v)} /></Campo>
+          <Campo label=""><Toggle label="Restrito (requer aprovação em Vendas)" value={form.restrito} onChange={(v) => setF("restrito", v)} /></Campo>
           {form.tipo === "ENTRADA" && (
             <Campo label=""><Toggle label="Atualiza Custo" value={form.atualiza_custo} onChange={(v) => setF("atualiza_custo", v)} /></Campo>
           )}
