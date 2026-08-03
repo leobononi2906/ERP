@@ -366,9 +366,12 @@ export default function Vendas({ usuario }) {
               placeholder="Selecione..."
               full={true}
             />
-            {form.id_cliente && credito && num(credito.saldo) > 0 && (
-              <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: C.success, display: "flex", alignItems: "center", gap: 6 }}>
-                💳 Crédito disponível: {fmtBRL(credito.saldo)} <span style={{ fontWeight: 400, color: C.muted }}>(abatível no faturamento)</span>
+            {form.id_cliente && credito && (
+              <div style={{ marginTop: 6, fontSize: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontWeight: 700, color: num(credito.disponivel) > 0 ? C.success : C.destructive }}>A prazo disponível: {fmtBRL(credito.disponivel)}</span>
+                <span style={{ color: C.muted }}>Limite {fmtBRL(credito.limite)} · Em aberto {fmtBRL(credito.devedor)}</span>
+                {num(credito.saldo) > 0 && <span style={{ fontWeight: 600, color: C.blueMid }}>💳 Vale-compra {fmtBRL(credito.saldo)}</span>}
+                {num(credito.qtd_vencidos) > 0 && <span style={{ fontWeight: 700, color: C.destructive }}>⚠ {credito.qtd_vencidos} vencido(s): {fmtBRL(credito.vencidos)}</span>}
               </div>
             )}
           </Campo>
@@ -444,7 +447,12 @@ export default function Vendas({ usuario }) {
               {cfop ? ` · CFOP: ${cfop}` : ""}
             </p>
             {vendaAtual.id_orcamento_origem && <p style={{ fontSize: 12, color: C.blueMid, margin: "2px 0 0" }}>Origem: Orçamento</p>}
-            {credito && num(credito.saldo) > 0 && <p style={{ fontSize: 12, fontWeight: 600, color: C.success, margin: "2px 0 0" }}>💳 Crédito disponível do cliente: {fmtBRL(credito.saldo)}</p>}
+            {credito && <p style={{ fontSize: 12, margin: "2px 0 0", display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 700, color: num(credito.disponivel) > 0 ? C.success : C.destructive }}>A prazo disponível: {fmtBRL(credito.disponivel)}</span>
+              <span style={{ color: C.muted }}>Limite {fmtBRL(credito.limite)} · Em aberto {fmtBRL(credito.devedor)}</span>
+              {num(credito.saldo) > 0 && <span style={{ fontWeight: 600, color: C.blueMid }}>💳 Vale-compra {fmtBRL(credito.saldo)}</span>}
+              {num(credito.qtd_vencidos) > 0 && <span style={{ fontWeight: 700, color: C.destructive }}>⚠ {credito.qtd_vencidos} vencido(s)</span>}
+            </p>}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {podeEditar && <button onClick={() => { setForm({ ...vendaAtual }); setView("form"); }} style={btnGhost()}><Pencil size={14} /> Editar</button>}
