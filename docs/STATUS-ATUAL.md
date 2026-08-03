@@ -52,6 +52,49 @@
 Aplicadas no Supabase (fonte da verdade). Arquivos em `supabase/migrations/`:
 - `34` `erp_rel_vendas` · `35` compras/produtos/clientes · `36` `erp_dre` — **aplicadas no Supabase; arquivos não versionados neste repo** (foram salvos por engano em outro repositório). Reexportar do banco antes do go-live no servidor interno.
 - `37` tipos_saida.restrito · `38` erp_usuario_pode + regra de crédito do cliente · `39` devoluções (tabelas `devolucoes`, `devolucoes_itens`, `clientes_creditos` + RPCs) · `40` `erp_cliente_credito` (painel de crédito) · `41` devolução com aval da boqueta.
+- `42` conferência de recebimento (`quantidade_conferida` + `erp_entrada_conferir`; finalizar baixa pela qtd conferida) · `43` `erp_estoque_parado` · `44` fix da sobrecarga de auditoria `erp_log` (7 args) · `45` **baixa de estoque no faturamento** (triggers `trg_venda_baixa_estoque` / `trg_os_baixa_estoque` → `erp_baixar_estoque`, idempotente por `movimentou_estoque`).
+
+## Entregue na sessão de 2026-08-03 (continuação — Compras, estoque, fixes)
+
+### Compras (novas telas no menu Compras)
+- **Demanda / Sugestão** (`src/pages/Demanda.jsx`): reposição (mín/máx) e giro (consumo) com filtros
+  (empresa, modo, grupo/subgrupo, fornecedor, urgência, busca, janela/lead/estoque desejado); edição
+  inline de mín/máx (`erp_produto_estoque_limites`); marca itens, ajusta qtd/fornecedor e **gera
+  pedido(s) de compra** (um por fornecedor) via `erp_demanda_gerar_pedidos` → navega para Pedidos.
+- **Pedidos de Compra** (`src/pages/PedidosCompra.jsx`): lista + editor (cabeçalho + itens), status
+  Pendente → Aprovado → Enviado, cancelar; trava em Recebido/Parcial/Cancelado; mostra qtd recebida.
+  Usa `erp_pedido_compra_dados/_salvar/_status/_cancelar`.
+- **Estoque Parado** (`src/pages/EstoqueParado.jsx`): produtos com saldo e **sem saída** no período;
+  filtros empresa/grupo/subgrupo/dias, KPIs (produtos, valor imobilizado, qtd), CSV. RPC `erp_estoque_parado`.
+
+### Conferência de recebimento (Entradas de NF) — migration 42
+- Contagem física (modo **cego** opcional) antes de finalizar, com revisão de **divergências**. O
+  estoque entra pela **quantidade conferida** (fallback = qtd da NF). Front: `ConferenciaModal` em
+  `Entradas.jsx`; RPC `erp_entrada_conferir`.
+
+### OS — serviço a partir do cadastro
+- `OrdensServico.jsx`: item de serviço agora tem **seletor da relação de serviços** (`servicos`),
+  preenchendo descrição e valor (editável). Antes era só texto livre.
+
+### 🐛 Fix crítico — auditoria `erp_log` (migration 44)
+- Recriada a sobrecarga `erp_log(usuario, modulo, acao, tabela, registro, dados_anteriores,
+  dados_novos)` que estava ausente e fazia `venda_salvar`, `orcamento_salvar/_reprovar` e
+  `encomenda_aprovar` falharem. Salvamentos normalizados.
+
+### 📦 Estoque: baixa no faturamento (regra única) — migration 45
+- **Regra definida:** o estoque SAI quando a **Venda/OS é FATURADA** — trigger `AFTER UPDATE OF status`
+  baixa itens de PRODUTO/peça ainda não movimentados pelo **helper único** `public.erp_baixar_estoque`
+  (grava kardex + valida saldo). **Idempotente** via `movimentou_estoque` (se já saiu na separação,
+  pula). Estoque insuficiente **aborta** o faturamento. Testado com rollback.
+- **Mapa:** Entra = Entrada NF Finalizar (kardex + custo médio). Sai = faturamento da Venda/OS (ou
+  Separação → Entregar, que também usa `erp_baixar_estoque`; Separação → Confirmar só reserva).
+  Toda saída real passa por `erp_baixar_estoque` → kardex sempre gravado.
+
+### Aberto para verificar (front)
+- **Separação vinda da venda/OS não aparecia na tela** logo após criar. Backend 100% ok (a solicitação
+  existe, `erp_separacao_dados` retorna, anon tem permissão). Provável **cache do bundle** — fazer
+  **hard reload** (Ctrl/Cmd+Shift+R). Se persistir, pegar o erro do console (F12) da chamada
+  `erp_separacao_dados`.
 
 ## Pendências / próximos passos
 1. **Usar o saldo do cliente no Financeiro** (manual): botão no Contas a Receber para abater título com o saldo de `clientes_creditos`. (Automático foi descartado a pedido.)
