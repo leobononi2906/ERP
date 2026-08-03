@@ -730,9 +730,20 @@ export default function OrdensServico({ usuario }) {
                 {/* Form inline para adicionar serviço */}
                 {addServico && (
                   <div style={{ background: C.surface2, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                  <div style={{ marginBottom: 10 }}>
+                    <Campo label="Serviço (da relação de serviços) *">
+                      <SelectBusca
+                        full
+                        opcoes={servicos.map((s) => ({ id: s.id, label: s.nome, sub: (s.codigo ? s.codigo + " · " : "") + fmtBRL(s.preco) }))}
+                        value={formServ.id_servico}
+                        onChange={(id) => { const s = servicos.find((x) => String(x.id) === String(id)) || {}; setFormServ((f) => ({ ...f, id_servico: id, descricao: s.nome || f.descricao, valor_unitario: s.preco != null ? String(s.preco) : f.valor_unitario })); }}
+                        placeholder="Buscar serviço no cadastro..."
+                      />
+                    </Campo>
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
-                    <Campo label="Descrição do serviço *">
-                      <input value={formServ.descricao} onChange={(e) => setFormServ((f) => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Trocar farol dianteiro" style={inp(true)} />
+                    <Campo label="Descrição (edite se precisar)">
+                      <input value={formServ.descricao} onChange={(e) => setFormServ((f) => ({ ...f, descricao: e.target.value }))} placeholder="Selecione o serviço acima" style={inp(true)} />
                     </Campo>
                     <Campo label="Qtd">
                       <input value={formServ.quantidade} onChange={(e) => setFormServ((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
