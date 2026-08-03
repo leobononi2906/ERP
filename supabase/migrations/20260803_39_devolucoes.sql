@@ -1,0 +1,3 @@
+-- 39: Devoluções comerciais — tabelas devolucoes, devolucoes_itens, clientes_creditos
+-- + RPCs: erp_devolucao_dados, _origem, _salvar, _confirmar (origem estoque=DEVOLUCAO_VENDA), _cancelar.
+-- Definições completas aplicadas via Supabase (fonte da verdade). Ver banco para o corpo atual.
