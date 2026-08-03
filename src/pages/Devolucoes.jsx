@@ -78,7 +78,7 @@ export default function Devolucoes({ usuario }) {
       if (confirmar) {
         const rc = await rpc("erp_devolucao_confirmar", { p_id: idSalvo, p_id_usuario: usuario.id });
         if (rc && rc.ok === false) { notificar(rc.erro || "Falha ao confirmar.", "erro"); }
-        else notificar(`Devolução confirmada — crédito de ${fmtBRL(rc.credito || total)} para o cliente.`);
+        else notificar(`Devolução confirmada — saldo de ${fmtBRL(rc.credito || total)} a favor do cliente (uso no Financeiro).`);
       } else notificar("Devolução salva (em digitação).");
       const d = await rpc("erp_devolucao_dados", { p_id_empresa: fEmpresa ? Number(fEmpresa) : null }); setDados(d);
       const nova = (d.devolucoes || []).find((x) => x.id === idSalvo);
@@ -137,7 +137,7 @@ export default function Devolucoes({ usuario }) {
               </tr>))}
             </tbody>
           </table>}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, fontWeight: 700 }}>Crédito ao cliente: <span style={{ fontFamily: mono, marginLeft: 8 }}>{fmtBRL(total)}</span></div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, fontWeight: 700 }}>Saldo a favor do cliente: <span style={{ fontFamily: mono, marginLeft: 8 }}>{fmtBRL(total)}</span></div>
       </div>
 
       <Secao titulo="NF-e de devolução (gancho — não emite agora)">
@@ -163,7 +163,7 @@ export default function Devolucoes({ usuario }) {
             {dig && perms.excluir && <button onClick={cancelar} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
           </div>
         </div>
-        {atual.status === "CONFIRMADA" && <Aviso cor="success"><CheckCircle2 size={15} /> Confirmada — itens retornados ao estoque e crédito de {fmtBRL(atual.valor_total)} lançado para o cliente.</Aviso>}
+        {atual.status === "CONFIRMADA" && <Aviso cor="success"><CheckCircle2 size={15} /> Confirmada — itens retornados ao estoque e saldo de {fmtBRL(atual.valor_total)} lançado a favor do cliente (uso manual no Financeiro).</Aviso>}
         <div style={{ ...cardStyle(), padding: 0, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead><tr>{["Produto", "Qtd", "Vlr unit.", "Total"].map((h, i) => <th key={i} style={th(i >= 1)}>{h}</th>)}</tr></thead>
@@ -177,7 +177,7 @@ export default function Devolucoes({ usuario }) {
             </tbody>
           </table>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, fontWeight: 700, fontSize: 15 }}>Total / crédito: <span style={{ fontFamily: mono, marginLeft: 8 }}>{fmtBRL(atual.valor_total)}</span></div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, fontWeight: 700, fontSize: 15 }}>Total / saldo gerado: <span style={{ fontFamily: mono, marginLeft: 8 }}>{fmtBRL(atual.valor_total)}</span></div>
       </>
     );
   }
@@ -188,7 +188,7 @@ export default function Devolucoes({ usuario }) {
     <>
       {toast && <Toast toast={toast} />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
-        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Devoluções</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>Devolução de venda/OS — gera crédito ao cliente</p></div>
+        <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Devoluções</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>Devolução de venda/OS — gera saldo a favor do cliente (uso no Financeiro)</p></div>
         {perms.incluir && <button onClick={abrirNova} style={btnPrimary()}><Plus size={16} /> Nova devolução</button>}
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
@@ -199,7 +199,7 @@ export default function Devolucoes({ usuario }) {
         {loading ? <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>{[0, 1, 2].map((i) => <Skeleton key={i} h={28} />)}</div>
           : lista.length === 0 ? <div style={{ textAlign: "center", padding: "48px 0", color: C.textMuted }}><Undo2 size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Nenhuma devolução.</div></div>
             : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
-              <thead><tr>{["Nº", "Cliente", "Origem", "Crédito", "Status", ""].map((h, i) => <th key={i} style={th(i === 3)}>{h}</th>)}</tr></thead>
+              <thead><tr>{["Nº", "Cliente", "Origem", "Saldo gerado", "Status", ""].map((h, i) => <th key={i} style={th(i === 3)}>{h}</th>)}</tr></thead>
               <tbody>{lista.map((d) => (
                 <tr key={d.id} style={{ borderTop: `1px solid ${C.border}`, cursor: "pointer" }} onClick={() => abrirDetalhe(d)} onMouseEnter={(e) => e.currentTarget.style.background = C.surface2} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                   <td style={{ ...td(), fontFamily: mono, fontWeight: 600 }}>{d.numero}</td>
