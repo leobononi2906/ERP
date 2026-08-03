@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3, Undo2,
+  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp,
 } from "lucide-react";
 import { C, setLogUsuario } from "./config";
 import { navHandoff } from "./nav";
@@ -27,6 +27,8 @@ import Promocoes from "./pages/Promocoes";
 import Relatorios from "./pages/Relatorios";
 import Entradas from "./pages/Entradas";
 import Devolucoes from "./pages/Devolucoes";
+import Demanda from "./pages/Demanda";
+import PedidosCompra from "./pages/PedidosCompra";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
@@ -63,6 +65,8 @@ const MENU_GROUPS = [
   {
     groupKey: "compras_g", label: "Compras", icon: Truck,
     items: [
+      { key: "demanda", label: "Demanda / Sugestão", icon: TrendingUp, ok: true, permKey: "compras" },
+      { key: "pedidos_compra", label: "Pedidos de Compra", icon: ShoppingCart, ok: true, permKey: "compras" },
       { key: "entradas", label: "Entradas (NF)", icon: PackageOpen, ok: true, permKey: "compras" },
     ],
   },
@@ -222,7 +226,9 @@ export default function App() {
         {pagina === "relatorios" && <Relatorios usuario={usuario} />}
         {pagina === "entradas" && <Entradas usuario={usuario} />}
         {pagina === "devolucoes" && <Devolucoes usuario={usuario} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes"].includes(pagina) && (
+        {pagina === "demanda" && <Demanda usuario={usuario} />}
+        {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
