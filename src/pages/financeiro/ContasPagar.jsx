@@ -5,9 +5,12 @@ import { C, rpc, fmtBRL } from "../../config";
 const fmtData = (d) => { if (!d) return "—"; const [y,m,dd] = String(d).substring(0,10).split("-"); return `${dd}/${m}/${y}`; };
 const diasAtraso = (v) => { if (!v) return 0; const [y,m,d] = String(v).substring(0,10).split("-").map(Number); const h = new Date(); h.setHours(0,0,0,0); return Math.max(0, Math.floor((h - new Date(y,m-1,d)) / 864e5)); };
 const badge = (status, venc) => {
-  if (status === "ABERTO" && diasAtraso(venc) > 0) return { label: "Vencido", bg: C.destructiveBg, fg: C.destructive };
-  if (status === "PARCIAL") return { label: "Parcial", bg: "#FFF3E0", fg: C.warning };
-  if (status === "QUITADO") return { label: "Quitado", bg: C.successBg, fg: C.success };
+  // status vem cru do banco: ABERTO | PAGO_PARCIAL | PAGO | VENCIDO | CANCELADO | RENEGOCIADO
+  if (status === "PAGO") return { label: "Quitado", bg: C.successBg, fg: C.success };
+  if (status === "PAGO_PARCIAL") return { label: "Parcial", bg: "#FFF3E0", fg: C.warning };
+  if (status === "CANCELADO") return { label: "Cancelado", bg: "#F1F5F9", fg: "#64748B" };
+  if (status === "RENEGOCIADO") return { label: "Renegociado", bg: "#F1F5F9", fg: "#64748B" };
+  if (status === "VENCIDO" || (status === "ABERTO" && diasAtraso(venc) > 0)) return { label: "Vencido", bg: C.destructiveBg, fg: C.destructive };
   return { label: "Aberto", bg: C.bluePale, fg: C.blueMid };
 };
 const inp = { width: "100%", padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 8, background: "#fff", fontFamily: "inherit" };
@@ -43,7 +46,7 @@ export default function ContasPagar({ usuario }) {
   const resumo = useMemo(() => {
     const h = new Date(); h.setHours(0,0,0,0); const d30 = new Date(h); d30.setDate(d30.getDate()+30);
     let aberto=0,vencido=0,ap30=0;
-    titulos.forEach(t => { const s = Number(t.valor_saldo)||0; if (t.status==="QUITADO"||s<=0) return; aberto+=s; const [y,m,d]=String(t.data_vencimento).substring(0,10).split("-").map(Number); const dv=new Date(y,m-1,d); if(dv<h)vencido+=s; else if(dv<=d30)ap30+=s; });
+    titulos.forEach(t => { const s = Number(t.valor_saldo)||0; if (t.status==="PAGO"||s<=0) return; aberto+=s; const [y,m,d]=String(t.data_vencimento).substring(0,10).split("-").map(Number); const dv=new Date(y,m-1,d); if(dv<h)vencido+=s; else if(dv<=d30)ap30+=s; });
     return {aberto,vencido,ap30};
   }, [titulos]);
 
@@ -74,7 +77,7 @@ export default function ContasPagar({ usuario }) {
       </div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",background:"#fff",borderRadius:12,padding:14,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
         <div style={{flex:1,minWidth:200,position:"relative"}}><Search size={15} style={{position:"absolute",left:10,top:10,color:C.textMuted}}/><input placeholder="Buscar..." value={busca} onChange={e=>setBusca(e.target.value)} style={{...inp,paddingLeft:32}}/></div>
-        <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)} style={{...inp,width:"auto"}}><option value="">Todos</option><option value="ABERTO">Aberto</option><option value="PARCIAL">Parcial</option><option value="QUITADO">Quitado</option></select>
+        <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)} style={{...inp,width:"auto"}}><option value="">Todos</option><option value="ABERTO">Aberto</option><option value="PAGO_PARCIAL">Parcial</option><option value="PAGO">Quitado</option></select>
         <input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={{...inp,width:"auto"}}/>
         <input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={{...inp,width:"auto"}}/>
         <button onClick={()=>setModalNovo(true)} style={bp}><Plus size={14} style={{marginRight:4,verticalAlign:"middle"}}/>Novo</button>
@@ -84,7 +87,7 @@ export default function ContasPagar({ usuario }) {
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr style={{background:C.surface2,borderBottom:`1px solid ${C.border}`}}>
           {["Nº","Fornecedor","Valor","Saldo","Vencimento","Status","Ações"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.muted}}>{h}</th>)}
         </tr></thead><tbody>{titulos.map(t=>{
-          const b=badge(t.status,t.data_vencimento); const atr=diasAtraso(t.data_vencimento); const venc=t.status!=="QUITADO"&&atr>0; const aguarda=t.status!=="QUITADO"&&!t.aprovado;
+          const b=badge(t.status,t.data_vencimento); const atr=diasAtraso(t.data_vencimento); const venc=t.status!=="PAGO"&&atr>0; const aguarda=t.status!=="PAGO"&&!t.aprovado;
           return <tr key={t.id} style={{borderBottom:`1px solid ${C.border}`,background:venc?"#FEF0EF":"#fff"}}>
             <td style={{padding:"10px 12px",fontWeight:500}}>{t.numero||"—"}<span style={{fontSize:11,color:C.textMuted,marginLeft:4}}>{t.parcela}</span></td>
             <td style={{padding:"10px 12px",maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.cliente_nome||"—"}</td>
@@ -98,7 +101,7 @@ export default function ContasPagar({ usuario }) {
             <td style={{padding:"10px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
               <button onClick={()=>setModalBaixas(t)} style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.muted}}><Eye size={16}/></button>
               {aguarda&&<button onClick={()=>handleAprovar(t.id)} title="Aprovar" style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.blueMid}}><ShieldCheck size={16}/></button>}
-              {t.status!=="QUITADO"&&(t.aprovado||!aguarda)&&<button onClick={()=>setModalBaixa(t)} style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.success}}><DollarSign size={16}/></button>}
+              {t.status!=="PAGO"&&(t.aprovado||!aguarda)&&<button onClick={()=>setModalBaixa(t)} style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.success}}><DollarSign size={16}/></button>}
             </td>
           </tr>;
         })}</tbody></table></div></div>}

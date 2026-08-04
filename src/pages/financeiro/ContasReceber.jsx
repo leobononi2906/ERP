@@ -6,9 +6,12 @@ const fmtData = (d) => { if (!d) return "—"; const [y,m,dd] = String(d).substr
 const diasAtraso = (v) => { if (!v) return 0; const [y,m,d] = String(v).substring(0,10).split("-").map(Number); const h = new Date(); h.setHours(0,0,0,0); return Math.max(0, Math.floor((h - new Date(y,m-1,d)) / 864e5)); };
 
 const badge = (status, venc) => {
-  if (status === "ABERTO" && diasAtraso(venc) > 0) return { label: "Vencido", bg: C.destructiveBg, fg: C.destructive };
-  if (status === "PARCIAL") return { label: "Parcial", bg: "#FFF3E0", fg: C.warning };
-  if (status === "QUITADO") return { label: "Quitado", bg: C.successBg, fg: C.success };
+  // status vem cru do banco: ABERTO | PAGO_PARCIAL | PAGO | VENCIDO | CANCELADO | RENEGOCIADO
+  if (status === "PAGO") return { label: "Quitado", bg: C.successBg, fg: C.success };
+  if (status === "PAGO_PARCIAL") return { label: "Parcial", bg: "#FFF3E0", fg: C.warning };
+  if (status === "CANCELADO") return { label: "Cancelado", bg: "#F1F5F9", fg: "#64748B" };
+  if (status === "RENEGOCIADO") return { label: "Renegociado", bg: "#F1F5F9", fg: "#64748B" };
+  if (status === "VENCIDO" || (status === "ABERTO" && diasAtraso(venc) > 0)) return { label: "Vencido", bg: C.destructiveBg, fg: C.destructive };
   return { label: "Aberto", bg: C.bluePale, fg: C.blueMid };
 };
 
@@ -54,7 +57,7 @@ export default function ContasReceber({ usuario }) {
     const h = new Date(); h.setHours(0,0,0,0); const d30 = new Date(h); d30.setDate(d30.getDate()+30);
     let aberto=0, vencido=0, av30=0;
     titulos.forEach(t => {
-      const s = Number(t.valor_saldo)||0; if (t.status==="QUITADO"||s<=0) return;
+      const s = Number(t.valor_saldo)||0; if (t.status==="PAGO"||s<=0) return;
       aberto += s;
       const [y,m,d] = String(t.data_vencimento).substring(0,10).split("-").map(Number);
       const dv = new Date(y,m-1,d);
@@ -122,7 +125,7 @@ export default function ContasReceber({ usuario }) {
           <input placeholder="Buscar número, cliente..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ ...inputSt, paddingLeft:32 }} />
         </div>
         <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)} style={{ ...inputSt, width:"auto" }}>
-          <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="PARCIAL">Parcial</option><option value="QUITADO">Quitado</option>
+          <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="PAGO_PARCIAL">Parcial</option><option value="PAGO">Quitado</option>
         </select>
         <input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={{ ...inputSt,width:"auto" }} />
         <input type="date" value={dataFim} onChange={e=>setDataFim(e.target.value)} style={{ ...inputSt,width:"auto" }} />
@@ -144,7 +147,7 @@ export default function ContasReceber({ usuario }) {
                 {titulos.map(t => {
                   const b = badge(t.status, t.data_vencimento);
                   const atr = diasAtraso(t.data_vencimento);
-                  const venc = t.status !== "QUITADO" && atr > 0;
+                  const venc = t.status !== "PAGO" && atr > 0;
                   return (
                     <tr key={t.id} style={{ borderBottom:`1px solid ${C.border}`, background: venc ? "#FEF0EF" : "#fff" }}>
                       <td style={{padding:"10px 12px",fontWeight:500}}>{t.numero||"—"}<span style={{fontSize:11,color:C.textMuted,marginLeft:4}}>{t.parcela}</span></td>
@@ -161,7 +164,7 @@ export default function ContasReceber({ usuario }) {
                       </td>
                       <td style={{padding:"10px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
                         <button onClick={()=>setModalBaixas(t)} title="Ver baixas" style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.muted}}><Eye size={16}/></button>
-                        {t.status!=="QUITADO" && <button onClick={()=>setModalBaixa(t)} title="Baixar" style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.success}}><DollarSign size={16}/></button>}
+                        {t.status!=="PAGO" && <button onClick={()=>setModalBaixa(t)} title="Baixar" style={{background:"none",border:"none",cursor:"pointer",padding:4,color:C.success}}><DollarSign size={16}/></button>}
                       </td>
                     </tr>
                   );
