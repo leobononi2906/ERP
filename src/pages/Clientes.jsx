@@ -98,7 +98,7 @@ export default function Clientes({ usuario }) {
   }
   const aplicar = (c) => setClientes((l) => l.some((x) => x.id === c.id) ? l.map((x) => x.id === c.id ? c : x) : [...l, c]);
 
-  const filtrados = clientes.filter((c) => { const q = busca.trim().toLowerCase(); const okB = !q || (c.nome || "").toLowerCase().includes(q) || (c.nome_fantasia || "").toLowerCase().includes(q) || (c.cpf_cnpj || "").includes(q); return okB && (!fEmpresa || String(c.id_empresa) === fEmpresa); });
+  const filtrados = clientes.filter((c) => { const q = busca.trim().toLowerCase(); const okB = !q || (c.nome || "").toLowerCase().includes(q) || (c.nome_fantasia || "").toLowerCase().includes(q) || (c.cpf_cnpj || "").includes(q) || String(c.codigo || "").includes(q); return okB && (!fEmpresa || String(c.id_empresa) === fEmpresa); });
 
   if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} buscarCep={buscarCep} buscarCnpj={buscarCnpj} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} />;
 
@@ -110,7 +110,7 @@ export default function Clientes({ usuario }) {
         {perms.incluir ? <button onClick={abrirNovo} style={btnPrimary()}><Plus size={16} /> Novo cliente</button> : <span style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6 }}><Lock size={14} /> Sem permissão para incluir</span>}
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 200 }}><Search size={16} style={{ position: "absolute", left: 11, top: 11, color: C.textMuted }} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou CNPJ..." style={{ ...inp(), paddingLeft: 34, width: "100%" }} /></div>
+        <div style={{ position: "relative", flex: 1, minWidth: 200 }}><Search size={16} style={{ position: "absolute", left: 11, top: 11, color: C.textMuted }} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, CNPJ ou código..." style={{ ...inp(), paddingLeft: 34, width: "100%" }} /></div>
         <select value={fEmpresa} onChange={(e) => setFEmpresa(e.target.value)} style={sel()}><option value="">Todas as empresas</option>{empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia}</option>)}</select>
       </div>
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>

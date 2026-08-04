@@ -196,3 +196,90 @@ export function ModalAprovacao({ aberto, titulo, mensagem, modulo, acao, context
     </div>
   );
 }
+
+/* Busca no servidor por CAMPO escolhido (leve p/ bases grandes — não carrega tudo).
+ * props:
+ *   campos: [{key,label}]  — campos buscáveis (ex.: Nome/CNPJ/Código)
+ *   buscar: (campo, termo) => Promise<array>  — normalmente chama uma RPC de busca
+ *   render: (item) => ({label, sub})  — exibição de cada resultado
+ *   onSelect: (item) => void
+ *   selecionadoLabel: string  — rótulo do item já selecionado (mostrado na caixa)
+ *   placeholder, full, minChars=1, disabled
+ */
+export function BuscaServidor({ campos = [{ key: "nome", label: "Nome" }], buscar, render, onSelect, selecionadoLabel, placeholder = "Buscar...", full, minChars = 1, disabled }) {
+  const [aberto, setAberto] = useState(false);
+  const [campo, setCampo] = useState(campos[0]?.key);
+  const [termo, setTermo] = useState("");
+  const [res, setRes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hi, setHi] = useState(0);
+  const ref = useRef(null); const inputRef = useRef(null); const deb = useRef(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    function fora(e) { if (ref.current && !ref.current.contains(e.target)) setAberto(false); }
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+  useEffect(() => { if (aberto && inputRef.current) inputRef.current.focus(); }, [aberto]);
+
+  useEffect(() => {
+    if (!aberto || !buscar) return;
+    if (deb.current) clearTimeout(deb.current);
+    const t = (termo || "").trim();
+    setLoading(true);
+    deb.current = setTimeout(async () => {
+      try { const r = await buscar(campo, t); setRes(Array.isArray(r) ? r : []); setHi(0); }
+      catch { setRes([]); }
+      finally { setLoading(false); }
+    }, 250);
+    return () => { if (deb.current) clearTimeout(deb.current); };
+  }, [termo, campo, aberto]); // eslint-disable-line
+
+  function escolher(item) { if (onSelect) onSelect(item); setAberto(false); setTermo(""); setRes([]); }
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: full ? "100%" : "auto" }}>
+      <div onClick={() => !disabled && setAberto(!aberto)} style={{ ...inp(true, disabled), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: disabled ? "not-allowed" : "pointer", userSelect: "none", minHeight: 40 }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, color: selecionadoLabel ? C.foreground : C.textMuted }}>
+          {selecionadoLabel || placeholder}
+        </span>
+        <span style={{ fontSize: 10, color: C.textMuted, marginLeft: 8 }}>&#9662;</span>
+      </div>
+      {aberto && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4, maxHeight: 340, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", gap: 6, padding: 8, borderBottom: `1px solid ${C.border}` }}>
+            {campos.length > 1 && (
+              <select value={campo} onChange={(e) => setCampo(e.target.value)} style={{ ...sel(false), height: 34, fontSize: 12, padding: "4px 8px", flex: "0 0 auto" }}>
+                {campos.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            )}
+            <input ref={inputRef} value={termo} onChange={(e) => setTermo(e.target.value)}
+              placeholder={"Buscar por " + (campos.find((c) => c.key === campo)?.label || "").toLowerCase() + "..."}
+              style={{ ...inp(true), height: 34, fontSize: 13, flex: 1 }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") { e.preventDefault(); setHi((s) => Math.min(res.length - 1, s + 1)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setHi((s) => Math.max(0, s - 1)); }
+                else if (e.key === "Enter") { e.preventDefault(); if (res[hi]) escolher(res[hi]); }
+                else if (e.key === "Escape") setAberto(false);
+              }} />
+          </div>
+          <div style={{ overflowY: "auto", maxHeight: 290 }}>
+            {loading ? <div style={{ padding: "14px 12px", fontSize: 12, color: C.textMuted, textAlign: "center" }}>Buscando...</div>
+             : res.length === 0 ? <div style={{ padding: "14px 12px", fontSize: 12, color: C.textMuted, textAlign: "center" }}>{(termo || "").trim() ? "Nenhum resultado" : "Digite para buscar"}</div>
+             : res.map((item, i) => {
+                 const r = render ? render(item) : { label: item.nome, sub: "" };
+                 return (
+                   <div key={item.id ?? i} onClick={() => escolher(item)} onMouseEnter={() => setHi(i)}
+                     style={{ padding: "8px 12px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, background: i === hi ? C.surface2 : "transparent" }}>
+                     <div style={{ fontSize: 13, fontWeight: 500, color: C.foreground }}>{r.label}</div>
+                     {r.sub && <div style={{ fontSize: 11, color: C.textMuted }}>{r.sub}</div>}
+                   </div>
+                 );
+               })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

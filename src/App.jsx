@@ -55,7 +55,6 @@ const MENU_GROUPS = [
       { key: "apontamento", label: "Pátio (Apontamento)", icon: Clock, ok: true, permKey: "os" },
       { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
       { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, ok: true, permKey: "os" },
-      { key: "prismas", label: "Prismas", icon: Hash, ok: true, permKey: "os" },
     ],
   },
   {
@@ -67,6 +66,7 @@ const MENU_GROUPS = [
       { key: "tipos_operacao", label: "Tipos de Operação", icon: Settings, ok: true },
       { key: "servicos", label: "Serviços", icon: Wrench, ok: true, permKey: "produtos" },
       { key: "precos_especiais", label: "Preços Especiais", icon: DollarSign, ok: true, permKey: "produtos" },
+      { key: "prismas", label: "Prismas", icon: Hash, ok: true, permKey: "os" },
     ],
   },
   {

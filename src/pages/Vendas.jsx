@@ -8,7 +8,7 @@ import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
 import { irPara } from "../nav";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
-  Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
+  Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca, BuscaServidor,
 } from "../ui";
 
 
@@ -359,12 +359,14 @@ export default function Vendas({ usuario }) {
             </select>
           </Campo>
           <Campo label="Cliente *" span={2}>
-            <SelectBusca
-              opcoes={clientes.map((c) => ({ id: c.id, label: c.nome }))}
-              value={form.id_cliente || ""}
-              onChange={(id) => aplicarDefaultsCliente(id)}
-              placeholder="Selecione..."
-              full={true}
+            <BuscaServidor
+              campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
+              buscar={(campo, termo) => rpc("erp_clientes_buscar", { p_campo: campo, p_termo: termo, p_id_empresa: form.id_empresa ? Number(form.id_empresa) : null, p_limit: 30 })}
+              render={(c) => ({ label: c.nome, sub: [c.codigo ? "#" + c.codigo : "", c.cpf_cnpj, c.cidade].filter(Boolean).join(" · ") })}
+              onSelect={(c) => { setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]); aplicarDefaultsCliente(String(c.id)); }}
+              selecionadoLabel={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""}
+              placeholder="Buscar cliente (nome, CNPJ ou código)..."
+              full
             />
             {form.id_cliente && credito && (
               <div style={{ marginTop: 6, fontSize: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -528,17 +530,18 @@ export default function Vendas({ usuario }) {
                 </Campo>
                 {formItem.tipo === "PRODUTO" ? (
                   <Campo label="Produto" span={2}>
-                    <SelectBusca
-                      opcoes={produtos.map((p) => ({ id: p.id, label: p.nome, sub: p.referencia || "" }))}
-                      value={formItem.id_produto}
-                      onChange={(id) => {
-                        const p = produtos.find((x) => x.id === Number(id));
-                        setFormItem((f) => ({ ...f, id_produto: id, descricao: p ? p.nome : "", valor_unitario: p ? p.preco_venda : "", referencia: p ? p.referencia : "", percentual_desconto: 0 }));
-                        if (id) { resolverPreco(id); consultarLimiteDesconto(id); }
-                        else setLimiteDesc(null);
+                    <BuscaServidor
+                      campos={[{ key: "nome", label: "Nome" }, { key: "referencia", label: "Referência" }, { key: "codigo_barras", label: "Cód. barras" }]}
+                      buscar={(campo, termo) => rpc("erp_produtos_buscar", { p_campo: campo, p_termo: termo, p_limit: 30 })}
+                      render={(p) => ({ label: p.nome, sub: [p.referencia, fmtBRL(p.preco_venda)].filter(Boolean).join(" · ") })}
+                      onSelect={(p) => {
+                        setProdutos((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p]);
+                        setFormItem((f) => ({ ...f, id_produto: String(p.id), descricao: p.nome, valor_unitario: p.preco_venda, referencia: p.referencia, percentual_desconto: 0 }));
+                        resolverPreco(String(p.id)); consultarLimiteDesconto(String(p.id));
                       }}
-                      placeholder="Selecione..."
-                      full={true}
+                      selecionadoLabel={formItem.id_produto ? (produtos.find((x) => x.id === Number(formItem.id_produto))?.nome || formItem.descricao) : ""}
+                      placeholder="Buscar produto (nome, referência ou cód. barras)..."
+                      full
                     />
                   </Campo>
                 ) : (

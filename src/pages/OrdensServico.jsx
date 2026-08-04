@@ -7,7 +7,7 @@ import {
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor } from "../ui";
 
 // status do defeito (unidade de trabalho do pátio)
 const DEF_ST = {
@@ -491,12 +491,14 @@ export default function OrdensServico({ usuario }) {
 
         <Secao titulo="Dados da OS">
           <Campo label="Cliente *" span={2}>
-            <SelectBusca
-              opcoes={clientes.map((c) => ({ id: c.id, label: c.nome }))}
-              value={form.id_cliente}
-              onChange={(id) => setF("id_cliente", id)}
-              placeholder="Selecione o cliente..."
-              full={true}
+            <BuscaServidor
+              campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
+              buscar={(campo, termo) => rpc("erp_clientes_buscar", { p_campo: campo, p_termo: termo, p_id_empresa: null, p_limit: 30 })}
+              render={(c) => ({ label: c.nome, sub: [c.codigo ? "#" + c.codigo : "", c.cpf_cnpj, c.cidade].filter(Boolean).join(" · ") })}
+              onSelect={(c) => { setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]); setF("id_cliente", String(c.id)); }}
+              selecionadoLabel={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""}
+              placeholder="Buscar cliente (nome, CNPJ ou código)..."
+              full
             />
           </Campo>
           <Campo label="Veículo">
@@ -1077,10 +1079,15 @@ export default function OrdensServico({ usuario }) {
                 {loadingProdutos ? <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Carregando produtos...</div> : (
                   <>
                     <Campo label="Produto *">
-                      <select value={formPeca.id_produto} onChange={e => setFormPeca(f => ({ ...f, id_produto: e.target.value }))} style={sel(true)}>
-                        <option value="">Selecione...</option>
-                        {produtos.map(p => <option key={p.id} value={p.id}>{p.referencia ? `${p.referencia} — ` : ""}{p.nome}</option>)}
-                      </select>
+                      <BuscaServidor
+                        campos={[{ key: "nome", label: "Nome" }, { key: "referencia", label: "Referência" }, { key: "codigo_barras", label: "Cód. barras" }]}
+                        buscar={(campo, termo) => rpc("erp_produtos_buscar", { p_campo: campo, p_termo: termo, p_limit: 30 })}
+                        render={(p) => ({ label: p.nome, sub: [p.referencia, fmtBRL(p.preco_venda)].filter(Boolean).join(" · ") })}
+                        onSelect={(p) => { setProdutos((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p]); setFormPeca(f => ({ ...f, id_produto: String(p.id) })); }}
+                        selecionadoLabel={formPeca.id_produto ? (produtos.find((x) => x.id === Number(formPeca.id_produto))?.nome || "") : ""}
+                        placeholder="Buscar produto (nome, referência ou cód. barras)..."
+                        full
+                      />
                     </Campo>
                     <Campo label="Quantidade">
                       <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
