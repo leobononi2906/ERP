@@ -25,6 +25,7 @@ import Precificacao from "./pages/Precificacao";
 import Solicitacoes from "./pages/Solicitacoes";
 import Prismas from "./pages/Prismas";
 import Servicos from "./pages/Servicos";
+import Auxiliares from "./pages/Auxiliares";
 import { TabHub } from "./Hub";
 
 // Hubs de abas (reduzem o menu: um item abre várias telas em abas/sub-abas)
@@ -33,14 +34,7 @@ function CadastrosHub({ usuario }) {
     { key: "clientes", label: "Clientes", icon: Users, render: () => <Clientes usuario={usuario} /> },
     { key: "produtos", label: "Produtos", icon: Package, render: () => <Produtos usuario={usuario} /> },
     { key: "veiculos", label: "Veículos", icon: Truck, render: () => <Veiculos usuario={usuario} /> },
-    { key: "aux", label: "Auxiliares", icon: Settings, render: () => (
-      <TabHub keys={false} tabs={[
-        { key: "servicos", label: "Serviços (catálogo)", render: () => <Servicos usuario={usuario} /> },
-        { key: "tipos", label: "Tipos de Operação", render: () => <TiposOperacao usuario={usuario} /> },
-        { key: "precos", label: "Preços Especiais", render: () => <PrecosEspeciais usuario={usuario} /> },
-        { key: "prismas", label: "Prismas", render: () => <Prismas usuario={usuario} /> },
-      ]} />
-    ) },
+    { key: "aux", label: "Auxiliares", icon: Settings, render: () => <Auxiliares usuario={usuario} /> },
   ]} />;
 }
 function ServicosHub({ usuario }) {

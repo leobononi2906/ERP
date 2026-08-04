@@ -13,6 +13,15 @@ const ABAS = [
   { key: "config", label: "Configurações", icon: KeyRound },
 ];
 
+// Ordem das categorias na árvore de permissões (segue o menu lateral)
+const CATEG_ORDEM = ["Geral", "Comercial", "Serviços", "Cadastros", "Estoque", "Compras", "Financeiro", "Sistema", "Outros"];
+// Colunas de permissão exibidas por tela
+const COLS_PERM = [
+  ["pode_visualizar", "Ver"], ["pode_incluir", "Criar"], ["pode_editar", "Editar"],
+  ["pode_excluir", "Excluir"], ["pode_aprovar", "Aprovar"], ["pode_exportar", "Exportar"],
+  ["pode_ajustar_estoque", "Aj.Est."], ["pode_dar_desconto", "Desc."],
+];
+
 export default function Administracao({ usuario }) {
   const [aba, setAba] = useState("grupos");
   const [dados, setDados] = useState(null);
@@ -66,6 +75,7 @@ function AbaGrupos({ dados, onReload }) {
   const [perms, setPerms] = useState([]);
   const [saving, setSaving] = useState(false);
   const [busca, setBusca] = useState("");
+  const [catAbertas, setCatAbertas] = useState({});
 
   const grupos = (dados.grupos || []).filter((g) => !busca || g.nome.toLowerCase().includes(busca.toLowerCase()));
 
@@ -87,7 +97,7 @@ function AbaGrupos({ dados, onReload }) {
       const permMap = {};
       (r || []).forEach((p) => { permMap[p.id_modulo] = p; });
       setPerms(modulos.map((m) => ({
-        id_modulo: m.id, chave: m.chave, nome: m.nome,
+        id_modulo: m.id, chave: m.chave, nome: m.nome, grupo_menu: m.grupo_menu || "Outros",
         pode_visualizar: permMap[m.id]?.pode_visualizar || false,
         pode_incluir: permMap[m.id]?.pode_incluir || false,
         pode_editar: permMap[m.id]?.pode_editar || false,
@@ -123,11 +133,26 @@ function AbaGrupos({ dados, onReload }) {
     } : pp));
   }
 
-  // Modal de permissões
+  // Marca/desmarca TODAS as permissões dos módulos de uma categoria de uma vez
+  function marcarCategoria(chaves, ligar) {
+    setPerms((prev) => prev.map((p) => chaves.includes(p.chave) ? {
+      ...p, pode_visualizar: ligar, pode_incluir: ligar, pode_editar: ligar,
+      pode_excluir: ligar, pode_aprovar: ligar, pode_exportar: ligar,
+    } : p));
+  }
+
+  // Modal de permissões — árvore por categoria de aba (Comercial, Cadastros, ...)
   if (editPerms) {
+    // Agrupa por grupo_menu, na ordem do menu
+    const grupos = {};
+    perms.forEach((p, i) => { const g = p.grupo_menu || "Outros"; (grupos[g] = grupos[g] || []).push({ ...p, _i: i }); });
+    const categorias = CATEG_ORDEM.filter((c) => grupos[c]).concat(Object.keys(grupos).filter((c) => !CATEG_ORDEM.includes(c)));
+    const permsDaCat = (cat) => grupos[cat].map((p) => p._i);
+    const catLigada = (cat) => grupos[cat].every((p) => p.pode_visualizar);
+
     return (
       <div style={cardStyle()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <KeyRound size={18} style={{ color: C.primary }} />
             <span style={{ fontSize: 15, fontWeight: 700 }}>Permissões: {editPerms.nome}</span>
@@ -137,42 +162,64 @@ function AbaGrupos({ dados, onReload }) {
             <button onClick={salvarPermissoes} disabled={saving} style={btnPrimary()}><Save size={14} /> Salvar</button>
           </div>
         </div>
+        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 0, marginBottom: 14 }}>Clique numa categoria para expandir e liberar as telas dentro dela.</p>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr>
-                <th style={th()}>Módulo</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Todos</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Ver</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Criar</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Editar</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Excluir</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Aprovar</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Exportar</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Aj.Est.</th>
-                <th style={{ ...th(), textAlign: "center", width: 50 }}>Desc.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {perms.map((p, i) => {
-                const allOn = p.pode_visualizar && p.pode_incluir && p.pode_editar && p.pode_excluir && p.pode_aprovar && p.pode_exportar;
-                return (
-                  <tr key={p.id_modulo} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td style={td()}>{p.nome}</td>
-                    <td style={{ ...td(), textAlign: "center" }}>
-                      <input type="checkbox" checked={allOn} onChange={() => toggleTodosModulo(i)} />
-                    </td>
-                    {["pode_visualizar", "pode_incluir", "pode_editar", "pode_excluir", "pode_aprovar", "pode_exportar", "pode_ajustar_estoque", "pode_dar_desconto"].map((campo) => (
-                      <td key={campo} style={{ ...td(), textAlign: "center" }}>
-                        <input type="checkbox" checked={p[campo]} onChange={() => togglePerm(i, campo)} />
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {categorias.map((cat) => {
+            const modulos = grupos[cat];
+            const aberta = !!catAbertas[cat];
+            const chavesCat = modulos.map((m) => m.chave);
+            const qtd = modulos.filter((m) => m.pode_visualizar).length;
+            const Chevron = aberta ? ChevronDown : ChevronRight;
+            return (
+              <div key={cat} style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                {/* Cabeçalho da categoria */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: C.surface2, cursor: "pointer" }}
+                  onClick={() => setCatAbertas((s) => ({ ...s, [cat]: !s[cat] }))}>
+                  <Chevron size={16} style={{ color: C.muted }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.foreground }}>{cat}</span>
+                  <span style={{ fontSize: 11, color: C.textMuted }}>{qtd}/{modulos.length} liberados</span>
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => marcarCategoria(chavesCat, true)} style={{ ...btnGhost(), padding: "5px 10px", fontSize: 11.5 }}>Liberar tudo</button>
+                    <button onClick={() => marcarCategoria(chavesCat, false)} style={{ ...btnGhost(), padding: "5px 10px", fontSize: 11.5 }}>Limpar</button>
+                  </div>
+                </div>
+                {/* Módulos da categoria */}
+                {aberta && (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th style={th()}>Tela</th>
+                          <th style={{ ...th(), textAlign: "center", width: 50 }}>Todos</th>
+                          {COLS_PERM.map((c) => <th key={c[0]} style={{ ...th(), textAlign: "center", width: 52 }}>{c[1]}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {modulos.map((p) => {
+                          const i = p._i;
+                          const allOn = p.pode_visualizar && p.pode_incluir && p.pode_editar && p.pode_excluir && p.pode_aprovar && p.pode_exportar;
+                          return (
+                            <tr key={p.id_modulo} style={{ borderBottom: `1px solid ${C.border}` }}>
+                              <td style={{ ...td(), paddingLeft: 24 }}>{p.nome}</td>
+                              <td style={{ ...td(), textAlign: "center" }}>
+                                <input type="checkbox" checked={allOn} onChange={() => toggleTodosModulo(i)} />
+                              </td>
+                              {COLS_PERM.map((c) => (
+                                <td key={c[0]} style={{ ...td(), textAlign: "center" }}>
+                                  <input type="checkbox" checked={!!p[c[0]]} onChange={() => togglePerm(i, c[0])} />
+                                </td>
+                              ))}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -575,10 +622,16 @@ function AbaDesconto({ dados, onReload }) {
 
 /* ═══ ABA CONFIGURAÇÕES ═══════════════════════════════════════════ */
 const CONFIG_META = {
-  credito_bloqueia_vencido: { label: "Bloquear venda a prazo com título vencido", tipo: "sn" },
-  credito_dias_tolerancia: { label: "Dias de tolerância após o vencimento", tipo: "num" },
-  credito_permite_liberacao: { label: "Gestor pode liberar crédito na hora", tipo: "sn" },
-  op_custo_modo: { label: "Custo do produto produzido na OS", tipo: "opcao", opcoes: [["COMPOSICAO", "Pela composição (custo de referência)"], ["REAL", "Pelo consumo real apontado"]] },
+  credito_bloqueia_vencido: { label: "Bloquear venda a prazo com título vencido", tipo: "sn", secao: "Crédito e Cobrança" },
+  credito_dias_tolerancia: { label: "Dias de tolerância após o vencimento", tipo: "num", secao: "Crédito e Cobrança" },
+  credito_permite_liberacao: { label: "Gestor pode liberar crédito na hora", tipo: "sn", secao: "Crédito e Cobrança" },
+  op_custo_modo: { label: "Custo do produto produzido na OS", tipo: "opcao", secao: "Ordem de Serviço", opcoes: [["COMPOSICAO", "Pela composição (custo de referência)"], ["REAL", "Pelo consumo real apontado"]] },
+};
+const SECAO_ORDEM = ["Crédito e Cobrança", "Ordem de Serviço", "Geral"];
+const SECAO_DESC = {
+  "Crédito e Cobrança": "Regras que valem na hora de vender a prazo.",
+  "Ordem de Serviço": "Comportamento das OS e do pátio.",
+  "Geral": "Demais parâmetros do sistema.",
 };
 
 function AbaConfig({ usuario }) {
@@ -608,40 +661,63 @@ function AbaConfig({ usuario }) {
 
   if (loading) return <div style={{ padding: 30, textAlign: "center", color: C.textMuted }}>Carregando...</div>;
 
+  const controle = (c, meta) => (
+    <div style={{ opacity: salvando === c.chave ? 0.5 : 1 }}>
+      {meta.tipo === "sn" && (
+        <select value={c.valor} onChange={(e) => salvar(c.chave, e.target.value)} style={sel()}>
+          <option value="S">Sim</option><option value="N">Não</option>
+        </select>
+      )}
+      {meta.tipo === "num" && (
+        <input defaultValue={c.valor} onBlur={(e) => e.target.value !== c.valor && salvar(c.chave, e.target.value)} inputMode="numeric" style={{ ...inp(), width: 90, textAlign: "right" }} />
+      )}
+      {meta.tipo === "opcao" && (
+        <select value={c.valor} onChange={(e) => salvar(c.chave, e.target.value)} style={sel()}>
+          {meta.opcoes.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      )}
+      {meta.tipo === "texto" && (
+        <input defaultValue={c.valor} onBlur={(e) => e.target.value !== c.valor && salvar(c.chave, e.target.value)} style={{ ...inp(), width: 160 }} />
+      )}
+    </div>
+  );
+
+  // Agrupa por seção
+  const porSecao = {};
+  configs.forEach((c) => { const s = (CONFIG_META[c.chave] || {}).secao || "Geral"; (porSecao[s] = porSecao[s] || []).push(c); });
+  const secoes = SECAO_ORDEM.filter((s) => porSecao[s]).concat(Object.keys(porSecao).filter((s) => !SECAO_ORDEM.includes(s)));
+
   return (
-    <div style={cardStyle()}>
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Configurações do sistema</div>
-      <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 16 }}>Valem para todas as empresas. {msg && <b style={{ color: C.success }}>{msg}</b>}</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {configs.map((c) => {
-          const meta = CONFIG_META[c.chave] || { label: c.descricao || c.chave, tipo: "texto" };
-          return (
-            <div key={c.chave} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "12px 14px", background: C.surface2, borderRadius: 10 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{meta.label}</div>
-                {c.descricao && <div style={{ fontSize: 11.5, color: C.textMuted }}>{c.descricao}</div>}
-              </div>
-              <div style={{ opacity: salvando === c.chave ? 0.5 : 1 }}>
-                {meta.tipo === "sn" && (
-                  <select value={c.valor} onChange={(e) => salvar(c.chave, e.target.value)} style={sel()}>
-                    <option value="S">Sim</option><option value="N">Não</option>
-                  </select>
-                )}
-                {meta.tipo === "num" && (
-                  <input defaultValue={c.valor} onBlur={(e) => e.target.value !== c.valor && salvar(c.chave, e.target.value)} inputMode="numeric" style={{ ...inp(), width: 90, textAlign: "right" }} />
-                )}
-                {meta.tipo === "opcao" && (
-                  <select value={c.valor} onChange={(e) => salvar(c.chave, e.target.value)} style={sel()}>
-                    {meta.opcoes.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                )}
-                {meta.tipo === "texto" && (
-                  <input defaultValue={c.valor} onBlur={(e) => e.target.value !== c.valor && salvar(c.chave, e.target.value)} style={{ ...inp(), width: 160 }} />
-                )}
-              </div>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <p style={{ fontSize: 12.5, color: C.muted, margin: 0 }}>Parâmetros do sistema — valem para todas as empresas.</p>
+        {msg && <span style={{ fontSize: 12, fontWeight: 600, color: C.success }}>{msg}</span>}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {secoes.map((secao) => (
+          <div key={secao} style={cardStyle()}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+              <Lock size={15} style={{ color: C.primary }} />
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{secao}</span>
             </div>
-          );
-        })}
+            <p style={{ fontSize: 11.5, color: C.textMuted, marginTop: 0, marginBottom: 12 }}>{SECAO_DESC[secao] || ""}</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {porSecao[secao].map((c) => {
+                const meta = CONFIG_META[c.chave] || { label: c.descricao || c.chave, tipo: "texto" };
+                return (
+                  <div key={c.chave} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "12px 14px", background: C.surface2, borderRadius: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{meta.label}</div>
+                      {c.descricao && <div style={{ fontSize: 11.5, color: C.textMuted }}>{c.descricao}</div>}
+                    </div>
+                    {controle(c, meta)}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {configs.length === 0 && <div style={{ ...cardStyle(), textAlign: "center", color: C.textMuted, padding: 30 }}>Nenhuma configuração cadastrada.</div>}
       </div>
     </div>
   );
