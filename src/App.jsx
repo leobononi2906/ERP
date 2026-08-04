@@ -25,6 +25,32 @@ import Precificacao from "./pages/Precificacao";
 import Solicitacoes from "./pages/Solicitacoes";
 import Prismas from "./pages/Prismas";
 import Servicos from "./pages/Servicos";
+import { TabHub } from "./Hub";
+
+// Hubs de abas (reduzem o menu: um item abre várias telas em abas/sub-abas)
+function CadastrosHub({ usuario }) {
+  return <TabHub tabs={[
+    { key: "clientes", label: "Clientes", icon: Users, render: () => <Clientes usuario={usuario} /> },
+    { key: "produtos", label: "Produtos", icon: Package, render: () => <Produtos usuario={usuario} /> },
+    { key: "veiculos", label: "Veículos", icon: Truck, render: () => <Veiculos usuario={usuario} /> },
+    { key: "aux", label: "Auxiliares", icon: Settings, render: () => (
+      <TabHub keys={false} tabs={[
+        { key: "servicos", label: "Serviços (catálogo)", render: () => <Servicos usuario={usuario} /> },
+        { key: "tipos", label: "Tipos de Operação", render: () => <TiposOperacao usuario={usuario} /> },
+        { key: "precos", label: "Preços Especiais", render: () => <PrecosEspeciais usuario={usuario} /> },
+        { key: "prismas", label: "Prismas", render: () => <Prismas usuario={usuario} /> },
+      ]} />
+    ) },
+  ]} />;
+}
+function ServicosHub({ usuario }) {
+  return <TabHub tabs={[
+    { key: "distribuicao", label: "Distribuição", icon: Users, render: () => <DistribuicaoServicos usuario={usuario} /> },
+    { key: "patio", label: "Pátio", icon: Clock, render: () => <Apontamento usuario={usuario} /> },
+    { key: "precificacao", label: "Precificação", icon: Layers, render: () => <Precificacao usuario={usuario} /> },
+    { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, render: () => <Solicitacoes usuario={usuario} /> },
+  ]} />;
+}
 import PrecosEspeciais from "./pages/PrecosEspeciais";
 import Encomendas from "./pages/Encomendas";
 import Promocoes from "./pages/Promocoes";
@@ -48,27 +74,8 @@ const MENU_GROUPS = [
       { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
     ],
   },
-  {
-    groupKey: "servicos_g", label: "Serviços", icon: Wrench,
-    items: [
-      { key: "distribuicao_os", label: "Distribuição OS", icon: Users, ok: true, permKey: "os" },
-      { key: "apontamento", label: "Pátio (Apontamento)", icon: Clock, ok: true, permKey: "os" },
-      { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
-      { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, ok: true, permKey: "os" },
-    ],
-  },
-  {
-    groupKey: "cadastros", label: "Cadastros", icon: FileText,
-    items: [
-      { key: "clientes", label: "Clientes", icon: Users, ok: true },
-      { key: "produtos", label: "Produtos", icon: Package, ok: true },
-      { key: "veiculos", label: "Veículos", icon: Truck, ok: true },
-      { key: "tipos_operacao", label: "Tipos de Operação", icon: Settings, ok: true },
-      { key: "servicos", label: "Serviços", icon: Wrench, ok: true, permKey: "produtos" },
-      { key: "precos_especiais", label: "Preços Especiais", icon: DollarSign, ok: true, permKey: "produtos" },
-      { key: "prismas", label: "Prismas", icon: Hash, ok: true, permKey: "os" },
-    ],
-  },
+  { key: "servicos_hub", label: "Serviços", icon: Wrench, ok: true, standalone: true },
+  { key: "cadastros", label: "Cadastros", icon: FileText, ok: true, standalone: true },
   {
     groupKey: "estoque_g", label: "Estoque", icon: Boxes,
     items: [
@@ -222,6 +229,8 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, padding: 20 }}>
         {pagina === "dashboard" && <Dashboard />}
+        {pagina === "cadastros" && <CadastrosHub usuario={usuario} />}
+        {pagina === "servicos_hub" && <ServicosHub usuario={usuario} />}
         {pagina === "clientes" && <Clientes usuario={usuario} />}
         {pagina === "produtos" && <Produtos usuario={usuario} />}
         {pagina === "veiculos" && <Veiculos usuario={usuario} />}
@@ -248,7 +257,7 @@ export default function App() {
         {pagina === "demanda" && <Demanda usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
