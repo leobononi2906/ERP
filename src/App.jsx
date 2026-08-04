@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers,
+  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash,
 } from "lucide-react";
 import { C, setLogUsuario } from "./config";
 import { navHandoff } from "./nav";
@@ -23,6 +23,7 @@ import DistribuicaoServicos from "./pages/DistribuicaoServicos";
 import Apontamento from "./pages/Apontamento";
 import Precificacao from "./pages/Precificacao";
 import Solicitacoes from "./pages/Solicitacoes";
+import Prismas from "./pages/Prismas";
 import Servicos from "./pages/Servicos";
 import PrecosEspeciais from "./pages/PrecosEspeciais";
 import Encomendas from "./pages/Encomendas";
@@ -54,6 +55,7 @@ const MENU_GROUPS = [
       { key: "apontamento", label: "Pátio (Apontamento)", icon: Clock, ok: true, permKey: "os" },
       { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
       { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, ok: true, permKey: "os" },
+      { key: "prismas", label: "Prismas", icon: Hash, ok: true, permKey: "os" },
     ],
   },
   {
@@ -230,6 +232,7 @@ export default function App() {
         {pagina === "apontamento" && <Apontamento usuario={usuario} />}
         {pagina === "precificacao" && <Precificacao usuario={usuario} />}
         {pagina === "solicitacoes" && <Solicitacoes usuario={usuario} />}
+        {pagina === "prismas" && <Prismas usuario={usuario} />}
         {pagina === "tipos_operacao" && <TiposOperacao usuario={usuario} />}
         {pagina === "estoque" && <Estoque usuario={usuario} />}
         {pagina === "separacao" && <Separacao usuario={usuario} />}
@@ -245,7 +248,7 @@ export default function App() {
         {pagina === "demanda" && <Demanda usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>

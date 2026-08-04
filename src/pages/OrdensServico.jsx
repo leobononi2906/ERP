@@ -9,6 +9,14 @@ import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca } from "../ui";
 
+// status do defeito (unidade de trabalho do pátio)
+const DEF_ST = {
+  ABERTO:      { t: "Aberto",       bg: C.bluePale,  fg: C.blueMid },
+  EM_EXECUCAO: { t: "Em execução",  bg: "#FFF3E0",   fg: C.warning },
+  PAUSADO:     { t: "Pausado",      bg: "#F1F5F9",   fg: "#64748B" },
+  CONCLUIDO:   { t: "Concluído",    bg: C.successBg, fg: C.success },
+};
+
 
 const STATUS_CORES = {
   ABERTA: "ABERTA", EM_EXECUCAO: "ATIVO", FATURADA: "FATURADA", CANCELADA: "CANCELADA",
@@ -52,6 +60,7 @@ export default function OrdensServico({ usuario }) {
 
   // defeitos
   const [osDefeitos, setOsDefeitos] = useState([]);
+  const [prismasOs, setPrismasOs] = useState([]);
   const [addDefeito, setAddDefeito] = useState(false);
   const [formDefeito, setFormDefeito] = useState({ descricao: "", id_area: "" });
 
@@ -97,6 +106,8 @@ export default function OrdensServico({ usuario }) {
       setOsApontamentos(d.apontamentos ?? []);
       setExpedicoesOs(d.expedicoes ?? []);
       setOsDefeitos(d.defeitos ?? []);
+      rpc("os_defeitos_listar", { p_id_os: os.id }).then((dd) => setOsDefeitos(Array.isArray(dd) ? dd : (d.defeitos ?? []))).catch(() => {});
+      rpc("os_prismas_dados", { p_id_vendedor: os.id_vendedor || null }).then((pd) => setPrismasOs(pd?.prismas || [])).catch(() => {});
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
     } finally {
@@ -173,12 +184,13 @@ export default function OrdensServico({ usuario }) {
     if (!formDefeito.descricao.trim()) { notificar("Descrição do defeito é obrigatória.", "erro"); return; }
     setSaving(true);
     try {
-      const res = await rpc("os_defeito_salvar", {
+      await rpc("os_defeito_salvar", {
         p_id_os: osAtual.id,
         p_descricao: formDefeito.descricao.trim(),
         p_id_area: num(formDefeito.id_area) || null,
       });
-      setOsDefeitos((l) => [...l, res]);
+      const dd = await rpc("os_defeitos_listar", { p_id_os: osAtual.id });
+      setOsDefeitos(Array.isArray(dd) ? dd : []);
       setFormDefeito({ descricao: "", id_area: "" }); setAddDefeito(false);
       notificar("Defeito adicionado.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -190,6 +202,19 @@ export default function OrdensServico({ usuario }) {
       await rpc("os_defeito_excluir", { p_id: id });
       setOsDefeitos((l) => l.filter((d) => d.id !== id));
       notificar("Defeito removido.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+  }
+
+  /* ─── Prisma da OS ──────────────────────────────────────── */
+  async function atribuirPrisma(idPrisma) {
+    try {
+      const r = await rpc("os_prisma_atribuir", { p_id_os: osAtual.id, p_id_prisma: idPrisma ? parseInt(idPrisma) : null, p_id_usuario: usuario.id });
+      if (r && r.ok === false) { notificar(r.erro || "Não foi possível atribuir o prisma.", "erro"); return; }
+      const osAtu = await rpc("os_recarregar", { p_id_os: osAtual.id });
+      if (osAtu) setOsAtual(osAtu);
+      const pd = await rpc("os_prismas_dados", { p_id_vendedor: (osAtu || osAtual).id_vendedor || null });
+      setPrismasOs(pd?.prismas || []);
+      notificar(idPrisma ? "Prisma atribuído." : "Prisma liberado.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
 
@@ -544,6 +569,19 @@ export default function OrdensServico({ usuario }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>OS {osAtual.numero}</h1>
               <Badge texto={osAtual.status} cor={STATUS_CORES[osAtual.status]} />
+              {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (() => {
+                const atual = prismasOs.find((p) => p.os_numero === osAtual.numero);
+                const livres = prismasOs.filter((p) => p.ativo && (!p.em_uso || p.os_numero === osAtual.numero));
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }} title="Prisma da OS (números do vendedor)">
+                    <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted }}>Prisma</span>
+                    <select value={atual ? atual.id : ""} onChange={(e) => atribuirPrisma(e.target.value)} style={{ ...sel(), height: 32, padding: "4px 10px", fontFamily: mono, fontWeight: 700, minWidth: 90 }}>
+                      <option value="">— livre —</option>
+                      {livres.map((p) => <option key={p.id} value={p.id}>{p.numero}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -705,7 +743,9 @@ export default function OrdensServico({ usuario }) {
                       <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff" }}>
                         <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 13, color: C.destructive, minWidth: 44 }}>{d.codigo}</span>
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.descricao}</span>
-                        {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+                        {d.area && <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{d.area}</span>}
+                        {d.status && (() => { const st = DEF_ST[d.status] || DEF_ST.ABERTO; return <span style={{ background: st.bg, color: st.fg, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{st.t}</span>; })()}
+                        {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && !d.tem_apontamento && (
                           <button onClick={() => excluirDefeito(d.id)} style={{ ...btnIcon(), color: C.muted }} title="Remover"><Trash2 size={13} /></button>
                         )}
                       </div>
