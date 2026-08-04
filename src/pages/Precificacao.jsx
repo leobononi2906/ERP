@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, ChevronDown, ChevronRight, Layers, Wrench, DollarSign, Check, X, Search } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton, Badge } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton, Badge, SelectBusca } from "../ui";
 
 const fmtData = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join("/") : "—");
 const fmtH = (h) => (Number(h) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "h";
@@ -15,6 +15,7 @@ export default function Precificacao({ usuario }) {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [ordens, setOrdens] = useState([]);
+  const [catServicos, setCatServicos] = useState([]); // cadastro de serviços (os_dados)
   const [expandido, setExpandido] = useState({});
   const [soComBloco, setSoComBloco] = useState(true);
   const [busca, setBusca] = useState("");
@@ -37,6 +38,13 @@ export default function Precificacao({ usuario }) {
   }
 
   useEffect(() => { carregar(); }, []);
+
+  // Catálogo de serviços (mesma fonte da OS): {id, nome, codigo, preco}
+  useEffect(() => {
+    rpc("os_dados")
+      .then((d) => setCatServicos(Array.isArray(d?.servicos) ? d.servicos : []))
+      .catch(() => {});
+  }, []);
 
   const keyBloco = (idOs, idArea) => `${idOs}:${idArea}`;
   const setFormBloco = (k, patch) => setForm((o) => ({ ...o, [k]: { ...(o[k] || {}), ...patch } }));
@@ -67,7 +75,7 @@ export default function Precificacao({ usuario }) {
         p_valor_total: valor,
         p_apontamentos: ids,
         p_id_area: bloco.id_area,
-        p_id_servico: null,
+        p_id_servico: num(dados.id_servico) || null,
         p_id_usuario: usuario?.id || null,
       });
       if (res && res.ok === false) { notificar(res.erro || "Não foi possível criar o serviço.", "erro"); return; }
@@ -221,20 +229,35 @@ export default function Precificacao({ usuario }) {
                                 </table>
                               </div>
 
-                              {/* form criar serviço */}
+                              {/* form criar serviço — puxa do cadastro de serviços */}
                               {podeFechar && (
-                                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-                                  <div style={{ flex: 2, minWidth: 200 }}>
-                                    <label style={lbl}>Descrição do serviço</label>
-                                    <input value={dados.descricao ?? ""} onChange={(e) => setFormBloco(k, { descricao: e.target.value })} placeholder={`Serviço — ${b.area || ""}`} style={{ ...inp(), width: "100%" }} />
+                                <div style={{ marginTop: 12, borderTop: `1px dashed ${C.border}`, paddingTop: 12 }}>
+                                  <div style={{ marginBottom: 8 }}>
+                                    <label style={lbl}>Serviço (do cadastro)</label>
+                                    <SelectBusca
+                                      opcoes={catServicos.map((sv) => ({ id: sv.id, label: sv.nome, sub: (sv.codigo ? sv.codigo + " · " : "") + fmtBRL(sv.preco) }))}
+                                      value={dados.id_servico || ""}
+                                      onChange={(id) => {
+                                        const sv = catServicos.find((x) => String(x.id) === String(id)) || {};
+                                        setFormBloco(k, { id_servico: id, descricao: sv.nome ?? (dados.descricao ?? ""), valor: sv.preco != null ? String(sv.preco) : (dados.valor ?? "") });
+                                      }}
+                                      placeholder="Buscar serviço no cadastro..."
+                                      full
+                                    />
                                   </div>
-                                  <div style={{ flex: 1, minWidth: 120 }}>
-                                    <label style={lbl}>Valor (R$)</label>
-                                    <input type="number" step="0.01" min="0" value={dados.valor ?? ""} onChange={(e) => setFormBloco(k, { valor: e.target.value })} placeholder="0,00" style={{ ...inp(), width: "100%", fontFamily: mono }} />
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                                    <div style={{ flex: 2, minWidth: 200 }}>
+                                      <label style={lbl}>Descrição {dados.id_servico ? "" : "(ou digite)"}</label>
+                                      <input value={dados.descricao ?? ""} onChange={(e) => setFormBloco(k, { descricao: e.target.value })} placeholder={`Serviço — ${b.area || ""}`} style={{ ...inp(), width: "100%" }} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 120 }}>
+                                      <label style={lbl}>Valor (R$)</label>
+                                      <input type="number" step="0.01" min="0" value={dados.valor ?? ""} onChange={(e) => setFormBloco(k, { valor: e.target.value })} placeholder="0,00" style={{ ...inp(), width: "100%", fontFamily: mono }} />
+                                    </div>
+                                    <button onClick={() => criarServico(os, b)} disabled={saving === k} style={{ ...btnPrimary(), opacity: saving === k ? 0.6 : 1 }}>
+                                      <DollarSign size={15} /> {saving === k ? "Criando..." : "Criar serviço"}
+                                    </button>
                                   </div>
-                                  <button onClick={() => criarServico(os, b)} disabled={saving === k} style={{ ...btnPrimary(), opacity: saving === k ? 0.6 : 1 }}>
-                                    <DollarSign size={15} /> {saving === k ? "Criando..." : "Criar serviço"}
-                                  </button>
                                 </div>
                               )}
                             </div>

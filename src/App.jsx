@@ -42,11 +42,16 @@ const MENU_GROUPS = [
       { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
       { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
       { key: "devolucoes", label: "Devoluções", icon: Undo2, ok: true, permKey: "vendas" },
+      { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
+      { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
+    ],
+  },
+  {
+    groupKey: "servicos_g", label: "Serviços", icon: Wrench,
+    items: [
       { key: "distribuicao_os", label: "Distribuição OS", icon: Users, ok: true, permKey: "os" },
       { key: "apontamento", label: "Apontamento", icon: Clock, ok: true, permKey: "os" },
       { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
-      { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
-      { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
     ],
   },
   {
