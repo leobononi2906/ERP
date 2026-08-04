@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX,
+  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers,
 } from "lucide-react";
 import { C, setLogUsuario } from "./config";
 import { navHandoff } from "./nav";
@@ -20,6 +20,8 @@ import Estoque from "./pages/Estoque";
 import Separacao from "./pages/Separacao";
 import Administracao from "./pages/Administracao";
 import DistribuicaoServicos from "./pages/DistribuicaoServicos";
+import Apontamento from "./pages/Apontamento";
+import Precificacao from "./pages/Precificacao";
 import Servicos from "./pages/Servicos";
 import PrecosEspeciais from "./pages/PrecosEspeciais";
 import Encomendas from "./pages/Encomendas";
@@ -41,6 +43,8 @@ const MENU_GROUPS = [
       { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
       { key: "devolucoes", label: "Devoluções", icon: Undo2, ok: true, permKey: "vendas" },
       { key: "distribuicao_os", label: "Distribuição OS", icon: Users, ok: true, permKey: "os" },
+      { key: "apontamento", label: "Apontamento", icon: Clock, ok: true, permKey: "os" },
+      { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
       { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
       { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
     ],
@@ -216,6 +220,8 @@ export default function App() {
         {pagina === "vendas" && <Vendas usuario={usuario} />}
         {pagina === "os" && <OrdensServico usuario={usuario} />}
         {pagina === "distribuicao_os" && <DistribuicaoServicos usuario={usuario} />}
+        {pagina === "apontamento" && <Apontamento usuario={usuario} />}
+        {pagina === "precificacao" && <Precificacao usuario={usuario} />}
         {pagina === "tipos_operacao" && <TiposOperacao usuario={usuario} />}
         {pagina === "estoque" && <Estoque usuario={usuario} />}
         {pagina === "separacao" && <Separacao usuario={usuario} />}
@@ -231,7 +237,7 @@ export default function App() {
         {pagina === "demanda" && <Demanda usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
+        {!["dashboard", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "apontamento", "precificacao", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
