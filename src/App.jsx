@@ -50,7 +50,7 @@ const MENU_GROUPS = [
     groupKey: "servicos_g", label: "Serviços", icon: Wrench,
     items: [
       { key: "distribuicao_os", label: "Distribuição OS", icon: Users, ok: true, permKey: "os" },
-      { key: "apontamento", label: "Apontamento", icon: Clock, ok: true, permKey: "os" },
+      { key: "apontamento", label: "Pátio (Apontamento)", icon: Clock, ok: true, permKey: "os" },
       { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
     ],
   },

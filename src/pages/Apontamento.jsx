@@ -1,216 +1,296 @@
-import { useState, useEffect } from "react";
-import { Clock, Plus, Trash2, RefreshCw, CheckCircle2, HardHat } from "lucide-react";
-import { C, mono, rpc } from "../config";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton, SelectBusca } from "../ui";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Boxes, Search, X, KeyRound, Clock } from "lucide-react";
+import { C, mono, fmtBRL, num, rpc } from "../config";
+import { cardStyle, inp, btnPrimary, btnGhost, Skeleton, SelectBusca } from "../ui";
 
-// Tela de Pátio: o colaborador lança as horas trabalhadas por OS + área.
-// O apontamento NÃO fica preso a um serviço — vira um "bloco solto por área"
-// que o Precificador (boca) depois transforma em serviço faturável.
-export default function Apontamento({ usuario }) {
-  const perms = (usuario && usuario.permissoes && usuario.permissoes.os) || {};
-  const podeLancar = perms.incluir || perms.editar || perms.aprovar || usuario?.admin;
+const SESSAO_MS = 3 * 60 * 1000; // sessão curta: 3 min de inatividade
 
-  const hoje = () => new Date().toISOString().slice(0, 10);
+const DEFEITO_COR = {
+  ABERTO:       { bg: C.bluePale,      fg: C.blueMid,   label: "Aberto" },
+  EM_EXECUCAO:  { bg: "#FFF3E0",       fg: C.warning,   label: "Em execução" },
+  PAUSADO:      { bg: "#F1F5F9",       fg: "#64748B",   label: "Pausado" },
+  CONCLUIDO:    { bg: C.successBg,     fg: C.success,   label: "Concluído" },
+};
 
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState(null);
-  const [ordens, setOrdens] = useState([]);
-  const [areas, setAreas] = useState([]);
-  const [colaboradores, setColaboradores] = useState([]);
-  const [salvando, setSalvando] = useState(false);
+export default function Apontamento() {
+  // sessão do colaborador (PC compartilhado)
+  const [sessao, setSessao] = useState(null); // { id_colaborador, nome }
+  const [prisma, setPrisma] = useState("");
+  const [login, setLogin] = useState("");
+  const [senha, setSenha] = useState("");
+  const [entrando, setEntrando] = useState(false);
+
+  const [ctx, setCtx] = useState(null); // { os, defeitos }
+  const [carregandoCtx, setCarregandoCtx] = useState(false);
+  const [sel, setSel] = useState(0);
+  const [acaoLoad, setAcaoLoad] = useState(null);
   const [toast, setToast] = useState(null);
-  const [lancados, setLancados] = useState([]); // apontamentos criados nesta sessão
+  const [modal, setModal] = useState(null); // { tipo:'peca'|'consumo', id_produto, qtd, obs }
+  const [produtos, setProdutos] = useState([]);
+  const timerRef = useRef(null);
 
-  const vazio = { id_os: "", id_area: "", id_colaborador: usuario?.id ? String(usuario.id) : "", data: hoje(), horas: "", observacao: "" };
-  const [f, setF] = useState(vazio);
-  const s = (k, v) => setF((o) => ({ ...o, [k]: v }));
+  const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
 
-  const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
+  const encerrarSessao = useCallback(() => { setSessao(null); setCtx(null); setSenha(""); }, []);
 
-  async function carregar() {
-    setErro(null);
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => { encerrarSessao(); }, SESSAO_MS);
+  }, [encerrarSessao]);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  async function carregarContexto(pr) {
+    const numeroPrisma = (pr ?? prisma).trim();
+    if (!numeroPrisma) { notificar("Digite o prisma.", "erro"); return; }
+    setCarregandoCtx(true);
     try {
-      const d = await rpc("os_apontamento_dados", {});
-      setOrdens(Array.isArray(d?.ordens) ? d.ordens : []);
-      setAreas(Array.isArray(d?.areas) ? d.areas : []);
-      setColaboradores(Array.isArray(d?.colaboradores) ? d.colaboradores : []);
-    } catch (e) {
-      setErro(e.message || "Falha ao carregar dados do apontamento.");
-    } finally {
-      setLoading(false);
-    }
+      const r = await rpc("os_patio_contexto", { p_prisma: numeroPrisma });
+      if (!r?.ok) { setCtx(null); notificar(r?.erro || "OS não encontrada.", "erro"); return; }
+      setCtx(r); setSel(0); resetTimer();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setCarregandoCtx(false); }
   }
 
-  useEffect(() => { carregar(); }, []);
-
-  async function lancar() {
-    if (!f.id_os) { notificar("Selecione a OS.", "erro"); return; }
-    if (!f.id_area) { notificar("Selecione a área.", "erro"); return; }
-    if (!f.id_colaborador) { notificar("Selecione o colaborador.", "erro"); return; }
-    const horas = Number(String(f.horas).replace(",", "."));
-    if (!(horas > 0)) { notificar("Informe as horas trabalhadas (maior que zero).", "erro"); return; }
-
-    setSalvando(true);
+  async function entrar() {
+    if (!prisma.trim()) { notificar("Digite o prisma.", "erro"); return; }
+    if (!login.trim() || !senha) { notificar("Informe colaborador e senha.", "erro"); return; }
+    setEntrando(true);
     try {
-      const saved = await rpc("os_apontamento_salvar", {
-        p_id_os: parseInt(f.id_os),
-        p_id_area: parseInt(f.id_area),
-        p_id_colaborador: parseInt(f.id_colaborador),
-        p_data_apontamento: f.data || hoje(),
-        p_horas_trabalhadas: horas,
-        p_fator: horas,
-        p_observacao: f.observacao || null,
-      });
-      const os = ordens.find((o) => o.id === parseInt(f.id_os));
-      const area = areas.find((a) => a.id === parseInt(f.id_area));
-      const colab = colaboradores.find((c) => c.id === parseInt(f.id_colaborador));
-      setLancados((l) => [{
-        id: saved?.id || Math.random(),
-        os: os?.numero || f.id_os,
-        cliente: os?.cliente || "",
-        area: area?.descricao || "",
-        colaborador: colab?.nome || "",
-        data: f.data || hoje(),
-        horas,
-      }, ...l]);
-      notificar("Apontamento lançado!");
-      // mantém OS/área/colaborador para lançamentos em sequência; limpa horas e obs
-      setF((o) => ({ ...o, horas: "", observacao: "" }));
-    } catch (e) {
-      notificar("Erro: " + e.message, "erro");
-    } finally {
-      setSalvando(false);
-    }
+      const r = await rpc("os_patio_login", { p_login: login.trim(), p_senha: senha });
+      if (!r?.ok) { notificar(r?.erro || "Colaborador ou senha inválidos.", "erro"); return; }
+      setSessao({ id_colaborador: r.id_colaborador, nome: r.nome });
+      setSenha(""); setLogin("");
+      resetTimer();
+      await carregarContexto();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setEntrando(false); }
   }
 
-  async function removerLancado(item) {
+  async function acao(def, tipo) {
+    if (!sessao) return;
+    setAcaoLoad(def.id + tipo);
     try {
-      await rpc("os_apontamento_excluir", { p_id: item.id });
-      setLancados((l) => l.filter((x) => x.id !== item.id));
-      notificar("Apontamento removido.");
-    } catch (e) {
-      notificar("Erro: " + e.message, "erro");
-    }
+      const r = await rpc("os_patio_defeito_acao", { p_id_defeito: def.id, p_id_colaborador: sessao.id_colaborador, p_acao: tipo });
+      if (!r?.ok) { notificar(r?.erro || "Não foi possível.", "erro"); return; }
+      const nomes = { ENTRADA: "Entrada registrada", RETOMAR: "Retomado", PAUSA: "Pausado", FINALIZAR: "Defeito finalizado" };
+      notificar(nomes[tipo] || "OK");
+      resetTimer();
+      await carregarContexto();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setAcaoLoad(null); }
   }
 
-  const osOpcoes = ordens.map((o) => ({ id: o.id, label: `${o.numero} — ${o.cliente}`, sub: o.cliente }));
+  // navegação por teclado no painel de trabalho
+  useEffect(() => {
+    if (!sessao || !ctx?.defeitos?.length) return;
+    function onKey(e) {
+      const defs = ctx.defeitos;
+      if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(defs.length - 1, s + 1)); resetTimer(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(0, s - 1)); resetTimer(); }
+      else {
+        const d = defs[sel]; if (!d) return;
+        const k = e.key.toLowerCase();
+        if (k === "e") acao(d, d.status === "PAUSADO" ? "RETOMAR" : "ENTRADA");
+        else if (k === "p" && d.meu_aberto) acao(d, "PAUSA");
+        else if (k === "f") acao(d, "FINALIZAR");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sessao, ctx, sel]); // eslint-disable-line
 
+  async function abrirModal(tipo) {
+    const temAberto = (ctx?.defeitos || []).some((d) => d.meu_aberto);
+    if (!temAberto) { notificar("Faça a Entrada em um defeito antes de solicitar peça/consumo.", "erro"); return; }
+    if (produtos.length === 0) {
+      try { const d = await rpc("os_produtos_dados"); setProdutos(Array.isArray(d?.produtos) ? d.produtos : []); } catch { /* ignore */ }
+    }
+    const defAtivo = (ctx?.defeitos || []).find((d) => d.meu_aberto) || (ctx?.defeitos || [])[sel];
+    setModal({ tipo, id_produto: "", qtd: "", obs: "", id_defeito: defAtivo?.id || null });
+    resetTimer();
+  }
+
+  async function enviarModal() {
+    const m = modal; if (!m) return;
+    if (!m.id_produto) { notificar("Selecione o produto.", "erro"); return; }
+    const qtd = num(m.qtd);
+    if (!(qtd > 0)) { notificar("Informe a quantidade.", "erro"); return; }
+    try {
+      const fn = m.tipo === "peca" ? "os_patio_solicitar_peca" : "os_patio_consumo";
+      const body = { p_id_colaborador: sessao.id_colaborador, p_id_os: ctx.os.id, p_id_produto: parseInt(m.id_produto), p_qtd: qtd, p_id_defeito: m.id_defeito };
+      if (m.tipo === "peca") body.p_observacao = m.obs || null;
+      const r = await rpc(fn, body);
+      if (!r?.ok) { notificar(r?.erro || "Não foi possível.", "erro"); return; }
+      notificar(m.tipo === "peca" ? "Peça solicitada!" : "Consumo lançado!");
+      setModal(null); resetTimer();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+  }
+
+  /* ─────────── UI ─────────── */
   return (
-    <div>
+    <div onMouseDown={() => sessao && resetTimer()}>
       {toast && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999, display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#fff", background: toast.tipo === "erro" ? C.destructive : C.success, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999, padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#fff", background: toast.tipo === "erro" ? C.destructive : C.success, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
           {toast.msg}
         </div>
       )}
 
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Apontamento de Horas</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Pátio — Apontamento</h1>
           <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
-            Pátio — registre as horas trabalhadas por OS e área
+            Prisma + colaborador → entrada / pausa / finalização por defeito
           </p>
         </div>
-        <button onClick={() => { setLoading(true); carregar(); }} style={btnGhost()}>
-          <RefreshCw size={14} /> Atualizar
-        </button>
+        {sessao && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 13, color: C.muted }}>
+              <b style={{ color: C.foreground }}>{sessao.nome}</b> · sessão expira em 3 min
+            </span>
+            <button onClick={encerrarSessao} style={btnGhost()}><LogOut size={14} /> Sair</button>
+          </div>
+        )}
       </div>
 
-      {erro && (
-        <div style={{ background: C.destructiveBg, border: `1px solid ${C.destructive}33`, borderRadius: 10, padding: 14, marginBottom: 16, color: C.destructive, fontSize: 13 }}>
-          {erro}
+      {/* LOGIN */}
+      {!sessao ? (
+        <div style={{ ...cardStyle(), maxWidth: 460, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, color: C.primary }}>
+            <KeyRound size={18} /> <b style={{ fontSize: 15 }}>Identificação do pátio</b>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={lbl}>Prisma</label>
+              <input value={prisma} onChange={(e) => setPrisma(e.target.value)} placeholder="Nº do prisma" autoFocus style={{ ...inp(), width: "100%", fontFamily: mono, fontSize: 18, textAlign: "center", height: 48 }} />
+            </div>
+            <div>
+              <label style={lbl}>Nº do colaborador</label>
+              <input value={login} onChange={(e) => setLogin(e.target.value)} placeholder="seu login/número" style={{ ...inp(), width: "100%" }} />
+            </div>
+            <div>
+              <label style={lbl}>Senha</label>
+              <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} onKeyDown={(e) => e.key === "Enter" && entrar()} placeholder="••••••" style={{ ...inp(), width: "100%" }} />
+            </div>
+            <button onClick={entrar} disabled={entrando} style={{ ...btnPrimary(), justifyContent: "center", opacity: entrando ? 0.6 : 1 }}>
+              {entrando ? "Entrando..." : "Entrar"}
+            </button>
+          </div>
         </div>
-      )}
+      ) : (
+        <>
+          {/* barra prisma */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ minWidth: 160 }}>
+              <label style={lbl}>Prisma</label>
+              <input value={prisma} onChange={(e) => setPrisma(e.target.value)} onKeyDown={(e) => e.key === "Enter" && carregarContexto()} placeholder="Nº do prisma" style={{ ...inp(), fontFamily: mono, fontSize: 16, textAlign: "center", width: 160 }} />
+            </div>
+            <button onClick={() => carregarContexto()} disabled={carregandoCtx} style={btnPrimary()}>
+              {carregandoCtx ? "Buscando..." : "Carregar OS"}
+            </button>
+          </div>
 
-      {!podeLancar && !loading && (
-        <div style={{ ...cardStyle(), color: C.muted, fontSize: 13 }}>
-          Você não tem permissão para lançar apontamentos.
-        </div>
-      )}
-
-      {podeLancar && (
-        <div style={{ ...cardStyle(), marginBottom: 16 }}>
-          {loading ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[0, 1, 2].map((i) => <Skeleton key={i} h={40} />)}
+          {carregandoCtx ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[0, 1, 2].map((i) => <Skeleton key={i} h={56} />)}</div>
+          ) : !ctx ? (
+            <div style={{ ...cardStyle(), textAlign: "center", padding: "40px 0", color: C.textMuted }}>
+              <HardHat size={30} style={{ opacity: 0.4 }} />
+              <div style={{ marginTop: 10, fontSize: 13 }}>Digite o prisma e clique em Carregar OS.</div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Ordem de Serviço</label>
-                <SelectBusca opcoes={osOpcoes} value={f.id_os} onChange={(v) => s("id_os", v)} placeholder="Buscar OS ou cliente..." full />
+            <>
+              {/* cabeçalho da OS */}
+              <div style={{ ...cardStyle(), marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+                <div><div style={miniLbl}>OS</div><div style={{ fontFamily: mono, fontWeight: 700, color: C.primary, fontSize: 18 }}>{ctx.os.numero}</div></div>
+                <div style={{ flex: 1, minWidth: 180 }}><div style={miniLbl}>Cliente</div><div style={{ fontWeight: 600 }}>{ctx.os.cliente}</div></div>
+                <div><div style={miniLbl}>Prisma</div><div style={{ fontFamily: mono, fontWeight: 700 }}>{ctx.os.prisma}</div></div>
+                <div><div style={miniLbl}>Vendedor</div><div>{ctx.os.vendedor || "—"}</div></div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => abrirModal("peca")} style={btnGhost()}><PackagePlus size={14} /> Solicitar peça</button>
+                  <button onClick={() => abrirModal("consumo")} style={btnGhost()}><Boxes size={14} /> Consumo</button>
+                </div>
               </div>
-              <div>
-                <label style={lbl}>Área</label>
-                <select value={f.id_area} onChange={(e) => s("id_area", e.target.value)} style={{ ...sel(), width: "100%" }}>
-                  <option value="">Selecione a área...</option>
-                  {areas.map((a) => <option key={a.id} value={a.id}>{a.descricao}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Colaborador</label>
-                <select value={f.id_colaborador} onChange={(e) => s("id_colaborador", e.target.value)} style={{ ...sel(), width: "100%" }}>
-                  <option value="">Selecione...</option>
-                  {colaboradores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Data</label>
-                <input type="date" value={f.data} onChange={(e) => s("data", e.target.value)} style={{ ...inp(), width: "100%" }} />
-              </div>
-              <div>
-                <label style={lbl}>Horas trabalhadas</label>
-                <input type="number" step="0.25" min="0" value={f.horas} onChange={(e) => s("horas", e.target.value)} placeholder="Ex.: 3,5" style={{ ...inp(), width: "100%", fontFamily: mono }} />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Observação (opcional)</label>
-                <input value={f.observacao} onChange={(e) => s("observacao", e.target.value)} placeholder="O que foi feito..." style={{ ...inp(), width: "100%" }} />
-              </div>
-              <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
-                <button onClick={lancar} disabled={salvando} style={{ ...btnPrimary(), opacity: salvando ? 0.6 : 1 }}>
-                  <Plus size={15} /> {salvando ? "Lançando..." : "Lançar apontamento"}
-                </button>
-              </div>
-            </div>
+              {ctx.os.defeito && <div style={{ fontSize: 12.5, color: C.muted, margin: "0 2px 12px" }}><b style={{ color: C.foreground }}>Pedido do cliente:</b> {ctx.os.defeito}</div>}
+
+              {/* defeitos */}
+              {ctx.defeitos.length === 0 ? (
+                <div style={{ ...cardStyle(), textAlign: "center", padding: "32px 0", color: C.textMuted }}>
+                  Nenhum defeito pendente nesta OS. (Os defeitos são cadastrados na abertura da OS.)
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>↑↓ seleciona · <b>E</b> entrada/retomar · <b>P</b> pausa · <b>F</b> finaliza</div>
+                  {ctx.defeitos.map((d, i) => {
+                    const cor = DEFEITO_COR[d.status] || DEFEITO_COR.ABERTO;
+                    const ativo = i === sel;
+                    return (
+                      <div key={d.id} onClick={() => { setSel(i); resetTimer(); }} style={{
+                        ...cardStyle(), padding: 14, cursor: "pointer",
+                        border: `2px solid ${ativo ? C.blueLight : C.border}`,
+                        display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                      }}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                            {d.area && <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase" }}>{d.area}</span>}
+                            <span style={{ background: cor.bg, color: cor.fg, fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{cor.label}</span>
+                            {d.aberto_por && <span style={{ fontSize: 11, color: C.muted }}>· {d.aberto_por} trabalhando</span>}
+                          </div>
+                          <div style={{ fontWeight: 600 }}>{d.descricao}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {!d.meu_aberto ? (
+                            <button onClick={(e) => { e.stopPropagation(); acao(d, d.status === "PAUSADO" ? "RETOMAR" : "ENTRADA"); }} disabled={acaoLoad === d.id + (d.status === "PAUSADO" ? "RETOMAR" : "ENTRADA")} style={{ ...btnPrimary(), padding: "8px 14px" }}>
+                              {d.status === "PAUSADO" ? <><RotateCcw size={14} /> Retomar</> : <><Play size={14} /> Entrada</>}
+                            </button>
+                          ) : (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); acao(d, "PAUSA"); }} style={{ ...btnGhost(), padding: "8px 14px", color: C.warning }}><Pause size={14} /> Pausa</button>
+                              <button onClick={(e) => { e.stopPropagation(); acao(d, "FINALIZAR"); }} style={{ ...btnPrimary(), padding: "8px 14px", background: C.success }}><CheckCircle2 size={14} /> Finalizar</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
-        </div>
+        </>
       )}
 
-      {/* Lançados nesta sessão */}
-      {lancados.length > 0 && (
-        <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: C.foreground }}>
-            <CheckCircle2 size={16} style={{ color: C.success }} /> Lançados agora ({lancados.length})
+      {/* modal peça / consumo */}
+      {modal && (
+        <div onMouseDown={() => resetTimer()} style={{ position: "fixed", inset: 0, background: "rgba(15,29,53,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ ...cardStyle(), width: 440, maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <b style={{ fontSize: 15 }}>{modal.tipo === "peca" ? "Solicitar peça" : "Lançar consumo"}</b>
+              <button onClick={() => setModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={lbl}>Produto</label>
+                <SelectBusca
+                  opcoes={produtos.map((p) => ({ id: p.id, label: p.nome, sub: (p.codigo ? p.codigo + " · " : "") + fmtBRL(p.preco_venda) }))}
+                  value={modal.id_produto} onChange={(id) => setModal((m) => ({ ...m, id_produto: id }))}
+                  placeholder="Buscar produto..." full
+                />
+              </div>
+              <div>
+                <label style={lbl}>Quantidade</label>
+                <input type="number" step="0.01" min="0" value={modal.qtd} onChange={(e) => setModal((m) => ({ ...m, qtd: e.target.value }))} style={{ ...inp(), width: "100%", fontFamily: mono }} />
+              </div>
+              {modal.tipo === "peca" && (
+                <div>
+                  <label style={lbl}>Observação (opcional)</label>
+                  <input value={modal.obs} onChange={(e) => setModal((m) => ({ ...m, obs: e.target.value }))} style={{ ...inp(), width: "100%" }} />
+                </div>
+              )}
+              <button onClick={enviarModal} style={{ ...btnPrimary(), justifyContent: "center" }}>
+                {modal.tipo === "peca" ? "Solicitar" : "Lançar consumo"}
+              </button>
+            </div>
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
-              <thead><tr>
-                {["OS", "Cliente", "Área", "Colaborador", "Data", "Horas", ""].map((h, i) => <th key={i} style={th(i === 5)}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {lancados.map((l) => (
-                  <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td style={td()}><span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{l.os}</span></td>
-                    <td style={{ ...td(), maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.cliente}</td>
-                    <td style={td()}>{l.area}</td>
-                    <td style={td()}>{l.colaborador}</td>
-                    <td style={{ ...td(), fontFamily: mono, fontSize: 12 }}>{l.data.split("-").reverse().join("/")}</td>
-                    <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 700 }}>{l.horas.toLocaleString("pt-BR")}h</td>
-                    <td style={{ ...td(), textAlign: "right" }}>
-                      <button onClick={() => removerLancado(l)} title="Remover" style={{ background: "none", border: "none", cursor: "pointer", color: C.destructive, padding: 4 }}><Trash2 size={15} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {!loading && lancados.length === 0 && podeLancar && (
-        <div style={{ textAlign: "center", padding: "36px 0", color: C.textMuted }}>
-          <HardHat size={30} style={{ opacity: 0.4 }} />
-          <div style={{ marginTop: 10, fontSize: 13 }}>Nenhum apontamento lançado nesta sessão. Preencha acima para começar.</div>
         </div>
       )}
     </div>
@@ -218,3 +298,4 @@ export default function Apontamento({ usuario }) {
 }
 
 const lbl = { display: "block", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted, marginBottom: 5 };
+const miniLbl = { fontSize: 10, fontWeight: 600, textTransform: "uppercase", color: C.textMuted, marginBottom: 2 };
