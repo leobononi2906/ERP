@@ -24,7 +24,7 @@ export default function Solicitacoes({ usuario }) {
   const [loading, setLoading] = useState(true);
   const [fStatus, setFStatus] = useState("ABERTAS"); // ABERTAS | TODAS | ATENDIDA | CANCELADA
   const [busca, setBusca] = useState("");
-  const [sel, setSel] = useState(0);
+  const [linha, setLinha] = useState(0);
   const [saving, setSaving] = useState(null);
   const [toast, setToast] = useState(null);
   const [cancelar, setCancelar] = useState(null); // { id, motivo }
@@ -55,7 +55,7 @@ export default function Solicitacoes({ usuario }) {
     const okBusca = !q || [s.numero_os, s.cliente, s.produto, s.referencia, s.solicitante].some((v) => (v || "").toLowerCase().includes(q));
     return okStatus && okBusca;
   });
-  useEffect(() => { setSel((s) => Math.min(s, Math.max(0, filtrada.length - 1))); }, [filtrada.length]);
+  useEffect(() => { setLinha((s) => Math.min(s, Math.max(0, filtrada.length - 1))); }, [filtrada.length]);
 
   const atender = useCallback(async (s) => {
     if (!podeAtender) { notificar("Sem permissão para atender.", "erro"); return; }
@@ -86,14 +86,14 @@ export default function Solicitacoes({ usuario }) {
     if (cancelar) return; // modal aberto: não capturar
     function onKey(e) {
       if (!filtrada.length) return;
-      if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(filtrada.length - 1, s + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(0, s - 1)); }
-      else if (e.key === "Enter") { const s = filtrada[sel]; if (s && (s.status === "PENDENTE" || s.status === "PARCIAL")) atender(s); }
-      else if (e.key.toLowerCase() === "c") { const s = filtrada[sel]; if (s && (s.status === "PENDENTE" || s.status === "PARCIAL")) setCancelar({ id: s.id, motivo: "" }); }
+      if (e.key === "ArrowDown") { e.preventDefault(); setLinha((s) => Math.min(filtrada.length - 1, s + 1)); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setLinha((s) => Math.max(0, s - 1)); }
+      else if (e.key === "Enter") { const s = filtrada[linha]; if (s && (s.status === "PENDENTE" || s.status === "PARCIAL")) atender(s); }
+      else if (e.key.toLowerCase() === "c") { const s = filtrada[linha]; if (s && (s.status === "PENDENTE" || s.status === "PARCIAL")) setCancelar({ id: s.id, motivo: "" }); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filtrada, sel, atender, cancelar]);
+  }, [filtrada, linha, atender, cancelar]);
 
   const pendentes = lista.filter((s) => s.status === "PENDENTE" || s.status === "PARCIAL").length;
 
@@ -156,7 +156,7 @@ export default function Solicitacoes({ usuario }) {
                   const pr = PRIOR[s.prioridade] || PRIOR[3];
                   const aberta = s.status === "PENDENTE" || s.status === "PARCIAL";
                   return (
-                    <tr key={s.id} onClick={() => setSel(i)} style={{ borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: i === sel ? "rgba(0,170,238,0.08)" : "transparent", boxShadow: i === sel ? `inset 3px 0 0 ${C.blueLight}` : "none" }}>
+                    <tr key={s.id} onClick={() => setLinha(i)} style={{ borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: i === linha? "rgba(0,170,238,0.08)" : "transparent", boxShadow: i === linha? `inset 3px 0 0 ${C.blueLight}` : "none" }}>
                       <td style={td()}><span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{s.numero_os}</span></td>
                       <td style={{ ...td(), maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.cliente}</td>
                       <td style={{ ...td(), maxWidth: 220 }}>
