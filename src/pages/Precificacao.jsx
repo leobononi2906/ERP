@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { RefreshCw, ChevronDown, ChevronRight, Layers, Wrench, DollarSign, Check, X, Search } from "lucide-react";
+import { RefreshCw, ChevronDown, ChevronRight, Layers, Wrench, DollarSign, Check, X, Search, Link2 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton, Badge, SelectBusca } from "../ui";
 
 const fmtData = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join("/") : "—");
 const fmtH = (h) => (Number(h) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "h";
 
-// Tela do "boca" (Precificador): pega os apontamentos soltos por área (blocos),
-// escolhe o que é faturável e transforma o bloco em SERVIÇO com valor.
+// Tela do "boca" (Precificador): seleciona apontamentos (mesmo de áreas diferentes)
+// e vincula num SERVIÇO com valor. A somatória das horas selecionadas aparece ao vivo.
 export default function Precificacao({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.os) || {};
   const podeFechar = perms.aprovar || perms.editar || usuario?.admin;
@@ -15,13 +15,18 @@ export default function Precificacao({ usuario }) {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [ordens, setOrdens] = useState([]);
-  const [catServicos, setCatServicos] = useState([]); // cadastro de serviços (os_dados)
+  const [catServicos, setCatServicos] = useState([]);
   const [expandido, setExpandido] = useState({});
   const [soComBloco, setSoComBloco] = useState(true);
   const [busca, setBusca] = useState("");
-  const [form, setForm] = useState({});   // `${idOs}:${idArea}` -> { descricao, valor }
-  const [saving, setSaving] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // seleção de apontamentos (limitada a UMA OS por vez — serviço pertence a uma OS)
+  const [selMap, setSelMap] = useState({});   // { [aptId]: { horas, faturavel, id_area, area } }
+  const [selOs, setSelOs] = useState(null);    // { id_os, numero }
+  const [vincOpen, setVincOpen] = useState(false);
+  const [vinc, setVinc] = useState({ id_servico: "", descricao: "", valor: "" });
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
 
@@ -36,60 +41,86 @@ export default function Precificacao({ usuario }) {
       setLoading(false);
     }
   }
-
   useEffect(() => { carregar(); }, []);
 
-  // Catálogo de serviços (mesma fonte da OS): {id, nome, codigo, preco}
   useEffect(() => {
-    rpc("os_dados")
-      .then((d) => setCatServicos(Array.isArray(d?.servicos) ? d.servicos : []))
-      .catch(() => {});
+    rpc("os_dados").then((d) => setCatServicos(Array.isArray(d?.servicos) ? d.servicos : [])).catch(() => {});
   }, []);
 
-  const keyBloco = (idOs, idArea) => `${idOs}:${idArea}`;
-  const setFormBloco = (k, patch) => setForm((o) => ({ ...o, [k]: { ...(o[k] || {}), ...patch } }));
+  function limparSelecao() { setSelMap({}); setSelOs(null); }
+
+  function toggleApt(os, bloco, apt) {
+    setSelMap((prev) => {
+      // trocou de OS → recomeça a seleção
+      if (selOs && selOs.id_os !== os.id_os) {
+        setSelOs({ id_os: os.id_os, numero: os.numero });
+        return { [apt.id]: { horas: num(apt.horas), faturavel: apt.faturavel, id_area: bloco.id_area, area: bloco.area } };
+      }
+      if (!selOs) setSelOs({ id_os: os.id_os, numero: os.numero });
+      const n = { ...prev };
+      if (n[apt.id]) { delete n[apt.id]; } else { n[apt.id] = { horas: num(apt.horas), faturavel: apt.faturavel, id_area: bloco.id_area, area: bloco.area }; }
+      if (Object.keys(n).length === 0) setSelOs(null);
+      return n;
+    });
+  }
+
+  function selecionarBloco(os, bloco, marcar) {
+    setSelMap((prev) => {
+      let base = prev;
+      if (selOs && selOs.id_os !== os.id_os) { base = {}; }
+      const n = { ...base };
+      (bloco.apontamentos || []).forEach((a) => {
+        if (marcar) n[a.id] = { horas: num(a.horas), faturavel: a.faturavel, id_area: bloco.id_area, area: bloco.area };
+        else delete n[a.id];
+      });
+      setSelOs(Object.keys(n).length ? { id_os: os.id_os, numero: os.numero } : null);
+      return n;
+    });
+  }
+
+  const selIds = Object.keys(selMap).map(Number);
+  const selCount = selIds.length;
+  const selHorasFat = selIds.reduce((s, id) => s + (selMap[id].faturavel ? selMap[id].horas : 0), 0);
+  const selAreas = [...new Set(selIds.map((id) => selMap[id].id_area).filter((x) => x != null))];
 
   async function toggleFaturavel(apt) {
     try {
       await rpc("os_apontamento_faturavel", { p_id: apt.id, p_faturavel: !apt.faturavel });
+      // reflete na seleção se estiver selecionado
+      setSelMap((prev) => prev[apt.id] ? { ...prev, [apt.id]: { ...prev[apt.id], faturavel: !apt.faturavel } } : prev);
       await carregar(true);
-    } catch (e) {
-      notificar("Erro: " + e.message, "erro");
-    }
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
 
-  async function criarServico(os, bloco) {
-    const k = keyBloco(os.id_os, bloco.id_area);
-    const dados = form[k] || {};
-    const descricao = (dados.descricao || "").trim() || `Serviço — ${bloco.area}`;
-    const valor = num(dados.valor);
-    if (!(valor > 0)) { notificar("Informe o valor do serviço.", "erro"); return; }
-    const ids = (bloco.apontamentos || []).map((a) => a.id);
-    if (ids.length === 0) { notificar("Bloco sem apontamentos.", "erro"); return; }
+  function abrirVincular() {
+    if (selCount === 0) return;
+    setVinc({ id_servico: "", descricao: "", valor: "" });
+    setVincOpen(true);
+  }
 
-    setSaving(k);
+  async function confirmarVincular() {
+    const descricao = (vinc.descricao || "").trim() || `Serviço — ${selAreas.length === 1 ? (selMap[selIds[0]].area || "") : "múltiplas áreas"}`;
+    const valor = num(vinc.valor);
+    if (!(valor > 0)) { notificar("Informe o valor do serviço.", "erro"); return; }
+    setSaving(true);
     try {
       const res = await rpc("os_servico_criar_de_apontamentos", {
-        p_id_os: os.id_os,
+        p_id_os: selOs.id_os,
         p_descricao: descricao,
         p_valor_total: valor,
-        p_apontamentos: ids,
-        p_id_area: bloco.id_area,
-        p_id_servico: num(dados.id_servico) || null,
+        p_apontamentos: selIds,
+        p_id_area: selAreas.length === 1 ? selAreas[0] : null,
+        p_id_servico: num(vinc.id_servico) || null,
         p_id_usuario: usuario?.id || null,
       });
-      if (res && res.ok === false) { notificar(res.erro || "Não foi possível criar o serviço.", "erro"); return; }
-      notificar(`Serviço criado — ${fmtBRL(valor)}`);
-      setForm((o) => { const n = { ...o }; delete n[k]; return n; });
+      if (res && res.ok === false) { notificar(res.erro || "Não foi possível criar o serviço.", "erro"); setSaving(false); return; }
+      notificar(`Serviço criado — ${fmtBRL(valor)} (${selCount} apontamento${selCount > 1 ? "s" : ""})`);
+      setVincOpen(false); limparSelecao();
       await carregar(true);
-    } catch (e) {
-      notificar("Erro: " + e.message, "erro");
-    } finally {
-      setSaving(null);
-    }
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(false); }
   }
 
-  // filtro
   const q = busca.trim().toLowerCase();
   const ordensFiltradas = ordens.filter((o) => {
     const temBloco = Array.isArray(o.blocos) && o.blocos.length > 0;
@@ -103,7 +134,7 @@ export default function Precificacao({ usuario }) {
     acc + (o.blocos || []).reduce((a, b) => a + (Number(b.horas_faturaveis) || 0), 0), 0);
 
   return (
-    <div>
+    <div style={{ paddingBottom: selCount ? 80 : 0 }}>
       {toast && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999, display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#fff", background: toast.tipo === "erro" ? C.destructive : C.success, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
           {toast.msg}
@@ -115,7 +146,7 @@ export default function Precificacao({ usuario }) {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Precificação de Serviços</h1>
           <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
-            Fechamento — transforme os apontamentos por área em serviços faturáveis
+            Selecione os apontamentos (pode misturar áreas) e vincule num serviço faturável
           </p>
         </div>
         <button onClick={() => { setLoading(true); carregar(); }} style={btnGhost()}>
@@ -172,9 +203,9 @@ export default function Precificacao({ usuario }) {
             const aberto = expandido[os.id_os];
             const blocos = Array.isArray(os.blocos) ? os.blocos : [];
             const servicos = Array.isArray(os.servicos) ? os.servicos : [];
+            const bloqueadaSel = selOs && selOs.id_os !== os.id_os;
             return (
               <div key={os.id_os} style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
-                {/* Cabeçalho da OS */}
                 <div onClick={() => setExpandido((x) => ({ ...x, [os.id_os]: !x[os.id_os] }))} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer", background: blocos.length ? "rgba(180,83,9,0.05)" : "transparent" }}>
                   {aberto ? <ChevronDown size={18} style={{ color: C.muted }} /> : <ChevronRight size={18} style={{ color: C.muted }} />}
                   <span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{os.numero}</span>
@@ -190,83 +221,56 @@ export default function Precificacao({ usuario }) {
                 {aberto && (
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: 16 }}>
                     {os.defeito && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 14 }}><b style={{ color: C.foreground }}>Defeito/pedido:</b> {os.defeito}</div>}
+                    {bloqueadaSel && <div style={{ fontSize: 12, color: C.warning, marginBottom: 10 }}>Você tem uma seleção aberta na OS {selOs.numero}. Marcar aqui vai recomeçar a seleção nesta OS.</div>}
 
-                    {/* BLOCOS a precificar */}
                     {blocos.length > 0 && (
                       <div style={{ marginBottom: servicos.length ? 20 : 0 }}>
-                        <div style={secTit}><Layers size={14} style={{ color: C.warning }} /> Apontamentos por área (a virar serviço)</div>
+                        <div style={secTit}><Layers size={14} style={{ color: C.warning }} /> Apontamentos por área (marque para vincular)</div>
                         {blocos.map((b) => {
-                          const k = keyBloco(os.id_os, b.id_area);
-                          const dados = form[k] || {};
+                          const apts = b.apontamentos || [];
+                          const todosSel = apts.length > 0 && apts.every((a) => selMap[a.id] && (!selOs || selOs.id_os === os.id_os));
                           return (
-                            <div key={k} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, marginBottom: 10, background: C.surface2 }}>
+                            <div key={`${os.id_os}:${b.id_area}`} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, marginBottom: 10, background: C.surface2 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                                 <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 4, textTransform: "uppercase" }}>{b.area || "Sem área"}</span>
                                 <span style={{ fontSize: 12, color: C.muted }}>total <b style={{ fontFamily: mono, color: C.foreground }}>{fmtH(b.horas_total)}</b> · faturáveis <b style={{ fontFamily: mono, color: C.success }}>{fmtH(b.horas_faturaveis)}</b></span>
+                                {podeFechar && <button onClick={() => selecionarBloco(os, b, !todosSel)} style={{ ...btnGhost(), padding: "4px 10px", fontSize: 11.5, marginLeft: "auto" }}>{todosSel ? "Desmarcar área" : "Marcar área"}</button>}
                               </div>
 
-                              {/* apontamentos do bloco */}
                               <div style={{ overflowX: "auto" }}>
-                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 520 }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 560 }}>
                                   <thead><tr>
-                                    {["Colaborador", "Data", "Horas", "Observação", "Faturar"].map((h, i) => <th key={i} style={{ ...th(i === 2), padding: "7px 10px", background: "transparent" }}>{h}</th>)}
+                                    {["", "Colaborador", "Data", "Horas", "Observação", "Faturar"].map((h, i) => <th key={i} style={{ ...th(i === 3), padding: "7px 10px", background: "transparent" }}>{h}</th>)}
                                   </tr></thead>
                                   <tbody>
-                                    {(b.apontamentos || []).map((a) => (
-                                      <tr key={a.id} style={{ borderTop: `1px solid ${C.border}`, opacity: a.faturavel ? 1 : 0.5 }}>
-                                        <td style={{ padding: "7px 10px" }}>{a.colaborador}</td>
-                                        <td style={{ padding: "7px 10px", fontFamily: mono, fontSize: 11.5 }}>{fmtData(a.data)}</td>
-                                        <td style={{ padding: "7px 10px", textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtH(a.horas)}</td>
-                                        <td style={{ padding: "7px 10px", color: C.muted, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.observacao || "—"}</td>
-                                        <td style={{ padding: "7px 10px", textAlign: "center" }}>
-                                          <button onClick={() => toggleFaturavel(a)} title={a.faturavel ? "Faturável (clique p/ excluir)" : "Não faturável (clique p/ incluir)"} style={{ ...togBtn, background: a.faturavel ? C.successBg : "#fff", color: a.faturavel ? C.success : C.textMuted, borderColor: a.faturavel ? `${C.success}55` : C.border }}>
-                                            {a.faturavel ? <Check size={14} /> : <X size={14} />}
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    ))}
+                                    {apts.map((a) => {
+                                      const marcado = !!selMap[a.id] && (!selOs || selOs.id_os === os.id_os);
+                                      return (
+                                        <tr key={a.id} style={{ borderTop: `1px solid ${C.border}`, opacity: a.faturavel ? 1 : 0.5, background: marcado ? C.bluePale : "transparent" }}>
+                                          <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                                            {podeFechar && <input type="checkbox" checked={marcado} onChange={() => toggleApt(os, b, a)} />}
+                                          </td>
+                                          <td style={{ padding: "7px 10px" }}>{a.colaborador}</td>
+                                          <td style={{ padding: "7px 10px", fontFamily: mono, fontSize: 11.5 }}>{fmtData(a.data)}</td>
+                                          <td style={{ padding: "7px 10px", textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtH(a.horas)}</td>
+                                          <td style={{ padding: "7px 10px", color: C.muted, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.observacao || "—"}</td>
+                                          <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                                            <button onClick={() => toggleFaturavel(a)} title={a.faturavel ? "Faturável (clique p/ excluir)" : "Não faturável (clique p/ incluir)"} style={{ ...togBtn, background: a.faturavel ? C.successBg : "#fff", color: a.faturavel ? C.success : C.textMuted, borderColor: a.faturavel ? `${C.success}55` : C.border }}>
+                                              {a.faturavel ? <Check size={14} /> : <X size={14} />}
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
-
-                              {/* form criar serviço — puxa do cadastro de serviços */}
-                              {podeFechar && (
-                                <div style={{ marginTop: 12, borderTop: `1px dashed ${C.border}`, paddingTop: 12 }}>
-                                  <div style={{ marginBottom: 8 }}>
-                                    <label style={lbl}>Serviço (do cadastro)</label>
-                                    <SelectBusca
-                                      opcoes={catServicos.map((sv) => ({ id: sv.id, label: sv.nome, sub: (sv.codigo ? sv.codigo + " · " : "") + fmtBRL(sv.preco) }))}
-                                      value={dados.id_servico || ""}
-                                      onChange={(id) => {
-                                        const sv = catServicos.find((x) => String(x.id) === String(id)) || {};
-                                        setFormBloco(k, { id_servico: id, descricao: sv.nome ?? (dados.descricao ?? ""), valor: sv.preco != null ? String(sv.preco) : (dados.valor ?? "") });
-                                      }}
-                                      placeholder="Buscar serviço no cadastro..."
-                                      full
-                                    />
-                                  </div>
-                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-                                    <div style={{ flex: 2, minWidth: 200 }}>
-                                      <label style={lbl}>Descrição {dados.id_servico ? "" : "(ou digite)"}</label>
-                                      <input value={dados.descricao ?? ""} onChange={(e) => setFormBloco(k, { descricao: e.target.value })} placeholder={`Serviço — ${b.area || ""}`} style={{ ...inp(), width: "100%" }} />
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 120 }}>
-                                      <label style={lbl}>Valor (R$)</label>
-                                      <input type="number" step="0.01" min="0" value={dados.valor ?? ""} onChange={(e) => setFormBloco(k, { valor: e.target.value })} placeholder="0,00" style={{ ...inp(), width: "100%", fontFamily: mono }} />
-                                    </div>
-                                    <button onClick={() => criarServico(os, b)} disabled={saving === k} style={{ ...btnPrimary(), opacity: saving === k ? 0.6 : 1 }}>
-                                      <DollarSign size={15} /> {saving === k ? "Criando..." : "Criar serviço"}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           );
                         })}
                       </div>
                     )}
 
-                    {/* SERVIÇOS já existentes */}
                     {servicos.length > 0 && (
                       <div>
                         <div style={secTit}><Wrench size={14} style={{ color: C.primary }} /> Serviços da OS</div>
@@ -300,6 +304,64 @@ export default function Precificacao({ usuario }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Barra flutuante de seleção (somatória ao vivo) */}
+      {selCount > 0 && (
+        <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: 20, zIndex: 900, display: "flex", alignItems: "center", gap: 16, background: C.primary, color: "#fff", padding: "12px 18px", borderRadius: 12, boxShadow: "0 8px 30px rgba(26,58,143,0.35)", flexWrap: "wrap", maxWidth: "94vw" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 8, padding: "4px 10px", fontWeight: 700, fontFamily: mono }}>{selCount}</span>
+            <span style={{ fontSize: 13 }}>apontamento{selCount > 1 ? "s" : ""} · OS {selOs?.numero}</span>
+          </div>
+          <div style={{ fontSize: 13 }}>Horas faturáveis: <b style={{ fontFamily: mono, fontSize: 15 }}>{fmtH(selHorasFat)}</b></div>
+          {selAreas.length > 1 && <span style={{ fontSize: 11.5, background: "rgba(255,255,255,0.2)", borderRadius: 6, padding: "2px 8px" }}>{selAreas.length} áreas</span>}
+          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            <button onClick={limparSelecao} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.4)", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Limpar</button>
+            <button onClick={abrirVincular} style={{ background: "#fff", border: "none", color: C.primary, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Link2 size={15} /> Vincular a um serviço</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal vincular */}
+      {vincOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 950, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setVincOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 22, width: 460, maxWidth: "92vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Vincular apontamentos a um serviço</h2>
+            <p style={{ fontSize: 12.5, color: C.muted, marginTop: 0, marginBottom: 14 }}>
+              OS {selOs?.numero} · {selCount} apontamento{selCount > 1 ? "s" : ""} · {fmtH(selHorasFat)} faturáveis
+              {selAreas.length > 1 ? " · múltiplas áreas" : ""}
+            </p>
+            <div style={{ marginBottom: 10 }}>
+              <label style={lbl}>Serviço (do cadastro)</label>
+              <SelectBusca
+                opcoes={catServicos.map((sv) => ({ id: sv.id, label: sv.nome, sub: (sv.codigo ? sv.codigo + " · " : "") + fmtBRL(sv.preco) }))}
+                value={vinc.id_servico}
+                onChange={(id) => {
+                  const sv = catServicos.find((x) => String(x.id) === String(id)) || {};
+                  setVinc((v) => ({ ...v, id_servico: id, descricao: sv.nome ?? v.descricao, valor: sv.preco != null ? String(sv.preco) : v.valor }));
+                }}
+                placeholder="Buscar serviço no cadastro..."
+                full
+              />
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <div style={{ flex: 2, minWidth: 180 }}>
+                <label style={lbl}>Descrição</label>
+                <input value={vinc.descricao} onChange={(e) => setVinc((v) => ({ ...v, descricao: e.target.value }))} placeholder="Serviço" style={{ ...inp(), width: "100%" }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 110 }}>
+                <label style={lbl}>Valor (R$)</label>
+                <input type="number" step="0.01" min="0" value={vinc.valor} onChange={(e) => setVinc((v) => ({ ...v, valor: e.target.value }))} placeholder="0,00" style={{ ...inp(), width: "100%", fontFamily: mono }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+              <button onClick={() => setVincOpen(false)} style={btnGhost()}><X size={14} /> Cancelar</button>
+              <button onClick={confirmarVincular} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                <DollarSign size={15} /> {saving ? "Criando..." : "Criar serviço"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
