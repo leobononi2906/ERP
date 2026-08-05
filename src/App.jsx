@@ -60,6 +60,7 @@ import EstoqueParado from "./pages/EstoqueParado";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
+  { key: "cadastros", label: "Cadastros", icon: FileText, ok: true, standalone: true, permAny: ["clientes", "produtos", "veiculos"] },
   {
     groupKey: "comercial", label: "Comercial", icon: ShoppingCart,
     items: [
@@ -73,7 +74,6 @@ const MENU_GROUPS = [
     ],
   },
   { key: "servicos_hub", label: "Serviços", icon: Wrench, ok: true, standalone: true, permAny: ["os", "produtos"] },
-  { key: "cadastros", label: "Cadastros", icon: FileText, ok: true, standalone: true, permAny: ["clientes", "produtos", "veiculos"] },
   {
     groupKey: "estoque_g", label: "Estoque", icon: Boxes,
     items: [
