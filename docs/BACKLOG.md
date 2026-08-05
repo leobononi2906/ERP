@@ -91,6 +91,23 @@ Inegociável nas telas de **operação** (OS, Venda, Orçamento, Balcão/Caixa, 
 
 ---
 
+## 2c. 🧭 Decisão de arquitetura — Multi-empresa (a confirmar com o dono)
+
+Como o ERP lida com as várias empresas/CNPJs (modelo Firebird `CHDADOS`). Recomendação:
+
+- **Seletor global de empresa no topo** (header), persistido (localStorage) = "empresa em que estou operando agora".
+- **Fluxos de OPERAÇÃO** (Venda, OS, Orçamento, Estoque, Caixa, Faturamento) **filtram pela empresa selecionada**: só aparecem os **produtos vinculados àquela empresa** (liga com item 1.4 — `produtos_empresa.disponivel`), com **preço e tributação daquela empresa**.
+- **Fluxos de BUSCA/CONSULTA** (buscar venda, cliente, histórico, relatórios) são **cross-company por padrão** (todas as empresas), com filtro opcional de empresa. Ex.: achar a venda de um cliente não importa qual empresa vendeu.
+- **Cadastro base global** (cliente, produto "cabeçalho"); **dados por empresa** = preço, tributação, estoque, títulos.
+
+> Fecha com o item **1.4** (produto multi-empresa). Confirmar o modelo antes de implementar o seletor global.
+
+## 2d. Notas do review (visão do dono — já cobertas ou a confirmar)
+- **Pátio/Apontamento** (`Apontamento.jsx`): login coletivo + apontar no defeito + solicitar peça só com apontamento aberto — **já existe**. **Falta:** imprimir a solicitação na impressora padrão.
+- **Precificação por apontamentos** (marca vários apontamentos → soma horas → vincula num serviço) — **já existe** (`os_servico_criar_de_apontamentos`).
+- **Composição + MO dinâmica** (serviço com `valor_hora`; mudar o "padrão" muda todos os produtos) — **já existe** (`produtos_composicao`).
+- Defeito com vínculo a **serviço/área** (hoje "meio cru") — avaliar amarrar defeito→serviço na abertura da OS.
+
 ## 3. Já entregue (contexto — NÃO refazer)
 Preços por empresa/tabela (Markup/Margem/Manual); Devoluções com aval da boqueta (`erp_devolucao_*`, `Devolucoes.jsx`, saldo em `clientes_creditos`); Relatórios + DRE; Entradas de NF + conferência; Consulta de Preços; Pátio/Prismas/Precificação/Comissão por apontamento; Produtos → Composição + MO; busca servidor por campo; Vendas página única; permissões em árvore; baixa de estoque no faturamento (migration 45).
 
