@@ -3,7 +3,7 @@ import { Search, Plus, Pencil, ArrowLeft, Save, X, AlertCircle, CheckCircle2, Lo
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
 
-const VAZIO = () => ({ id: null, codigo: "", nome: "", descricao: "", preco: "", unidade: "UN", situacao: "ATIVO", id_grupo: "" });
+const VAZIO = () => ({ id: null, codigo: "", nome: "", descricao: "", preco: "", valor_hora: "", unidade: "UN", situacao: "ATIVO", id_grupo: "" });
 
 export default function Servicos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.produtos) || {};
@@ -64,6 +64,7 @@ export default function Servicos({ usuario }) {
         p_unidade: form.unidade || "UN",
         p_situacao: form.situacao || "ATIVO",
         p_id_grupo: num(form.id_grupo) || null,
+        p_valor_hora: num(form.valor_hora) || 0,
       });
       setLista(l => {
         const sem = l.filter(s => s.id !== res.id);
@@ -115,6 +116,10 @@ export default function Servicos({ usuario }) {
           </Campo>
           <Campo label="Preço">
             <input value={form.preco} onChange={e => setF("preco", e.target.value)} inputMode="decimal" placeholder="0,00" style={inp(true)} />
+          </Campo>
+          <Campo label="Valor / hora (R$)">
+            <input value={form.valor_hora} onChange={e => setF("valor_hora", e.target.value)} inputMode="decimal" placeholder="0,00" style={{ ...inp(true), fontFamily: mono }} />
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>Usado para calcular a mão de obra dos produtos (horas × valor/hora).</div>
           </Campo>
           <Campo label="Unidade">
             <select value={form.unidade} onChange={e => setF("unidade", e.target.value)} style={sel(true)}>
@@ -220,8 +225,8 @@ export default function Servicos({ usuario }) {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 600 }}>
               <thead><tr>
-                {["Código", "Nome", "Grupo", "Preço", "Unidade", "Situação", ""].map((h, i) => (
-                  <th key={i} style={th(i === 3)}>{h}</th>
+                {["Código", "Nome", "Grupo", "Preço", "Valor/h", "Unidade", "Situação", ""].map((h, i) => (
+                  <th key={i} style={th(i === 3 || i === 4)}>{h}</th>
                 ))}
               </tr></thead>
               <tbody>
@@ -231,6 +236,7 @@ export default function Servicos({ usuario }) {
                     <td style={{ ...td(), fontWeight: 500 }}>{s.nome}</td>
                     <td style={{ ...td(), color: C.muted }}>{s.id_grupo ? nomeGrupo(s.id_grupo) : "—"}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(s.preco)}</td>
+                    <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: num(s.valor_hora) > 0 ? C.foreground : C.textMuted }}>{num(s.valor_hora) > 0 ? fmtBRL(s.valor_hora) : "—"}</td>
                     <td style={{ ...td(), color: C.muted }}>{s.unidade}</td>
                     <td style={td()}><Badge texto={s.situacao} cor={s.situacao === "ATIVO" ? "ATIVO" : "INATIVO"} /></td>
                     <td style={td()}>

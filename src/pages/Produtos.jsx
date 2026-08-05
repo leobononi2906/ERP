@@ -137,8 +137,8 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
         </Campo>
       </Secao>
 
-      {form.produzido && form.id && <Composicao idProduto={form.id} podeEditar={cadOk} />}
-      {form.produzido && !form.id && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto primeiro para montar a composição (peças e serviços que formam o custo).</Aviso>}
+      {form.id && <Composicao idProduto={form.id} podeEditar={cadOk} />}
+      {!form.id && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto primeiro para montar a composição de custo (peças + serviços) e a mão de obra.</Aviso>}
 
       <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: `3px solid ${protOk ? C.blueMid : C.warning}` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
@@ -319,10 +319,16 @@ function PrecosEmpresa({ idProduto, ator, podeEditar, custoBase }) {
   );
 }
 
-/* ═══ COMPOSIÇÃO DO PRODUTO PRODUZIDO ═══════════════════════════ */
+/* ═══ COMPOSIÇÃO DE CUSTO + MÃO DE OBRA ═════════════════════════
+   Peças (produtos) + serviços que formam o CUSTO de referência do produto.
+   Só para custo/comissão — NÃO baixa estoque. A mão de obra (serviços) é
+   dinâmica: horas × valor/hora do serviço; muda no cadastro do serviço,
+   muda o MO de todos os produtos.                                        */
 function Composicao({ idProduto, podeEditar }) {
   const [itens, setItens] = useState([]);
   const [custoTotal, setCustoTotal] = useState(0);
+  const [valorMo, setValorMo] = useState(0);
+  const [custoMat, setCustoMat] = useState(0);
   const [prods, setProds] = useState([]);
   const [servs, setServs] = useState([]);
   const [carregado, setCarregado] = useState(false);
@@ -335,6 +341,8 @@ function Composicao({ idProduto, podeEditar }) {
       const r = await rpc("produto_composicao_listar", { p_id_produto: idProduto });
       setItens(Array.isArray(r?.itens) ? r.itens : []);
       setCustoTotal(num(r?.custo_total));
+      setValorMo(num(r?.valor_mo));
+      setCustoMat(num(r?.custo_materiais));
     } catch (e) { setMsg("Erro: " + e.message); }
   }
   useEffect(() => {
@@ -345,12 +353,14 @@ function Composicao({ idProduto, podeEditar }) {
       rpc("produtos_servicos_dados"),
     ]).then(([pd, sv]) => {
       if (!a) return;
-      setProds((pd?.produtos || []).filter((x) => x.id !== idProduto && !x.produzido));
+      setProds((pd?.produtos || []).filter((x) => x.id !== idProduto));
       setServs(sv.servicos ?? []);
       setCarregado(true);
     }).catch(() => a && setCarregado(true));
     return () => { a = false; };
   }, [idProduto]);
+
+  const isServ = formC.tipo === "SERVICO";
 
   async function adicionar() {
     if (!formC.id_item) { setMsg("Selecione o item."); return; }
@@ -358,9 +368,9 @@ function Composicao({ idProduto, podeEditar }) {
     try {
       await rpc("produto_composicao_salvar", { p: {
         id_produto: idProduto, tipo: formC.tipo,
-        id_componente: formC.tipo === "PECA" ? num(formC.id_item) : null,
-        id_servico: formC.tipo === "SERVICO" ? num(formC.id_item) : null,
-        quantidade: num(formC.quantidade) || 1,
+        id_componente: !isServ ? num(formC.id_item) : null,
+        id_servico: isServ ? num(formC.id_item) : null,
+        quantidade: num(formC.quantidade) || (isServ ? 1 : 1),
         custo_unitario: num(formC.valor_unitario) || null,
       }});
       setFormC({ tipo: formC.tipo, id_item: "", quantidade: 1, valor_unitario: "" });
@@ -374,35 +384,52 @@ function Composicao({ idProduto, podeEditar }) {
     catch (e) { setMsg("Erro: " + e.message); }
   }
 
-  const lista = formC.tipo === "PECA" ? prods : servs;
+  const lista = isServ ? servs : prods;
 
   return (
     <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: "3px solid #6B3FA0" }}>
       <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6B3FA0", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-        <Boxes size={14} /> Composição do produto
+        <Boxes size={14} /> Composição de custo + Mão de obra
       </div>
-      <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 12 }}>Peças e serviços que formam o custo de referência. Custo total: <b style={{ fontFamily: mono, color: C.foreground }}>{fmtBRL(custoTotal)}</b></p>
+      <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 12 }}>
+        Peças (produtos) e serviços que formam o custo de referência — só para custo/comissão, <b>não baixa estoque</b>. A mão de obra é <b>horas × valor/hora do serviço</b> e recalcula sozinha se você mudar o valor/hora no cadastro do serviço.
+      </p>
+
+      {/* Totais */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+        {[
+          { l: "Custo materiais", v: custoMat, c: C.foreground },
+          { l: "Mão de obra (MO)", v: valorMo, c: "#6B3FA0" },
+          { l: "Custo total", v: custoTotal, c: C.primary },
+        ].map((k, i) => (
+          <div key={i} style={{ background: C.surface2, borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted }}>{k.l}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: mono, color: k.c }}>{fmtBRL(k.v)}</div>
+          </div>
+        ))}
+      </div>
+
       {msg && <Aviso cor="destructive"><AlertCircle size={15} /> {msg}</Aviso>}
 
       {podeEditar && carregado && (
-        <div style={{ display: "grid", gridTemplateColumns: "110px 2fr 90px 110px auto", gap: 8, alignItems: "end", marginBottom: 12, background: C.surface2, borderRadius: 10, padding: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 2fr 100px 120px auto", gap: 8, alignItems: "end", marginBottom: 12, background: C.surface2, borderRadius: 10, padding: 12 }}>
           <Campo label="Tipo">
             <select value={formC.tipo} onChange={(e) => setFormC((f) => ({ ...f, tipo: e.target.value, id_item: "", valor_unitario: "" }))} style={sel(true)}>
               <option value="PECA">Peça</option>
-              <option value="SERVICO">Serviço</option>
+              <option value="SERVICO">Serviço (MO)</option>
             </select>
           </Campo>
-          <Campo label={formC.tipo === "PECA" ? "Produto" : "Serviço"}>
+          <Campo label={isServ ? "Serviço" : "Produto"}>
             <select value={formC.id_item} onChange={(e) => {
               const it = lista.find((x) => x.id === Number(e.target.value));
-              setFormC((f) => ({ ...f, id_item: e.target.value, valor_unitario: it ? (formC.tipo === "PECA" ? (it.preco_custo || it.preco_venda) : it.preco) : "" }));
+              setFormC((f) => ({ ...f, id_item: e.target.value, valor_unitario: it ? (isServ ? (it.valor_hora || it.preco) : (it.preco_custo || it.preco_venda)) : "" }));
             }} style={sel(true)}>
               <option value="">Selecione...</option>
-              {lista.map((x) => <option key={x.id} value={x.id}>{x.referencia ? `${x.referencia} — ` : ""}{x.nome}</option>)}
+              {lista.map((x) => <option key={x.id} value={x.id}>{x.referencia ? `${x.referencia} — ` : ""}{x.nome}{isServ && num(x.valor_hora) > 0 ? ` (${fmtBRL(x.valor_hora)}/h)` : ""}</option>)}
             </select>
           </Campo>
-          <Campo label="Qtd"><input value={formC.quantidade} onChange={(e) => setFormC((f) => ({ ...f, quantidade: e.target.value }))} inputMode="decimal" style={inp(true)} /></Campo>
-          <Campo label="Custo unit."><input value={formC.valor_unitario} onChange={(e) => setFormC((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={{ ...inp(true), fontFamily: mono }} /></Campo>
+          <Campo label={isServ ? "Horas" : "Qtd"}><input value={formC.quantidade} onChange={(e) => setFormC((f) => ({ ...f, quantidade: e.target.value }))} inputMode="decimal" placeholder={isServ ? "1.5" : "1"} style={inp(true)} /></Campo>
+          <Campo label={isServ ? "Valor/hora" : "Custo unit."}><input value={formC.valor_unitario} onChange={(e) => setFormC((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={{ ...inp(true), fontFamily: mono }} /></Campo>
           <button onClick={adicionar} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Plus size={14} /></button>
         </div>
       )}
@@ -411,14 +438,14 @@ function Composicao({ idProduto, podeEditar }) {
         <div style={{ textAlign: "center", padding: "20px 0", color: C.textMuted, fontSize: 13 }}>Nenhum item na composição.</div>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead><tr>{["Tipo", "Item", "Qtd", "Custo Unit.", "Subtotal", ""].map((h, i) => <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Tipo", "Item", "Qtd / Horas", "Valor unit.", "Subtotal", ""].map((h, i) => <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>)}</tr></thead>
           <tbody>
             {itens.map((it) => (
               <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={td()}><Badge texto={it.tipo === "PECA" ? "PEÇA" : "SERVIÇO"} cor={it.tipo === "PECA" ? "ATIVO" : "ABERTA"} /></td>
+                <td style={td()}><Badge texto={it.is_servico ? "MÃO DE OBRA" : "PEÇA"} cor={it.is_servico ? "ABERTA" : "ATIVO"} /></td>
                 <td style={{ ...td(), fontWeight: 500 }}>{it.nome}{it.referencia ? <span style={{ color: C.muted, fontFamily: mono, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}</td>
-                <td style={{ ...td(), textAlign: "right" }}>{num(it.quantidade)}</td>
-                <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.custo_unitario)}</td>
+                <td style={{ ...td(), textAlign: "right" }}>{num(it.quantidade)}{it.is_servico ? " h" : ""}</td>
+                <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.custo_unitario)}{it.is_servico ? "/h" : ""}</td>
                 <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(num(it.custo_total))}</td>
                 <td style={{ ...td(), textAlign: "right" }}>{podeEditar && <button onClick={() => remover(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><X size={13} /></button>}</td>
               </tr>
