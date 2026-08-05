@@ -3,7 +3,7 @@ import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Box
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, btnPrimary, btnGhost, Skeleton, SelectBusca } from "../ui";
 
-const SESSAO_MS = 3 * 60 * 1000; // sessão curta: 3 min de inatividade
+const SESSAO_MS = 10 * 1000; // PC coletivo: volta ao login após 10s de inatividade
 
 const DEFEITO_COR = {
   ABERTO:       { bg: C.bluePale,      fg: C.blueMid,   label: "Aberto" },
@@ -11,6 +11,18 @@ const DEFEITO_COR = {
   PAUSADO:      { bg: "#F1F5F9",       fg: "#64748B",   label: "Pausado" },
   CONCLUIDO:    { bg: C.successBg,     fg: C.success,   label: "Concluído" },
 };
+
+// Imprime o comprovante da solicitação/consumo na impressora padrão (bobina 78mm)
+function imprimirSolicitacao({ tipo, os, prisma, colaborador, produto, referencia, qtd, obs }) {
+  const titulo = tipo === "peca" ? "SOLICITAÇÃO DE PEÇA" : "CONSUMO";
+  const dt = new Date().toLocaleString("pt-BR");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:78mm auto;margin:2mm;}body{margin:0;font-family:Arial,sans-serif;}</style></head><body><div style="width:74mm;"><div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;"><div style="font-size:15px;font-weight:bold;">${titulo}</div><div style="font-size:12px;">Prisma ${prisma || "—"}${os ? " · OS " + os : ""}</div></div><div style="font-size:12px;padding:6px 0;line-height:1.5;"><b>Produto:</b> ${produto || "—"}<br><b>Ref.:</b> ${referencia || "—"}<br><b>Qtd:</b> <span style="font-size:16px;font-weight:bold;">${qtd}</span><br><b>Colaborador:</b> ${colaborador || "—"}<br>${obs ? "<b>Obs.:</b> " + obs + "<br>" : ""}<b>Data:</b> ${dt}</div><div style="border-top:1px dashed #000;margin-top:8px;padding-top:10px;font-size:11px;">Separador: ______________________</div></div></body></html>`;
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(iframe);
+  iframe.contentDocument.open(); iframe.contentDocument.write(html); iframe.contentDocument.close();
+  setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => document.body.removeChild(iframe), 2000); }, 100);
+}
 
 export default function Apontamento() {
   // sessão do colaborador (PC compartilhado)
@@ -39,6 +51,16 @@ export default function Apontamento() {
   }, [encerrarSessao]);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  // PC coletivo: qualquer atividade reinicia o timer; 10s parado volta ao login
+  useEffect(() => {
+    if (!sessao) return;
+    resetTimer();
+    const onAtividade = () => resetTimer();
+    window.addEventListener("keydown", onAtividade);
+    window.addEventListener("mousedown", onAtividade);
+    return () => { window.removeEventListener("keydown", onAtividade); window.removeEventListener("mousedown", onAtividade); };
+  }, [sessao, resetTimer]);
 
   async function carregarContexto(pr) {
     const numeroPrisma = (pr ?? prisma).trim();
@@ -123,6 +145,8 @@ export default function Apontamento() {
       const r = await rpc(fn, body);
       if (!r?.ok) { notificar(r?.erro || "Não foi possível.", "erro"); return; }
       notificar(m.tipo === "peca" ? "Peça solicitada!" : "Consumo lançado!");
+      const prod = produtos.find((p) => p.id === parseInt(m.id_produto));
+      imprimirSolicitacao({ tipo: m.tipo, os: ctx?.os?.numero, prisma: ctx?.os?.prisma, colaborador: sessao?.nome, produto: prod?.nome, referencia: prod?.referencia, qtd, obs: m.obs });
       setModal(null); resetTimer();
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
