@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban, Printer, Tag, Undo2,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, History, Boxes,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
@@ -11,6 +11,7 @@ import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca, BuscaServidor,
 } from "../ui";
+import { DrawerHistorico, DrawerEstoque } from "../drawers";
 
 
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
@@ -72,6 +73,8 @@ export default function Vendas({ usuario }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [motivoCancel, setMotivoCancel] = useState("");
   const [aprovModal, setAprovModal] = useState({ aberto: false, mensagem: "", contexto: {} });
+  const [histVenda, setHistVenda] = useState(false);
+  const [drawerProdV, setDrawerProdV] = useState(null);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
   const nomeCliente = (id) => (clientes.find((c) => c.id === id) || {}).nome || "—";
@@ -416,6 +419,7 @@ export default function Vendas({ usuario }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
             <button onClick={() => imprimirVendaDoc({ venda: vendaAtual, itens, cliente: nomeCliente(vendaAtual.id_cliente), empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "", pagamento: vendaAtual.id_condicao_pagamento ? ((condPag.find((c) => c.id === vendaAtual.id_condicao_pagamento) || {}).descricao || "A prazo") : "À vista" })} style={btnGhost()}><Printer size={14} /> Imprimir</button>
             <button onClick={() => imprimirEtiquetaExpedicao({ venda: vendaAtual, cliente: clientes.find((c) => c.id === vendaAtual.id_cliente) || { nome: nomeCliente(vendaAtual.id_cliente) }, empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "" })} style={btnGhost()}><Tag size={14} /> Etiqueta</button>
+            <button onClick={() => setHistVenda(true)} style={btnGhost()}><History size={14} /> Histórico</button>
             {!isCancelada && <button onClick={() => irPara("devolucoes", { origem: "VENDA", id: vendaAtual.id, numero: vendaAtual.numero })} style={btnGhost()}><Undo2 size={14} /> Devolver</button>}
             {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
@@ -587,6 +591,11 @@ export default function Vendas({ usuario }) {
                           placeholder="Buscar produto (nome, referência ou cód. barras)..."
                           full
                         />
+                        {formItem.id_produto && (
+                          <button type="button" onClick={() => setDrawerProdV(Number(formItem.id_produto))} style={{ ...btnGhost(), marginTop: 6, padding: "6px 10px", fontSize: 12 }}>
+                            <Boxes size={13} /> Ver estoque do produto
+                          </button>
+                        )}
                       </Campo>
                     ) : (
                       <Campo label="Serviço" span={2}>
@@ -764,6 +773,9 @@ export default function Vendas({ usuario }) {
           }}
           onCancelar={() => setAprovModal({ aberto: false, mensagem: "", contexto: {} })}
         />
+
+        {histVenda && !isNew && <DrawerHistorico tabela="vendas" registro={vendaAtual.id} titulo="Histórico da venda" sub={`Venda ${vendaAtual.numero}`} onClose={() => setHistVenda(false)} />}
+        {drawerProdV && <DrawerEstoque idProduto={drawerProdV} idEmpresa={vendaAtual?.id_empresa || null} onClose={() => setDrawerProdV(null)} />}
       </div>
     );
   }

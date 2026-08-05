@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
-  DollarSign, Send, Eye, Printer, Undo2,
+  DollarSign, Send, Eye, Printer, Undo2, History, Boxes,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
+import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor } from "../ui";
@@ -141,6 +142,7 @@ export default function OrdensServico({ usuario }) {
         p_km_entrada: num(form.km_entrada) || null,
         p_defeito_relatado: form.defeito_relatado || null,
         p_observacao_interna: form.observacao_interna || null,
+        p_ator: usuario.id,
       });
       setLista((l) => {
         const sem = l.filter((o) => o.id !== saved.id);
@@ -299,6 +301,8 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Faturar OS ────────────────────────────────────────── */
   const [modalFaturar, setModalFaturar] = useState(false);
+  const [histOs, setHistOs] = useState(false);
+  const [drawerProdOs, setDrawerProdOs] = useState(null);
   const [formasPag, setFormasPag] = useState([]);
   const [condicoesPag, setCondicoesPag] = useState([]);
   const [fatForma, setFatForma] = useState("");
@@ -604,6 +608,9 @@ export default function OrdensServico({ usuario }) {
             )}
             <button onClick={() => imprimirOSDoc({ os: osAtual, pecas: osPecas, servicos: osServicos, cliente: nomeCliente(osAtual.id_cliente), empresa: osAtual.empresa || "" })} style={btnGhost()}>
               <Printer size={14} /> Imprimir
+            </button>
+            <button onClick={() => setHistOs(true)} style={btnGhost()}>
+              <History size={14} /> Histórico
             </button>
             {osAtual.status !== "CANCELADA" && (osPecas || []).length > 0 && (
               <button onClick={() => irPara("devolucoes", { origem: "OS", id: osAtual.id, numero: osAtual.numero })} style={btnGhost()}>
@@ -1088,6 +1095,11 @@ export default function OrdensServico({ usuario }) {
                         placeholder="Buscar produto (nome, referência ou cód. barras)..."
                         full
                       />
+                      {formPeca.id_produto && (
+                        <button type="button" onClick={() => setDrawerProdOs(Number(formPeca.id_produto))} style={{ ...btnGhost(), marginTop: 6, padding: "6px 10px", fontSize: 12 }}>
+                          <Boxes size={13} /> Ver estoque do produto
+                        </button>
+                      )}
                     </Campo>
                     <Campo label="Quantidade">
                       <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
@@ -1166,6 +1178,9 @@ export default function OrdensServico({ usuario }) {
         )}
 
         {/* ─── MODAL FATURAR OS ──────────────────────────────── */}
+        {histOs && <DrawerHistorico tabela="ordens_servico" registro={osAtual.id} titulo="Histórico da OS" sub={`OS ${osAtual.numero}`} onClose={() => setHistOs(false)} />}
+        {drawerProdOs && <DrawerEstoque idProduto={drawerProdOs} idEmpresa={osAtual.id_empresa || null} onClose={() => setDrawerProdOs(null)} />}
+
         {modalFaturar && (
           <div onClick={() => setModalFaturar(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
