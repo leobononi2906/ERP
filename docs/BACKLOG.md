@@ -61,6 +61,20 @@
 ### 1.10 🔵 Financeiro — separar **Caixa da loja** do Financeiro geral
 - O **caixa de frente de loja** (`fn_*_caixa`) é operação diária de balcão; deve ser **item próprio** (fora do hub Financeiro geral), com fluxo keyboard-first.
 
+### 1.12 🔵⭐ Faturamento → popup **Movimento Financeiro** (integra 1.8 + 1.9)
+Ao clicar **Faturar** (Venda e OS), abrir um **popup de movimento financeiro** ANTES de finalizar —
+igual ao "Cadastro de Movimento" do Firebird. Quem fatura confirma ali o financeiro da venda.
+
+**Conteúdo do popup:**
+1. **Parcelas** (gerar boletos): derivadas da **condição de pagamento** (`condicoes_pagamento` + `condicoes_pagamento_parcelas` → nº, vencimento = data fat. + `prazo_dias`, valor = `percentual`). Editável. Flag "gerar boleto" por parcela (emissão CNAB = fase futura; por ora marca).
+2. **Rateio pro DRE**: linhas por tipo (PRODUTO, FRETE, IPI, DESCONTO…) com **valor + conta do plano (DRE) + centro de custo**. Pré-preencher pelos totais da venda (`valor_produtos`/`valor_frete`/`valor_ipi`). Grava em **`vendas_rateio_financeiro`** (já existe).
+3. **Cartão/NSU**: se a `forma_pagamento.modalidade` = cartão, capturar **NSU + nº transação (+ bandeira/parcelas)**.
+
+**Reusar:** `fn_gerar_titulos_receber` (parcelas), `vendas_rateio_financeiro`, `erp_finalizar_venda`/`os_faturar` (finalização em cadeia).
+**Novo (backend):** coluna(s) de **NSU** em `titulos` (ou tabela `titulos_cartao`/`transacoes_cartao`); RPC de **preview** (`erp_venda_faturamento_preview(p_id_venda)` → parcelas + rateio sugerido); estender o faturar para aceitar rateio + ajustes de parcela + NSU (ou novo `erp_faturar_com_movimento(p jsonb)`).
+**Novo (front):** modal keyboard-first (F9 abre → Enter confirma → Esc cancela); default de rateio e parcelas pré-preenchidos.
+> Substitui o "faturar" que hoje só muda status por um faturamento com movimento financeiro completo.
+
 ### 1.11 🟡 Orçamento — **página única** nos moldes de Vendas + cabeçalho
 - Vendas já é página única com cabeçalho forte. Aplicar o mesmo em **Orçamento** (e OS) — pendência já citada no STATUS ("cabeçalho forte + página única na OS e Orçamento").
 - Repensar o **cabeçalho-padrão** (o dono achou o atual ruim) antes de replicar.
