@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, ArrowLeft, Save, Package, Boxes, ArrowDownCircle, ArrowUpCircle, History, Warehouse, AlertTriangle, X, ChevronDown, ChevronUp } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
+import { DrawerEstoque } from "../drawers";
 
 export default function Estoque({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.estoque) || {};
@@ -16,6 +17,7 @@ export default function Estoque({ usuario }) {
   const [fEmpresa, setFEmpresa] = useState("");
   const [fAlerta, setFAlerta] = useState(false);
   const [toast, setToast] = useState(null);
+  const [drawerProd, setDrawerProd] = useState(null);
 
   // kardex
   const [kardexProd, setKardexProd] = useState(null);
@@ -274,7 +276,12 @@ export default function Estoque({ usuario }) {
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.textMuted }}>{num(s.estoque_minimo)}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(s.custo_medio)}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(num(s.estoque_atual) * num(s.custo_medio))}</td>
-                    <td style={td()}><button onClick={() => abrirKardex(s)} style={btnIcon()} title="Kardex"><History size={16} /></button></td>
+                    <td style={td()}>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button onClick={() => setDrawerProd({ id: s.id_produto, empresa: fEmpresa ? Number(fEmpresa) : null })} style={btnIcon()} title="Ver estoque (empresa/centro, comprado, histórico)"><Boxes size={16} /></button>
+                        <button onClick={() => abrirKardex(s)} style={btnIcon()} title="Kardex"><History size={16} /></button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}</tbody>
@@ -288,6 +295,7 @@ export default function Estoque({ usuario }) {
             </table></div>
         }
       </div>
+      {drawerProd && <DrawerEstoque idProduto={drawerProd.id} idEmpresa={drawerProd.empresa} onClose={() => setDrawerProd(null)} />}
     </>
   );
 }

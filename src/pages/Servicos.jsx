@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, ArrowLeft, Save, X, AlertCircle, CheckCircle2, Lock, Wrench } from "lucide-react";
+import { Search, Plus, Pencil, ArrowLeft, Save, X, AlertCircle, CheckCircle2, Lock, Wrench, History } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
+import { DrawerHistorico } from "../drawers";
 
 const VAZIO = () => ({ id: null, codigo: "", nome: "", descricao: "", preco: "", valor_hora: "", unidade: "UN", situacao: "ATIVO", id_grupo: "" });
 
@@ -18,6 +19,7 @@ export default function Servicos({ usuario }) {
   const [toast, setToast] = useState(null);
   const [busca, setBusca] = useState("");
   const [fSituacao, setFSituacao] = useState("ATIVO");
+  const [hist, setHist] = useState(null);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
 
@@ -55,17 +57,18 @@ export default function Servicos({ usuario }) {
     if (!form.nome) { setErroForm("Nome é obrigatório."); return; }
     setErroForm(""); setSaving(true);
     try {
-      const res = await rpc("servico_salvar", {
-        p_id: form.id || null,
-        p_codigo: form.codigo || null,
-        p_nome: form.nome,
-        p_descricao: form.descricao || null,
-        p_preco: num(form.preco) || 0,
-        p_unidade: form.unidade || "UN",
-        p_situacao: form.situacao || "ATIVO",
-        p_id_grupo: num(form.id_grupo) || null,
-        p_valor_hora: num(form.valor_hora) || 0,
-      });
+      const res = await rpc("servico_salvar", { p: {
+        id: form.id || null,
+        codigo: form.codigo || null,
+        nome: form.nome,
+        descricao: form.descricao || null,
+        preco: num(form.preco) || 0,
+        unidade: form.unidade || "UN",
+        situacao: form.situacao || "ATIVO",
+        id_grupo: num(form.id_grupo) || null,
+        valor_hora: num(form.valor_hora) || 0,
+        _ator: usuario?.id || null,
+      } });
       setLista(l => {
         const sem = l.filter(s => s.id !== res.id);
         return [...sem, res].sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
@@ -240,11 +243,14 @@ export default function Servicos({ usuario }) {
                     <td style={{ ...td(), color: C.muted }}>{s.unidade}</td>
                     <td style={td()}><Badge texto={s.situacao} cor={s.situacao === "ATIVO" ? "ATIVO" : "INATIVO"} /></td>
                     <td style={td()}>
-                      {perms.editar && (
-                        <button onClick={() => { setForm({ ...VAZIO(), ...s, preco: s.preco || "" }); setErroForm(""); setView("form"); }} style={btnIcon()}>
-                          <Pencil size={14} />
-                        </button>
-                      )}
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {perms.editar && (
+                          <button onClick={() => { setForm({ ...VAZIO(), ...s, preco: s.preco || "" }); setErroForm(""); setView("form"); }} style={btnIcon()} title="Editar">
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => setHist(s)} style={btnIcon()} title="Histórico"><History size={14} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -253,6 +259,8 @@ export default function Servicos({ usuario }) {
           </div>
         )}
       </div>
+
+      {hist && <DrawerHistorico tabela="servicos" registro={hist.id} titulo="Histórico do serviço" sub={hist.nome} onClose={() => setHist(null)} />}
     </>
   );
 }

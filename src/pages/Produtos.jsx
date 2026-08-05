@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer } from "lucide-react";
+import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
 import { EtiquetasLote } from "../EtiquetasLoteModal";
+import { DrawerEstoque, DrawerHistorico } from "../drawers";
 const SITUACOES = ["ATIVO", "INATIVO"];
 const ORIGENS = [
   { v: 0, t: "0 - Nacional" }, { v: 1, t: "1 - Estrangeira (import. direta)" }, { v: 2, t: "2 - Estrangeira (merc. interno)" },
@@ -99,6 +100,7 @@ function Toast({ toast }) {
 
 function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, voltar, erro, perms, prot, destravar, toast, ator }) {
   const novo = !form.id;
+  const [drawer, setDrawer] = useState(null); // "estoque" | "hist"
   const cadOk = novo ? perms.incluir : perms.editar;
   const protOk = novo ? perms.incluir : (prot && perms.aprovar);
   const podeSalvar = cadOk || protOk;
@@ -109,8 +111,14 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
         <button onClick={voltar} style={btnIcon()}><ArrowLeft size={18} /></button>
         <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{novo ? "Novo produto" : "Editar produto"}</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{novo ? "Preencha os dados" : form.nome}</p></div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><button onClick={voltar} style={btnGhost()}><X size={16} /> {podeSalvar ? "Cancelar" : "Voltar"}</button>{podeSalvar && <button onClick={salvar} disabled={saving} style={btnPrimary()}><Save size={16} /> {saving ? "Salvando..." : "Salvar"}</button>}</div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {!novo && <button onClick={() => setDrawer("estoque")} style={btnGhost()}><Boxes size={16} /> Estoque</button>}
+          {!novo && <button onClick={() => setDrawer("hist")} style={btnGhost()}><History size={16} /> Histórico</button>}
+          <button onClick={voltar} style={btnGhost()}><X size={16} /> {podeSalvar ? "Cancelar" : "Voltar"}</button>{podeSalvar && <button onClick={salvar} disabled={saving} style={btnPrimary()}><Save size={16} /> {saving ? "Salvando..." : "Salvar"}</button>}
+        </div>
       </div>
+      {drawer === "estoque" && <DrawerEstoque idProduto={form.id} onClose={() => setDrawer(null)} />}
+      {drawer === "hist" && <DrawerHistorico tabela="produtos" registro={form.id} titulo="Histórico do produto" sub={form.nome} onClose={() => setDrawer(null)} />}
       {erro && <Aviso cor="destructive">{erro}</Aviso>}
       {!novo && !cadOk && !protOk && <Aviso cor="muted"><Eye size={15} /> Modo leitura. Seu grupo não tem permissão para alterar produtos.</Aviso>}
 

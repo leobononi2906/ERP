@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash,
+  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash, Tag,
 } from "lucide-react";
 import { C, setLogUsuario } from "./config";
 import { navHandoff } from "./nav";
@@ -27,6 +27,7 @@ import Prismas from "./pages/Prismas";
 import Servicos from "./pages/Servicos";
 import Auxiliares from "./pages/Auxiliares";
 import ComissoesOS from "./pages/ComissoesOS";
+import ConsultaPrecos from "./pages/ConsultaPrecos";
 import { TabHub } from "./Hub";
 
 // Hubs de abas (reduzem o menu: um item abre várias telas em abas/sub-abas)
@@ -64,6 +65,7 @@ const MENU_GROUPS = [
     items: [
       { key: "orcamentos", label: "Orçamentos", icon: ClipboardList, ok: true },
       { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
+      { key: "consulta_precos", label: "Consulta de Preços", icon: Tag, ok: true, permKey: "vendas" },
       { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
       { key: "devolucoes", label: "Devoluções", icon: Undo2, ok: true, permKey: "vendas" },
       { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
@@ -232,6 +234,7 @@ export default function App() {
         {pagina === "veiculos" && <Veiculos usuario={usuario} />}
         {pagina === "orcamentos" && <Orcamentos usuario={usuario} />}
         {pagina === "vendas" && <Vendas usuario={usuario} />}
+        {pagina === "consulta_precos" && <ConsultaPrecos usuario={usuario} />}
         {pagina === "os" && <OrdensServico usuario={usuario} />}
         {pagina === "distribuicao_os" && <DistribuicaoServicos usuario={usuario} />}
         {pagina === "apontamento" && <Apontamento usuario={usuario} />}
@@ -253,7 +256,7 @@ export default function App() {
         {pagina === "demanda" && <Demanda usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>

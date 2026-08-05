@@ -1,0 +1,6 @@
+-- 20260805_54_consulta_precos_estoque_historico
+-- Consulta de precos (Comercial), drawer de estoque do produto (empresa/centro,
+-- comprado, historico) e historico de auditoria por registro (log_acessos).
+-- + servico_salvar(jsonb) com auditoria (quem/quando/de->para).
+-- Ver funcoes: erp_produto_estoque_detalhe, erp_consulta_precos, erp_historico, servico_salvar(jsonb).
+-- (corpo aplicado via apply_migration na mesma data)
