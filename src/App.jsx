@@ -72,8 +72,8 @@ const MENU_GROUPS = [
       { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
     ],
   },
-  { key: "servicos_hub", label: "Serviços", icon: Wrench, ok: true, standalone: true },
-  { key: "cadastros", label: "Cadastros", icon: FileText, ok: true, standalone: true },
+  { key: "servicos_hub", label: "Serviços", icon: Wrench, ok: true, standalone: true, permAny: ["os", "produtos"] },
+  { key: "cadastros", label: "Cadastros", icon: FileText, ok: true, standalone: true, permAny: ["clientes", "produtos", "veiculos"] },
   {
     groupKey: "estoque_g", label: "Estoque", icon: Boxes,
     items: [
@@ -139,6 +139,8 @@ export default function App() {
 
   const itemVisivel = (m) => {
     if (!m.ok) return true;
+    // Hubs/itens que agregam várias telas: visíveis se o usuário puder ver QUALQUER uma
+    if (m.permAny) return m.permAny.some((k) => perms[k] && perms[k].visualizar);
     const pk = m.permKey || m.key;
     const p = perms[pk];
     return p && p.visualizar;
