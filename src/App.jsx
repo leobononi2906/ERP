@@ -26,6 +26,7 @@ import Solicitacoes from "./pages/Solicitacoes";
 import Prismas from "./pages/Prismas";
 import Servicos from "./pages/Servicos";
 import Auxiliares from "./pages/Auxiliares";
+import ComissoesOS from "./pages/ComissoesOS";
 import { TabHub } from "./Hub";
 
 // Hubs de abas (reduzem o menu: um item abre várias telas em abas/sub-abas)
@@ -43,6 +44,7 @@ function ServicosHub({ usuario }) {
     { key: "patio", label: "Pátio", icon: Clock, render: () => <Apontamento usuario={usuario} /> },
     { key: "precificacao", label: "Precificação", icon: Layers, render: () => <Precificacao usuario={usuario} /> },
     { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, render: () => <Solicitacoes usuario={usuario} /> },
+    { key: "comissoes", label: "Comissões", icon: DollarSign, render: () => <ComissoesOS /> },
   ]} />;
 }
 import PrecosEspeciais from "./pages/PrecosEspeciais";
