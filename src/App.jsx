@@ -60,7 +60,15 @@ import EstoqueParado from "./pages/EstoqueParado";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
-  { key: "cadastros", label: "Cadastros", icon: FileText, ok: true, standalone: true, permAny: ["clientes", "produtos", "veiculos"] },
+  {
+    groupKey: "cadastros_g", label: "Cadastros", icon: FileText,
+    items: [
+      { key: "clientes", label: "Clientes", icon: Users, ok: true },
+      { key: "produtos", label: "Produtos", icon: Package, ok: true },
+      { key: "veiculos", label: "Veículos", icon: Truck, ok: true },
+      { key: "auxiliares", label: "Auxiliares", icon: Settings, ok: true, permAny: ["clientes", "produtos", "veiculos"] },
+    ],
+  },
   {
     groupKey: "comercial", label: "Comercial", icon: ShoppingCart,
     items: [
@@ -73,7 +81,16 @@ const MENU_GROUPS = [
       { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
     ],
   },
-  { key: "servicos_hub", label: "Serviços", icon: Wrench, ok: true, standalone: true, permAny: ["os", "produtos"] },
+  {
+    groupKey: "servicos_g", label: "Serviços", icon: Wrench,
+    items: [
+      { key: "distribuicao_os", label: "Distribuição", icon: Users, ok: true, permKey: "os" },
+      { key: "apontamento", label: "Pátio / Apontamento", icon: Clock, ok: true, permKey: "os" },
+      { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
+      { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, ok: true, permKey: "os" },
+      { key: "comissoes", label: "Comissões", icon: DollarSign, ok: true, permKey: "os" },
+    ],
+  },
   {
     groupKey: "estoque_g", label: "Estoque", icon: Boxes,
     items: [
@@ -234,6 +251,8 @@ export default function App() {
         {pagina === "clientes" && <Clientes usuario={usuario} />}
         {pagina === "produtos" && <Produtos usuario={usuario} />}
         {pagina === "veiculos" && <Veiculos usuario={usuario} />}
+        {pagina === "auxiliares" && <Auxiliares usuario={usuario} />}
+        {pagina === "comissoes" && <ComissoesOS />}
         {pagina === "orcamentos" && <Orcamentos usuario={usuario} />}
         {pagina === "vendas" && <Vendas usuario={usuario} />}
         {pagina === "consulta_precos" && <ConsultaPrecos usuario={usuario} />}
@@ -258,7 +277,7 @@ export default function App() {
         {pagina === "demanda" && <Demanda usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "separacao", "financeiro", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
