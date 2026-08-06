@@ -112,6 +112,82 @@ function Toast({ toast }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: toast.tipo === "warn" ? C.warningBg : C.successBg, color: toast.tipo === "warn" ? C.warning : C.success }}>{toast.tipo === "warn" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}{toast.msg}</div>;
 }
 
+// Editor de disponibilidade + preço + fiscal por empresa (fallback no cadastro global)
+function EmpresasProduto({ idProduto, ator, podeEditar }) {
+  const [dados, setDados] = useState(null);
+  const [linhas, setLinhas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    let a = true;
+    rpc("produto_empresas_listar", { p_id_produto: idProduto })
+      .then((d) => { if (!a) return; setDados(d || null); setLinhas((d?.empresas || []).map((e) => ({ ...e }))); })
+      .catch(() => {})
+      .finally(() => { if (a) setLoading(false); });
+    return () => { a = false; };
+  }, [idProduto]);
+
+  const setCampo = (i, k, v) => setLinhas((ls) => ls.map((l, idx) => (idx === i ? { ...l, [k]: v } : l)));
+
+  async function salvar() {
+    setSaving(true); setMsg(null);
+    try {
+      const payload = linhas.map((l) => ({
+        id_empresa: l.id_empresa, disponivel: !!l.disponivel,
+        cfop_padrao: l.cfop_padrao || null, cst_csosn: l.cst_csosn || null,
+        aliquota_icms: l.aliquota_icms === "" || l.aliquota_icms == null ? null : num(l.aliquota_icms),
+        cest: l.cest || null, ncm: l.ncm || null,
+      }));
+      const r = await rpc("produto_empresas_salvar", { p_id_produto: idProduto, p_linhas: payload, p_ator: ator });
+      if (r && r.ok === false) { setMsg({ t: "erro", x: r.erro || "Falha ao salvar." }); return; }
+      setMsg({ t: "ok", x: "Disponibilidade e preços por empresa salvos." });
+    } catch (e) { setMsg({ t: "erro", x: e.message }); }
+    finally { setSaving(false); }
+  }
+
+  if (loading) return <div style={{ gridColumn: "1 / -1" }}><Skeleton h={120} /></div>;
+  const g = dados?.global || {};
+  return (
+    <div style={{ gridColumn: "1 / -1" }}>
+      <div style={{ fontSize: 11.5, color: C.textMuted, marginBottom: 10 }}>
+        Marque em quais empresas o produto é vendido e, se a tributação difere por empresa, informe o override fiscal. Em branco = usa o fiscal global do produto (CFOP {g.cfop_padrao || "—"} · CST {g.cst_csosn || "—"}). <b>Preço por empresa</b> fica no bloco "Preços por empresa / tabela" abaixo.
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 680 }}>
+          <thead><tr>
+            {["Empresa", "Disp.", "CFOP", "CST/CSOSN", "Alíq %", "CEST", "NCM"].map((h, i) => (
+              <th key={i} style={{ ...th(false), padding: "8px 8px", textAlign: i <= 1 ? "left" : "left" }}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {linhas.map((l, i) => (
+              <tr key={l.id_empresa} style={{ borderTop: `1px solid ${C.border}`, opacity: l.disponivel ? 1 : 0.55 }}>
+                <td style={{ padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{l.empresa}</td>
+                <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                  <input type="checkbox" checked={!!l.disponivel} disabled={!podeEditar} onChange={(e) => setCampo(i, "disponivel", e.target.checked)} />
+                </td>
+                <td style={{ padding: "6px 8px" }}><input value={l.cfop_padrao ?? ""} disabled={!podeEditar} onChange={(e) => setCampo(i, "cfop_padrao", e.target.value)} placeholder={g.cfop_padrao || "global"} style={{ ...inp(true, !podeEditar), width: 74, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.cst_csosn ?? ""} disabled={!podeEditar} onChange={(e) => setCampo(i, "cst_csosn", e.target.value)} placeholder={g.cst_csosn || "global"} style={{ ...inp(true, !podeEditar), width: 74, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.aliquota_icms ?? ""} disabled={!podeEditar} onChange={(e) => setCampo(i, "aliquota_icms", e.target.value)} placeholder={g.aliquota_icms != null ? String(g.aliquota_icms) : "global"} inputMode="decimal" style={{ ...inp(true, !podeEditar), width: 64, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.cest ?? ""} disabled={!podeEditar} onChange={(e) => setCampo(i, "cest", e.target.value)} placeholder={g.cest || "global"} style={{ ...inp(true, !podeEditar), width: 84, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.ncm ?? ""} disabled={!podeEditar} onChange={(e) => setCampo(i, "ncm", e.target.value)} placeholder={g.ncm || "global"} style={{ ...inp(true, !podeEditar), width: 90, fontFamily: mono, padding: "5px 8px" }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {podeEditar && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+          <button onClick={salvar} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}><Save size={14} /> {saving ? "Salvando..." : "Salvar por empresa"}</button>
+          {msg && <span style={{ fontSize: 12.5, color: msg.t === "erro" ? C.destructive : C.success }}>{msg.x}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, voltar, erro, perms, prot, destravar, toast, ator }) {
   const novo = !form.id;
   const [drawer, setDrawer] = useState(null); // "estoque" | "hist"
@@ -218,6 +294,13 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
 
       {!novo && <PrecosEmpresa idProduto={form.id} ator={ator} podeEditar={protOk} custoBase={form.preco_custo} />}
       {novo && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto para configurar preços por empresa e tabela (markup, margem ou preço manual).</Aviso>}
+
+      {!novo && (
+        <Secao titulo="Disponibilidade e fiscal por empresa">
+          <EmpresasProduto idProduto={form.id} ator={ator} podeEditar={protOk} />
+        </Secao>
+      )}
+      {novo && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto para marcar em quais empresas ele é vendido e ajustar o fiscal por empresa.</Aviso>}
 
       <div style={{ ...cardStyle(), borderLeft: `3px solid ${C.border}` }}>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Boxes size={14} /> Estoque <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: C.textMuted }}>· somente leitura (movimenta no módulo Estoque)</span></div>
