@@ -108,6 +108,26 @@ Como o ERP lida com as várias empresas/CNPJs (modelo Firebird `CHDADOS`). Recom
 - **Composição + MO dinâmica** (serviço com `valor_hora`; mudar o "padrão" muda todos os produtos) — **já existe** (`produtos_composicao`).
 - Defeito com vínculo a **serviço/área** (hoje "meio cru") — avaliar amarrar defeito→serviço na abertura da OS.
 
+## 2e. 🐛→🔵 Fluxo Defeito → Distribuição (redesenho — review 05/08)
+
+**Bug encontrado:** `os_distribuicao_dados` monta a fila só de `os_servicos` + `os_pecas` (produção).
+**`os_defeitos` NÃO entra na query** → defeitos criados (ex. OS 26/27) nunca aparecem na Distribuição.
+Vários defeitos estão com `id_area = null`.
+
+**Redesenho pedido pelo dono:**
+1. **Renomear "Defeito" → "Serviços Solicitados"** em toda a UI (OS, Apontamento, Distribuição).
+2. **Distribuição opera sobre o defeito/serviço-solicitado**: atribui a um **grupo por especialidade (área)** OU a um **técnico específico**. Especialidade = `usuario_habilidades` (usuários com classificação **Pátio**).
+3. **Duplicar** um defeito na Distribuição (um defeito pode exigir mais de uma especialidade → gera cópias, uma por área).
+4. **Login do Pátio por código OU nome** (`os_patio_login` deve aceitar os dois).
+5. **Solicitação de produtos**: tirar a aba "Solicitações" solta do hub Serviços e **juntar ao Apontamento**. Para **colaborador do Pátio** (não vendedor), solicitar peça **exige apontamento aberto na OS** (já enforce no Apontamento).
+
+**Plano (backend primeiro, seguro):**
+- `os_defeitos`: garantir `id_area` e adicionar `id_tecnico` (atribuição específica) + `status`.
+- Estender `os_distribuicao_dados` para incluir os **defeitos ABERTOS** (origem `SERVICO_SOLICITADO`).
+- `os_defeito_distribuir(p_id_defeito, p_id_area, p_id_tecnico, p_ator)` e `os_defeito_duplicar(p_id_defeito, p_id_area)`.
+- `os_patio_login` aceitar código OU nome.
+**Front:** tela Distribuição lista Serviços Solicitados, atribui área/técnico + botão Duplicar; rename global; mesclar Solicitações no Apontamento.
+
 ## 3. Já entregue (contexto — NÃO refazer)
 Preços por empresa/tabela (Markup/Margem/Manual); Devoluções com aval da boqueta (`erp_devolucao_*`, `Devolucoes.jsx`, saldo em `clientes_creditos`); Relatórios + DRE; Entradas de NF + conferência; Consulta de Preços; Pátio/Prismas/Precificação/Comissão por apontamento; Produtos → Composição + MO; busca servidor por campo; Vendas página única; permissões em árvore; baixa de estoque no faturamento (migration 45).
 
