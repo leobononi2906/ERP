@@ -121,6 +121,12 @@ Vários defeitos estão com `id_area = null`.
 4. **Login do Pátio por código OU nome** (`os_patio_login` deve aceitar os dois).
 5. **Solicitação de produtos**: tirar a aba "Solicitações" solta do hub Serviços e **juntar ao Apontamento**. Para **colaborador do Pátio** (não vendedor), solicitar peça **exige apontamento aberto na OS** (já enforce no Apontamento).
 
+**Modelo TRAVADO (05/08):**
+- **Atribuição = Área é o pool** (qualquer técnico com a habilidade puxa no Pátio) **+ técnico opcional** (pode fixar uma pessoa). "Pendente de distribuição" = defeito ABERTO com `id_area` nulo.
+- **Duplicar = cópias por área com vínculo à origem**: 1 defeito → N defeitos (um por especialidade), cada um apontado/precificado separado, todos ligados por `id_defeito_origem`.
+- **Serviço nasce só na Precificação** (o trabalho vive no defeito/apontamento até lá).
+- **Pátio**: técnico vê os defeitos da **sua área** (ou fixados a ele) na OS do prisma.
+
 **Plano (backend primeiro, seguro):**
 - `os_defeitos`: garantir `id_area` e adicionar `id_tecnico` (atribuição específica) + `status`.
 - Estender `os_distribuicao_dados` para incluir os **defeitos ABERTOS** (origem `SERVICO_SOLICITADO`).

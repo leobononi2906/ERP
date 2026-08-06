@@ -19,6 +19,7 @@ export default function DistribuicaoServicos({ usuario }) {
 
   const [loading, setLoading] = useState(true);
   const [servicos, setServicos] = useState([]);
+  const [servSolic, setServSolic] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
   const [areas, setAreas] = useState([]);
   const [fArea, setFArea] = useState("");
@@ -35,6 +36,7 @@ export default function DistribuicaoServicos({ usuario }) {
     try {
       const d = await rpc("os_distribuicao_dados", {});
       setServicos(Array.isArray(d.servicos) ? d.servicos : []);
+      setServSolic(Array.isArray(d.servicos_solicitados) ? d.servicos_solicitados : []);
       setTecnicos(Array.isArray(d.tecnicos) ? d.tecnicos : []);
       setAreas(Array.isArray(d.areas) ? d.areas : []);
     } catch (e) {
@@ -71,6 +73,25 @@ export default function DistribuicaoServicos({ usuario }) {
     } finally { setSaving(null); }
   }
 
+  async function distribuirDefeito(d, idArea, idTecnico) {
+    if (!idArea) { notificar("Selecione a área.", "erro"); return; }
+    setSaving("D" + d.id);
+    try {
+      const r = await rpc("os_defeito_distribuir", { p_id_defeito: d.id, p_id_area: parseInt(idArea), p_id_tecnico: idTecnico ? parseInt(idTecnico) : null, p_ator: usuario.id });
+      if (r && r.ok === false) notificar(r.erro || "Erro", "erro");
+      else { notificar("Serviço solicitado distribuído!"); await carregar(); }
+    } catch (e) { notificar("Erro: " + e.message, "erro"); } finally { setSaving(null); }
+  }
+
+  async function duplicarDefeito(d, idArea) {
+    setSaving("D" + d.id);
+    try {
+      const r = await rpc("os_defeito_duplicar", { p_id_defeito: d.id, p_id_area: idArea ? parseInt(idArea) : null, p_ator: usuario.id });
+      if (r && r.ok === false) notificar(r.erro || "Erro", "erro");
+      else { notificar("Duplicado " + (r.codigo || "") + "."); await carregar(); }
+    } catch (e) { notificar("Erro: " + e.message, "erro"); } finally { setSaving(null); }
+  }
+
   // Filtros
   const filtrados = servicos.filter(s => {
     const q = busca.trim().toLowerCase();
@@ -86,6 +107,8 @@ export default function DistribuicaoServicos({ usuario }) {
 
   // Seletor de técnico por serviço
   const [tecSel, setTecSel] = useState({});
+  const [areaSel, setAreaSel] = useState({}); // por defeito: área escolhida
+  const [tecSol, setTecSol] = useState({});   // por defeito: técnico opcional
 
   return (
     <div>
@@ -146,6 +169,55 @@ export default function DistribuicaoServicos({ usuario }) {
           {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
         </select>
       </div>
+
+      {/* Serviços Solicitados (defeitos) — distribuir por área (pool) + técnico opcional */}
+      {servSolic.length > 0 && (
+        <div style={{ ...cardStyle(), padding: 0, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <Wrench size={16} color={C.primary} /> Serviços Solicitados (defeitos)
+            <span style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>· atribua uma área (e opcionalmente um técnico) · duplique para outra especialidade</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 820 }}>
+              <thead><tr>{["OS", "Cliente", "Defeito", "Área", "Técnico (opcional)", "Apont.", "Ação"].map((h, i) => <th key={i} style={th()}>{h}</th>)}</tr></thead>
+              <tbody>
+                {servSolic.map(d => {
+                  const k = "D" + d.id;
+                  const areaVal = areaSel[k] ?? (d.id_area ? String(d.id_area) : "");
+                  return (
+                    <tr key={k} style={{ borderBottom: `1px solid ${C.border}`, background: d.distribuido ? "transparent" : "rgba(180,83,9,0.05)" }}>
+                      <td style={td()}><span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{d.numero_os}</span></td>
+                      <td style={{ ...td(), maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.cliente}</td>
+                      <td style={{ ...td(), maxWidth: 260 }}><span style={{ fontFamily: mono, fontSize: 11, color: C.muted }}>{d.codigo}</span> {d.descricao}{d.id_defeito_origem && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, background: C.bluePale, color: C.blueMid, padding: "1px 6px", borderRadius: 4 }}>CÓPIA</span>}</td>
+                      <td style={td()}>
+                        <select value={areaVal} onChange={e => setAreaSel(a => ({ ...a, [k]: e.target.value }))} style={{ ...sel(), minWidth: 130, fontSize: 12 }}>
+                          <option value="">Área...</option>
+                          {areas.map(a => <option key={a.id} value={a.id}>{a.descricao}</option>)}
+                        </select>
+                      </td>
+                      <td style={td()}>
+                        <select value={tecSol[k] ?? (d.id_tecnico ? String(d.id_tecnico) : "")} onChange={e => setTecSol(t => ({ ...t, [k]: e.target.value }))} style={{ ...sel(), minWidth: 120, fontSize: 12 }}>
+                          <option value="">Pool da área</option>
+                          {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ ...td(), textAlign: "center", fontFamily: mono }}>{d.qtd_apontamentos || 0}</td>
+                      <td style={td()}>
+                        {perms.aprovar && (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => distribuirDefeito(d, areaVal, tecSol[k])} disabled={saving === k} style={{ ...btnPrimary(), padding: "6px 12px", fontSize: 12 }}>{d.distribuido ? "Reatribuir" : "Distribuir"}</button>
+                            <button onClick={() => duplicarDefeito(d, areaVal)} disabled={saving === k} style={{ ...btnGhost(), padding: "6px 10px", fontSize: 12 }} title="Duplicar para outra especialidade">Duplicar</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Tabela */}
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
