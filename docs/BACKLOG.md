@@ -128,6 +128,8 @@ Vários defeitos estão com `id_area = null`.
 - `os_patio_login` aceitar código OU nome.
 **Front:** tela Distribuição lista Serviços Solicitados, atribui área/técnico + botão Duplicar; rename global; mesclar Solicitações no Apontamento.
 
+**Precificação (extensão):** além de selecionar apontamentos avulsos, o lançador pode **selecionar vários defeitos** (cada defeito já agrega **todos os apontamentos vinculados a ele**) e lançar **um único serviço** com a soma das horas. Backend: `os_servico_criar_de_defeitos(p_id_os, p_defeitos[], p_id_servico, p_descricao, p_valor_total, p_ator)` (ou reusar `os_servico_criar_de_apontamentos` expandindo os defeitos → apontamentos no front).
+
 ## 3. Já entregue (contexto — NÃO refazer)
 Preços por empresa/tabela (Markup/Margem/Manual); Devoluções com aval da boqueta (`erp_devolucao_*`, `Devolucoes.jsx`, saldo em `clientes_creditos`); Relatórios + DRE; Entradas de NF + conferência; Consulta de Preços; Pátio/Prismas/Precificação/Comissão por apontamento; Produtos → Composição + MO; busca servidor por campo; Vendas página única; permissões em árvore; baixa de estoque no faturamento (migration 45).
 
