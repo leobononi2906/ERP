@@ -5,6 +5,7 @@ import {
   DollarSign, Send, Eye, Printer, Undo2, History, Boxes,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
+import { getEmpresaAtiva } from "../empresa";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
@@ -1230,7 +1231,7 @@ export default function OrdensServico({ usuario }) {
           <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {lista.length} · {usuario.nome}</p>
         </div>
         {perms.incluir ? (
-          <button onClick={() => { setForm(OS_VAZIA()); setErroForm(""); setView("form"); }} style={btnPrimary()}>
+          <button onClick={() => { setForm({ ...OS_VAZIA(), id_empresa: getEmpresaAtiva() }); setErroForm(""); setView("form"); }} style={btnPrimary()}>
             <Plus size={16} /> Nova OS
           </button>
         ) : (

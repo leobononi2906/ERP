@@ -4,8 +4,9 @@ import {
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
   Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash, Tag,
 } from "lucide-react";
-import { C, setLogUsuario } from "./config";
+import { C, setLogUsuario, rpc } from "./config";
 import { navHandoff } from "./nav";
+import { getEmpresaAtiva, setEmpresaAtiva } from "./empresa";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
@@ -144,12 +145,25 @@ export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [pagina, setPagina] = useState("dashboard");
   const [gruposAbertos, setGruposAbertos] = useState({ comercial: true });
+  const [empresas, setEmpresas] = useState([]);
+  const [empAtiva, setEmpAtiva] = useState(getEmpresaAtiva());
 
   useEffect(() => {
     const h = () => { if (navHandoff.pagina) setPagina(navHandoff.pagina); };
     window.addEventListener("erp-nav", h);
     return () => window.removeEventListener("erp-nav", h);
   }, []);
+
+  useEffect(() => {
+    if (!usuario) return;
+    let a = true;
+    rpc("erp_list", { p_tabela: "empresas", p_limit: 9999 })
+      .then((rows) => { if (a) setEmpresas((Array.isArray(rows) ? rows : []).filter((e) => e.ativa !== false)); })
+      .catch(() => {});
+    return () => { a = false; };
+  }, [usuario]);
+
+  const trocarEmpresa = (v) => { setEmpresaAtiva(v); setEmpAtiva(v ? String(v) : ""); };
 
   if (!usuario) return <Login onLogin={(u) => { setLogUsuario(u); setUsuario(u); }} />;
 
@@ -246,6 +260,19 @@ export default function App() {
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, padding: 20 }}>
+        {/* Barra superior — seletor global de empresa */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "6px 10px" }}>
+            <Building2 size={15} style={{ color: C.primary }} />
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted }}>Empresa</span>
+            <select value={empAtiva} onChange={(e) => trocarEmpresa(e.target.value)} style={{ border: "none", background: "transparent", fontSize: 13, fontWeight: 600, color: C.foreground, cursor: "pointer", outline: "none" }}>
+              <option value="">Todas as empresas</option>
+              {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.razao_social || e.nome || ("Empresa " + e.id)}</option>)}
+            </select>
+          </div>
+          {!empAtiva && <span style={{ fontSize: 11.5, color: C.textMuted }}>Consultando todas — escolha uma empresa para lançar documentos nela.</span>}
+        </div>
+
         {pagina === "dashboard" && <Dashboard />}
         {pagina === "cadastros" && <CadastrosHub usuario={usuario} />}
         {pagina === "servicos_hub" && <ServicosHub usuario={usuario} />}

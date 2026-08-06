@@ -12,6 +12,7 @@ import {
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca, BuscaServidor,
 } from "../ui";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
+import { useEmpresaAtiva, getEmpresaAtiva } from "../empresa";
 
 
 const ITEM_VAZIO = { tipo: "PRODUTO", id_produto: "", id_servico: "", descricao: "", referencia: "", quantidade: 1, valor_unitario: "", percentual_desconto: 0 };
@@ -48,7 +49,9 @@ export default function Vendas({ usuario }) {
   const [toast, setToast] = useState(null);
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("");
-  const [fEmpresa, setFEmpresa] = useState("");
+  const [fEmpresa, setFEmpresa] = useState(getEmpresaAtiva());
+  const empresaGlobal = useEmpresaAtiva();
+  useEffect(() => { setFEmpresa(empresaGlobal ? String(empresaGlobal) : ""); }, [empresaGlobal]);
   const [dadosAbertos, setDadosAbertos] = useState(true);
 
   /* ─── detalhe ──────────────────────────────────────────────── */
@@ -910,10 +913,6 @@ export default function Vendas({ usuario }) {
         </div>
         <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} style={sel()}>
           <option value="">Todos</option><option value="ABERTA">Aberta</option><option value="FATURADA">Faturada</option><option value="CANCELADA">Cancelada</option>
-        </select>
-        <select value={fEmpresa} onChange={(e) => setFEmpresa(e.target.value)} style={sel()}>
-          <option value="">Todas empresas</option>
-          {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>)}
         </select>
       </div>
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>

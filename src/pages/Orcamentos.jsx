@@ -9,6 +9,7 @@ import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
 } from "../ui";
+import { useEmpresaAtiva, getEmpresaAtiva } from "../empresa";
 
 
 const STATUS_BADGE = {
@@ -64,7 +65,9 @@ export default function Orcamentos({ usuario }) {
   const [toast, setToast] = useState(null);
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("");
-  const [fEmpresa, setFEmpresa] = useState("");
+  const [fEmpresa, setFEmpresa] = useState(getEmpresaAtiva());
+  const empresaGlobal = useEmpresaAtiva();
+  useEffect(() => { setFEmpresa(empresaGlobal ? String(empresaGlobal) : ""); }, [empresaGlobal]);
 
   /* ─── state: detalhe ───────────────────────────────────────── */
   const [orcAtual, setOrcAtual] = useState(null);
@@ -526,10 +529,6 @@ export default function Orcamentos({ usuario }) {
         <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} style={sel()}>
           <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="APROVADO">Aprovado</option>
           <option value="REPROVADO">Reprovado</option><option value="CONVERTIDO">Convertido</option>
-        </select>
-        <select value={fEmpresa} onChange={(e) => setFEmpresa(e.target.value)} style={sel()}>
-          <option value="">Todas empresas</option>
-          {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>)}
         </select>
       </div>
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
