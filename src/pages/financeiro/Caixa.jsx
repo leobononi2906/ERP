@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Lock, Unlock, DollarSign, History } from "lucide-react";
 import { C, rpc, fmtBRL } from "../../config";
+import { useEmpresaAtiva, getEmpresaAtiva } from "../../empresa";
 const fmtDH=(d)=>{if(!d)return"—";return new Date(d).toLocaleString("pt-BR");};
 const inp={width:"100%",padding:"8px 10px",fontSize:13,border:`1px solid ${C.border}`,borderRadius:8,background:"#fff",fontFamily:"inherit"};
 const bp={padding:"8px 16px",fontSize:13,fontWeight:600,color:"#fff",background:C.primary,border:"none",borderRadius:8,cursor:"pointer"};
@@ -16,12 +17,14 @@ export default function Caixa({usuario}){
   const[modalAbrir,setModalAbrir]=useState(false);const[modalFechar,setModalFechar]=useState(null);
   const[modalMov,setModalMov]=useState(null);const[modalHist,setModalHist]=useState(null);
   const[toast,setToast]=useState("");
-  const carregar=()=>{setLoading(true);rpc("erp_caixas_listar",{}).then(r=>setSessoes(Array.isArray(r)?r:[])).catch(()=>{}).finally(()=>setLoading(false));};
-  useEffect(()=>{carregar();rpc("erp_contas_financeiras_listar",{}).then(r=>setContas(Array.isArray(r)?r:[])).catch(()=>{});},[]);
+  const empresaGlobal=useEmpresaAtiva();
+  const carregar=()=>{setLoading(true);rpc("erp_caixas_listar",{p_id_empresa:getEmpresaAtiva()?Number(getEmpresaAtiva()):null}).then(r=>setSessoes(Array.isArray(r)?r:[])).catch(()=>{}).finally(()=>setLoading(false));};
+  useEffect(()=>{carregar();},[empresaGlobal]);// eslint-disable-line
+  useEffect(()=>{rpc("erp_contas_financeiras_listar",{}).then(r=>setContas(Array.isArray(r)?r:[])).catch(()=>{});},[]);
   const sessaoAberta=useMemo(()=>sessoes.find(s=>s.status==="ABERTO"),[sessoes]);
   const show=(m)=>{setToast(m);setTimeout(()=>setToast(""),3000);};
 
-  const handleAbrir=async(f)=>{try{const r=await rpc("erp_abrir_caixa",{p_id_empresa:null,p_id_conta_financeira:parseInt(f.id_conta),p_id_usuario:null,p_valor_abertura:parseFloat(f.valor)||0});if(r?.ok){show("Caixa aberto");setModalAbrir(false);carregar();}else show(r?.erro||"Erro");}catch(e){show(e.message);}};
+  const handleAbrir=async(f)=>{const emp=getEmpresaAtiva();if(!emp){show("Selecione uma empresa no topo para abrir o caixa.");return;}try{const r=await rpc("erp_abrir_caixa",{p_id_empresa:Number(emp),p_id_conta_financeira:parseInt(f.id_conta),p_id_usuario:null,p_valor_abertura:parseFloat(f.valor)||0});if(r?.ok){show("Caixa aberto");setModalAbrir(false);carregar();}else show(r?.erro||"Erro");}catch(e){show(e.message);}};
   const handleFechar=async(f)=>{try{const r=await rpc("erp_fechar_caixa",{p_id_sessao:f.id_sessao,p_id_usuario:null,p_valor_contado:parseFloat(f.contado),p_observacao:f.obs||null});if(r?.ok){show(`Fechado. Sistema: ${fmtBRL(r.valor_sistema)} | Contado: ${fmtBRL(r.valor_contado)} | Dif: ${fmtBRL(r.diferenca)}`);setModalFechar(null);carregar();}else show(r?.erro||"Erro");}catch(e){show(e.message);}};
   const handleMov=async(f)=>{try{const r=await rpc("erp_movimento_caixa",{p_id_sessao:f.id_sessao,p_tipo:f.tipo,p_valor:parseFloat(f.valor),p_descricao:f.desc,p_id_usuario:null});if(r?.ok){show("Movimento registrado");setModalMov(null);carregar();}else show(r?.erro||"Erro");}catch(e){show(e.message);}};
 

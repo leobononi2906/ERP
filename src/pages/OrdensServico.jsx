@@ -5,7 +5,7 @@ import {
   DollarSign, Send, Eye, Printer, Undo2, History, Boxes,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
-import { getEmpresaAtiva } from "../empresa";
+import { getEmpresaAtiva, useEmpresaAtiva } from "../empresa";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
@@ -70,6 +70,7 @@ export default function OrdensServico({ usuario }) {
   const [addServico, setAddServico] = useState(false);
   const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
   const [areas, setAreas] = useState([]);
+  const [empresasOs, setEmpresasOs] = useState([]);
 
   // apontamento
   const [apontando, setApontando] = useState(null); // id_servico_os sendo apontado
@@ -93,6 +94,14 @@ export default function OrdensServico({ usuario }) {
       .catch((e) => setErro(e.message))
       .finally(() => ok && setLoading(false));
     return () => { ok = false; };
+  }, []);
+
+  useEffect(() => {
+    let a = true;
+    rpc("erp_list", { p_tabela: "empresas", p_limit: 9999 })
+      .then((rows) => { if (a) setEmpresasOs((Array.isArray(rows) ? rows : []).filter((e) => e.ativa !== false)); })
+      .catch(() => {});
+    return () => { a = false; };
   }, []);
 
   /* ─── Carregar detalhe de uma OS ─────────────────────────────── */
@@ -126,13 +135,14 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Salvar OS (criar / editar) ─────────────────────────────── */
   async function salvarOS() {
+    if (!form.id_empresa) { setErroForm("Selecione a empresa (escolha a empresa ativa no topo ou no cabeçalho da OS)."); return; }
     if (!form.id_cliente) { setErroForm("Selecione o cliente."); return; }
     setErroForm(""); setSaving(true);
     try {
       const saved = await rpc("os_salvar", {
         p_id: form.id || null,
         p_numero: form.numero || proximoNumero(),
-        p_id_empresa: num(form.id_empresa) || 1,
+        p_id_empresa: num(form.id_empresa),
         p_id_cliente: num(form.id_cliente),
         p_id_veiculo: num(form.id_veiculo) || null,
         p_id_tipo_os: num(form.id_tipo_os) || null,
@@ -463,11 +473,13 @@ export default function OrdensServico({ usuario }) {
   const dadosUsuario = (id) => usuarios.find((u) => u.id === id) || {};
 
   /* ─── Filtro da lista ────────────────────────────────────────── */
+  const empresaGlobal = useEmpresaAtiva();
   const filtrados = lista.filter((o) => {
     const q = busca.trim().toLowerCase();
     const okBusca = !q || (o.numero || "").toLowerCase().includes(q) || nomeCliente(o.id_cliente).toLowerCase().includes(q);
     const okStatus = !fStatus || o.status === fStatus;
-    return okBusca && okStatus && !o.cancelada;
+    const okEmpresa = !empresaGlobal || Number(o.id_empresa) === empresaGlobal;
+    return okBusca && okStatus && okEmpresa && !o.cancelada;
   });
 
   /* ─── TOAST ──────────────────────────────────────────────────── */
@@ -495,6 +507,12 @@ export default function OrdensServico({ usuario }) {
         {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
 
         <Secao titulo="Dados da OS">
+          <Campo label="Empresa *">
+            <select value={form.id_empresa || ""} onChange={(e) => setF("id_empresa", e.target.value)} style={sel(true)}>
+              <option value="">Selecione...</option>
+              {empresasOs.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.razao_social || e.nome || ("Empresa " + e.id)}</option>)}
+            </select>
+          </Campo>
           <Campo label="Cliente *" span={2}>
             <BuscaServidor
               campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
