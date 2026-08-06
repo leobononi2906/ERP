@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History, Camera } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
 import { EtiquetasLote } from "../EtiquetasLoteModal";
 import { DrawerEstoque, DrawerHistorico } from "../drawers";
 const SITUACOES = ["ATIVO", "INATIVO"];
