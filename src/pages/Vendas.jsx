@@ -70,6 +70,12 @@ export default function Vendas({ usuario }) {
   const [fatOpen, setFatOpen] = useState(false);
   const [fatForma, setFatForma] = useState("");
   const [fatCond, setFatCond] = useState("");
+  const [fatPreview, setFatPreview] = useState(null);   // { parcelas, rateio, is_cartao, forma, condicao }
+  const [fatParcelas, setFatParcelas] = useState([]);   // parcelas editáveis [{numero, vencimento, valor}]
+  const [fatLoadPrev, setFatLoadPrev] = useState(false);
+  const [fatNsu, setFatNsu] = useState("");
+  const [fatBandeira, setFatBandeira] = useState("");
+  const [fatNumTransacao, setFatNumTransacao] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [motivoCancel, setMotivoCancel] = useState("");
   const [aprovModal, setAprovModal] = useState({ aberto: false, mensagem: "", contexto: {} });
@@ -306,15 +312,52 @@ export default function Vendas({ usuario }) {
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
 
+  /* ─── faturar: preview de movimentação financeira ─────────────── */
+  async function abrirFaturar() {
+    const f = vendaAtual.id_forma_pagamento || "";
+    const c = vendaAtual.id_condicao_pagamento || "";
+    setFatForma(f); setFatCond(c);
+    setFatNsu(""); setFatBandeira(""); setFatNumTransacao("");
+    setFatOpen(true);
+    await carregarPreview(f || null, c || null);
+  }
+
+  async function carregarPreview(forma, cond) {
+    setFatLoadPrev(true);
+    try {
+      const prev = await rpc("erp_venda_faturamento_preview", { p_id_venda: vendaAtual.id });
+      setFatPreview(prev || null);
+      const parc = Array.isArray(prev?.parcelas) ? prev.parcelas : [];
+      setFatParcelas(parc.map((p) => ({ numero: p.numero, vencimento: p.vencimento, valor: num(p.valor) })));
+    } catch (e) {
+      setFatPreview(null); setFatParcelas([]);
+      notificar("Não foi possível carregar as parcelas: " + e.message, "erro");
+    } finally { setFatLoadPrev(false); }
+  }
+
+  function setParcela(idx, campo, valor) {
+    setFatParcelas((ps) => ps.map((p, i) => (i === idx ? { ...p, [campo]: valor } : p)));
+  }
+
+  const totalParcelas = fatParcelas.reduce((s, p) => s + (num(p.valor) || 0), 0);
+  const totalVenda = num(vendaAtual?.valor_total) || 0;
+  const parcelasBatem = Math.abs(totalParcelas - totalVenda) < 0.01;
+
   /* ─── faturar ──────────────────────────────────────────────── */
   async function faturar(libCredito = false) {
     if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
+    if (fatParcelas.length > 0 && !parcelasBatem) {
+      notificar(`As parcelas somam ${fmtBRL(totalParcelas)} e a venda é ${fmtBRL(totalVenda)}.`, "erro"); return;
+    }
+    if (fatPreview?.is_cartao && !fatNsu.trim()) { notificar("Informe o NSU da transação do cartão.", "erro"); return; }
     setSaving(true);
     try {
       const res = await rpc("venda_faturar", { p: {
         id_venda: vendaAtual.id, id_forma_pagamento: fatForma,
         id_condicao_pagamento: fatCond || null, _ator: usuario.id,
         _lib_credito: libCredito,
+        parcelas: fatParcelas.length > 0 ? fatParcelas : null,
+        nsu: fatNsu || null, bandeira: fatBandeira || null, num_transacao: fatNumTransacao || null,
       }});
       if (res?.ok === false) {
         if (res.credito?.permite_liberacao && perms.aprovar && !libCredito) {
@@ -423,7 +466,7 @@ export default function Vendas({ usuario }) {
             {!isCancelada && <button onClick={() => irPara("devolucoes", { origem: "VENDA", id: vendaAtual.id, numero: vendaAtual.numero })} style={btnGhost()}><Undo2 size={14} /> Devolver</button>}
             {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
-              <button onClick={() => { setFatForma(vendaAtual.id_forma_pagamento || ""); setFatCond(vendaAtual.id_condicao_pagamento || ""); setFatOpen(true); }} style={{ ...btnPrimary(), marginLeft: "auto" }}>
+              <button onClick={abrirFaturar} style={{ ...btnPrimary(), marginLeft: "auto" }}>
                 <DollarSign size={14} /> Faturar
               </button>
             )}
@@ -712,29 +755,102 @@ export default function Vendas({ usuario }) {
           </>
         )}
 
-        {/* Modal Faturar */}
+        {/* Modal Faturar — Movimentação Financeira */}
         {fatOpen && vendaAtual && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setFatOpen(false)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Faturar Venda {vendaAtual.numero}</h2>
-              <p style={{ fontSize: 22, fontWeight: 700, fontFamily: mono, color: C.primary, marginBottom: 16 }}>{fmtBRL(vendaAtual.valor_total)}</p>
-              <Campo label="Forma de pagamento *">
-                <select value={fatForma} onChange={(e) => setFatForma(e.target.value)} style={sel(true)}>
-                  <option value="">Selecione...</option>
-                  {formasPag.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
-                </select>
-              </Campo>
-              <div style={{ marginTop: 12 }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setFatOpen(false)}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 640, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 700 }}>Movimentação Financeira — Venda {vendaAtual.numero}</h2>
+                <span style={{ fontSize: 22, fontWeight: 700, fontFamily: mono, color: C.primary }}>{fmtBRL(totalVenda)}</span>
+              </div>
+              <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Confira as parcelas, o rateio no DRE e informe o NSU quando for cartão.</p>
+
+              {/* forma + condição */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <Campo label="Forma de pagamento *">
+                  <select value={fatForma} onChange={(e) => { setFatForma(e.target.value); carregarPreview(e.target.value || null, fatCond || null); }} style={sel(true)}>
+                    <option value="">Selecione...</option>
+                    {formasPag.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
+                  </select>
+                </Campo>
                 <Campo label="Condição de pagamento">
-                  <select value={fatCond} onChange={(e) => setFatCond(e.target.value)} style={sel(true)}>
+                  <select value={fatCond} onChange={(e) => { setFatCond(e.target.value); carregarPreview(fatForma || null, e.target.value || null); }} style={sel(true)}>
                     <option value="">À vista</option>
                     {condPag.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
                   </select>
                 </Campo>
               </div>
+
+              {/* NSU (cartão) */}
+              {fatPreview?.is_cartao && (
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: "#fff8ec", border: `1px solid ${C.warning || "#f0c060"}` }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8a6d1a", marginBottom: 8 }}>💳 Transação de cartão</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 10 }}>
+                    <Campo label="NSU *"><input value={fatNsu} onChange={(e) => setFatNsu(e.target.value)} style={inp(true)} placeholder="NSU / DOC" /></Campo>
+                    <Campo label="Nº transação"><input value={fatNumTransacao} onChange={(e) => setFatNumTransacao(e.target.value)} style={inp(true)} /></Campo>
+                    <Campo label="Bandeira"><input value={fatBandeira} onChange={(e) => setFatBandeira(e.target.value)} style={inp(true)} placeholder="Visa, Master..." /></Campo>
+                  </div>
+                </div>
+              )}
+
+              {/* Parcelas / boletos */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Parcelas / boletos</div>
+                {fatLoadPrev ? (
+                  <div style={{ fontSize: 12, color: C.muted, padding: "8px 0" }}>Calculando parcelas...</div>
+                ) : fatParcelas.length === 0 ? (
+                  <div style={{ fontSize: 12, color: C.muted, padding: "8px 0" }}>À vista — título único quitado no faturamento.</div>
+                ) : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead><tr>
+                      <th style={{ ...th, width: 50 }}>#</th>
+                      <th style={th}>Vencimento</th>
+                      <th style={{ ...th, textAlign: "right" }}>Valor</th>
+                    </tr></thead>
+                    <tbody>
+                      {fatParcelas.map((p, i) => (
+                        <tr key={i}>
+                          <td style={td}>{p.numero}</td>
+                          <td style={td}>
+                            <input type="date" value={p.vencimento || ""} onChange={(e) => setParcela(i, "vencimento", e.target.value)} style={{ ...inp(true), padding: "5px 8px" }} />
+                          </td>
+                          <td style={{ ...td, textAlign: "right" }}>
+                            <input type="number" step="0.01" value={p.valor} onChange={(e) => setParcela(i, "valor", e.target.value)} style={{ ...inp(true), padding: "5px 8px", textAlign: "right", width: 120 }} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot><tr>
+                      <td style={{ ...td, fontWeight: 700 }} colSpan={2}>Total das parcelas</td>
+                      <td style={{ ...td, textAlign: "right", fontWeight: 700, color: parcelasBatem ? C.success : C.destructive }}>{fmtBRL(totalParcelas)}</td>
+                    </tr></tfoot>
+                  </table>
+                )}
+                {!parcelasBatem && fatParcelas.length > 0 && (
+                  <div style={{ fontSize: 11, color: C.destructive, marginTop: 6 }}>⚠ As parcelas precisam somar {fmtBRL(totalVenda)}.</div>
+                )}
+              </div>
+
+              {/* Rateio DRE */}
+              {Array.isArray(fatPreview?.rateio) && fatPreview.rateio.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Rateio no DRE (para onde vai)</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                    <tbody>
+                      {fatPreview.rateio.map((r, i) => (
+                        <tr key={i}>
+                          <td style={td}>{r.descricao || r.tipo_linha}</td>
+                          <td style={{ ...td, textAlign: "right", fontFamily: mono }}>{fmtBRL(num(r.valor))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
                 <button onClick={() => setFatOpen(false)} style={btnGhost()}>Cancelar</button>
-                <button onClick={() => faturar()} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                <button onClick={() => faturar()} disabled={saving || fatLoadPrev} style={{ ...btnPrimary(), opacity: (saving || fatLoadPrev) ? 0.6 : 1 }}>
                   <DollarSign size={14} /> {saving ? "Faturando..." : "Confirmar Faturamento"}
                 </button>
               </div>
