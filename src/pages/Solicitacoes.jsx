@@ -162,7 +162,10 @@ export default function Solicitacoes({ usuario }) {
                       <td style={{ ...td(), maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.cliente}</td>
                       <td style={{ ...td(), maxWidth: 220 }}>
                         <div style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.produto}</div>
-                        {s.referencia && <div style={{ fontSize: 11, color: C.textMuted, fontFamily: mono }}>{s.referencia}</div>}
+                        <div style={{ fontSize: 11, color: C.textMuted, fontFamily: mono, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {s.referencia && <span>{s.referencia}</span>}
+                          {s.localizacao && <span style={{ color: C.blueMid, fontWeight: 700 }}>📍 {s.localizacao}</span>}
+                        </div>
                       </td>
                       <td style={{ ...td(), whiteSpace: "nowrap" }}>{s.solicitante || "—"}</td>
                       <td style={td()}><span style={{ fontSize: 11, fontWeight: 700, color: pr.c }}>{pr.t}</span></td>
