@@ -84,10 +84,10 @@ const MENU_GROUPS = [
   {
     groupKey: "servicos_g", label: "Serviços", icon: Wrench,
     items: [
+      { key: "prismas", label: "Prismas", icon: Tag, ok: true, permKey: "os" },
       { key: "distribuicao_os", label: "Distribuição", icon: Users, ok: true, permKey: "os" },
       { key: "apontamento", label: "Pátio / Apontamento", icon: Clock, ok: true, permKey: "os" },
       { key: "precificacao", label: "Precificação", icon: Layers, ok: true, permKey: "os" },
-      { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, ok: true, permKey: "os" },
       { key: "comissoes", label: "Comissões", icon: DollarSign, ok: true, permKey: "os" },
     ],
   },
@@ -96,6 +96,7 @@ const MENU_GROUPS = [
     items: [
       { key: "estoque", label: "Estoque", icon: Package, ok: true },
       { key: "separacao", label: "Separação", icon: PackageOpen, ok: true },
+      { key: "solicitacoes", label: "Solicitações de Peça", icon: PackageOpen, ok: true, permAny: ["estoque", "os"] },
     ],
   },
   {

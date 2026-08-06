@@ -15,8 +15,9 @@ const pend = (s) => (Number(s.qtd_solicitada) || 0) - (Number(s.qtd_atendida) ||
 // Fila de solicitações de produto (peças pedidas pelo pátio na OS).
 // Espelha a Separação: escolhe o centro de estoque uma vez e atende a fila no teclado.
 export default function Solicitacoes({ usuario }) {
-  const perms = (usuario && usuario.permissoes && usuario.permissoes.os) || {};
-  const podeAtender = perms.aprovar || perms.editar || usuario?.admin;
+  const permsOs = (usuario && usuario.permissoes && usuario.permissoes.os) || {};
+  const permsEstoque = (usuario && usuario.permissoes && usuario.permissoes.estoque) || {};
+  const podeAtender = permsOs.aprovar || permsOs.editar || permsEstoque.aprovar || permsEstoque.editar || usuario?.admin;
 
   const [lista, setLista] = useState([]);
   const [centros, setCentros] = useState([]);
