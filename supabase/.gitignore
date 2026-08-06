@@ -1,0 +1,4 @@
+
+# Supabase CLI cache local
+.temp/
+.branches/
