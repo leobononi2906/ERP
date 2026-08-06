@@ -396,6 +396,9 @@ function PrecosEmpresa({ idProduto, ator, podeEditar, custoBase }) {
           <Tag size={14} /> Preços por empresa / tabela
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {podeEditar && (
+            <button onClick={async () => { setMsg(null); try { const n = await rpc("erp_precos_recalcular_produto", { p_id_produto: idProduto, p_id_empresa: num(idEmpresa) }); await carregar(idEmpresa); setMsg({ tipo: "ok", txt: `Markup aplicado do custo médio (${n} tabela(s) atualizada(s)).` }); } catch (e) { setMsg({ tipo: "warn", txt: "Erro ao recalcular: " + e.message }); } }} style={{ ...btnGhost(), padding: "6px 10px", fontSize: 12 }} title="Recalcula Markup/Margem a partir do custo médio">↻ Aplicar markup</button>
+          )}
           <Building2 size={15} style={{ color: C.textMuted }} />
           <select value={idEmpresa} onChange={(e) => setIdEmpresa(e.target.value)} style={{ ...sel(), minWidth: 200 }}>
             {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome || e.nome_fantasia || `Empresa ${e.id}`}</option>)}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Save, X, Pencil, CreditCard, Ruler, Wrench, Boxes } from "lucide-react";
-import { C, rpc } from "../config";
+import { C, rpc, mono } from "../config";
 import { cardStyle, inp, sel, btnPrimary, btnGhost, btnIcon, th, td, Campo, Badge } from "../ui";
 import { TabHub } from "../Hub";
 import Servicos from "./Servicos";
@@ -226,10 +226,36 @@ function GruposProduto({ dados, loading, reload }) {
   const grupos = estadoLista(dados, "grupos_produto");
   const subgrupos = estadoLista(dados, "subgrupos_produto");
 
+  // Markup padrão por grupo × tabela
+  const [mkTabelas, setMkTabelas] = useState([]);
+  const [mkTodos, setMkTodos] = useState([]);   // todas as linhas de markup padrão
+  const [mkLinhas, setMkLinhas] = useState([]); // linhas do grupo em edição
+  useEffect(() => {
+    let a = true;
+    rpc("erp_grupos_markup_listar", {}).then((d) => { if (!a) return; setMkTabelas(d?.tabelas || []); setMkTodos(d?.markups || []); }).catch(() => {});
+    return () => { a = false; };
+  }, [dados]);
+
+  function abrirGrupo(g) {
+    setEdG({ ...g });
+    setMkLinhas((mkTabelas || []).map((t) => {
+      const m = g.id ? mkTodos.find((x) => x.id_grupo === g.id && x.id_tabela_preco === t.id) : null;
+      return { id_tabela_preco: t.id, tabela: t.descricao, tipo_calculo: m?.tipo_calculo || "MARKUP", percentual: m?.percentual ?? "" };
+    }));
+  }
+  const setMk = (i, k, v) => setMkLinhas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
+
   async function salvarGrupo() {
     if (!edG.descricao) return;
     setSaving(true);
-    try { await rpc("erp_grupo_produto_salvar", { p: edG }); setEdG(null); await reload(); }
+    try {
+      const row = await rpc("erp_grupo_produto_salvar", { p: edG });
+      const gid = edG.id || row?.id;
+      if (gid && mkLinhas.length) {
+        await rpc("erp_grupo_markup_salvar", { p_id_grupo: gid, p_linhas: mkLinhas.map((l) => ({ id_tabela_preco: l.id_tabela_preco, tipo_calculo: l.tipo_calculo, percentual: l.percentual === "" ? null : Number(String(l.percentual).replace(",", ".")) })) });
+      }
+      setEdG(null); await reload();
+    }
     catch (e) { alert("Erro ao salvar grupo"); }
     setSaving(false);
   }
@@ -248,12 +274,31 @@ function GruposProduto({ dados, loading, reload }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       {/* Grupos */}
       <div>
-        <Cabecalho icon={Boxes} titulo="Grupos de Produto" onNovo={() => setEdG({ id: 0, descricao: "", permite_estoque_negativo: false, ativo: true })} />
+        <Cabecalho icon={Boxes} titulo="Grupos de Produto" onNovo={() => abrirGrupo({ id: 0, descricao: "", permite_estoque_negativo: false, ativo: true })} />
         {edG && (
           <div style={{ ...cardStyle(), marginBottom: 14, border: `2px solid ${C.primary}` }}>
             <Campo label="Descrição *"><input value={edG.descricao} onChange={(e) => setEdG({ ...edG, descricao: e.target.value })} style={inp(true)} autoFocus /></Campo>
             <label style={{ ...chk, marginTop: 10 }}><input type="checkbox" checked={!!edG.permite_estoque_negativo} onChange={(e) => setEdG({ ...edG, permite_estoque_negativo: e.target.checked })} /> Permite estoque negativo</label>
             <label style={{ ...chk, marginTop: 6 }}><input type="checkbox" checked={!!edG.ativo} onChange={(e) => setEdG({ ...edG, ativo: e.target.checked })} /> Ativo</label>
+
+            {mkLinhas.length > 0 && (
+              <div style={{ marginTop: 14, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted, marginBottom: 4 }}>Markup padrão por tabela</div>
+                <div style={{ fontSize: 11.5, color: C.textMuted, marginBottom: 8 }}>Sobre o <b>custo médio</b>. Produtos deste grupo já nascem precificados e recalculam sozinhos na entrada de NF. Em branco = sem padrão.</div>
+                {mkLinhas.map((l, i) => (
+                  <div key={l.id_tabela_preco} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ width: 100, fontSize: 13, fontWeight: 600 }}>{l.tabela}</span>
+                    <select value={l.tipo_calculo} onChange={(e) => setMk(i, "tipo_calculo", e.target.value)} style={{ ...sel(true), width: 130 }}>
+                      <option value="MARKUP">Markup (custo+%)</option>
+                      <option value="MARGEM">Margem (% s/ venda)</option>
+                    </select>
+                    <input value={l.percentual} onChange={(e) => setMk(i, "percentual", e.target.value.replace(/[^\d.,]/g, ""))} placeholder="%" style={{ ...inp(true), width: 90, fontFamily: mono, textAlign: "right" }} />
+                    <span style={{ fontSize: 12, color: C.textMuted }}>%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button onClick={salvarGrupo} disabled={saving || !edG.descricao} style={btnPrimary()}><Save size={14} /> Salvar</button>
               <button onClick={() => setEdG(null)} style={btnGhost()}><X size={14} /></button>
@@ -268,7 +313,7 @@ function GruposProduto({ dados, loading, reload }) {
                 <tr key={g.id} style={linha}>
                   <td style={{ ...td(), fontWeight: 600 }}>{g.descricao}</td>
                   <td style={{ ...td(), textAlign: "center" }}><Badge texto={g.ativo ? "ATIVO" : "INATIVO"} /></td>
-                  <td style={{ ...td(), textAlign: "center" }}><button onClick={() => setEdG({ ...g })} style={btnIcon()} title="Editar"><Pencil size={14} /></button></td>
+                  <td style={{ ...td(), textAlign: "center" }}><button onClick={() => abrirGrupo(g)} style={btnIcon()} title="Editar"><Pencil size={14} /></button></td>
                 </tr>
               ))}
               {grupos.length === 0 && <VazioRow n={3} />}
