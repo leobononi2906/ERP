@@ -39,9 +39,19 @@ export default function Apontamento() {
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null); // { tipo:'peca'|'consumo', id_produto, qtd, obs }
   const [produtos, setProdutos] = useState([]);
+  const [soMinhaArea, setSoMinhaArea] = useState(true); // técnico vê só os defeitos da sua área/pool
   const timerRef = useRef(null);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
+
+  // Filtro "só a minha área": mostra os defeitos da área/pool do técnico.
+  // Se nenhum bater (técnico sem habilidade ou OS de outra área), mostra todos para não esconder trabalho.
+  const filtrarDefeitos = useCallback((defs) => {
+    if (!Array.isArray(defs)) return [];
+    if (!soMinhaArea) return defs;
+    const meus = defs.filter((d) => d.minha_area);
+    return meus.length > 0 ? meus : defs;
+  }, [soMinhaArea]);
 
   const encerrarSessao = useCallback(() => { setSessao(null); setCtx(null); setSenha(""); }, []);
 
@@ -62,12 +72,12 @@ export default function Apontamento() {
     return () => { window.removeEventListener("keydown", onAtividade); window.removeEventListener("mousedown", onAtividade); };
   }, [sessao, resetTimer]);
 
-  async function carregarContexto(pr) {
+  async function carregarContexto(pr, idColab) {
     const numeroPrisma = (pr ?? prisma).trim();
     if (!numeroPrisma) { notificar("Digite o prisma.", "erro"); return; }
     setCarregandoCtx(true);
     try {
-      const r = await rpc("os_patio_contexto", { p_prisma: numeroPrisma });
+      const r = await rpc("os_patio_contexto", { p_prisma: numeroPrisma, p_id_colaborador: idColab ?? sessao?.id_colaborador ?? null });
       if (!r?.ok) { setCtx(null); notificar(r?.erro || "OS não encontrada.", "erro"); return; }
       setCtx(r); setSel(0); resetTimer();
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -84,7 +94,7 @@ export default function Apontamento() {
       setSessao({ id_colaborador: r.id_colaborador, nome: r.nome });
       setSenha(""); setLogin("");
       resetTimer();
-      await carregarContexto();
+      await carregarContexto(prisma, r.id_colaborador);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setEntrando(false); }
   }
@@ -107,7 +117,7 @@ export default function Apontamento() {
   useEffect(() => {
     if (!sessao || !ctx?.defeitos?.length) return;
     function onKey(e) {
-      const defs = ctx.defeitos;
+      const defs = filtrarDefeitos(ctx.defeitos);
       if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(defs.length - 1, s + 1)); resetTimer(); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(0, s - 1)); resetTimer(); }
       else {
@@ -170,7 +180,7 @@ export default function Apontamento() {
         {sessao && (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 13, color: C.muted }}>
-              <b style={{ color: C.foreground }}>{sessao.nome}</b> · sessão expira em 3 min
+              <b style={{ color: C.foreground }}>{sessao.nome}</b> · sessão volta ao login após inatividade
             </span>
             <button onClick={encerrarSessao} style={btnGhost()}><LogOut size={14} /> Sair</button>
           </div>
@@ -241,10 +251,21 @@ export default function Apontamento() {
                 <div style={{ ...cardStyle(), textAlign: "center", padding: "32px 0", color: C.textMuted }}>
                   Nenhum defeito pendente nesta OS. (Os defeitos são cadastrados na abertura da OS.)
                 </div>
-              ) : (
+              ) : (() => {
+                const defsVis = filtrarDefeitos(ctx.defeitos);
+                const ocultos = ctx.defeitos.length - defsVis.length;
+                return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>↑↓ seleciona · <b>E</b> entrada/retomar · <b>P</b> pausa · <b>F</b> finaliza</div>
-                  {ctx.defeitos.map((d, i) => {
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ fontSize: 11, color: C.textMuted }}>↑↓ seleciona · <b>E</b> entrada/retomar · <b>P</b> pausa · <b>F</b> finaliza</div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: "pointer", userSelect: "none" }}>
+                      <input type="checkbox" checked={soMinhaArea} onChange={(e) => { setSoMinhaArea(e.target.checked); resetTimer(); }} />
+                      Só a minha área {soMinhaArea && ocultos > 0 ? `(${ocultos} oculto${ocultos > 1 ? "s" : ""})` : ""}
+                    </label>
+                  </div>
+                  {defsVis.length === 0 ? (
+                    <div style={{ ...cardStyle(), textAlign: "center", padding: "28px 0", color: C.textMuted }}>Nenhum defeito da sua área nesta OS.</div>
+                  ) : defsVis.map((d, i) => {
                     const cor = DEFEITO_COR[d.status] || DEFEITO_COR.ABERTO;
                     const ativo = i === sel;
                     return (
@@ -277,7 +298,8 @@ export default function Apontamento() {
                     );
                   })}
                 </div>
-              )}
+                );
+              })()}
             </>
           )}
         </>

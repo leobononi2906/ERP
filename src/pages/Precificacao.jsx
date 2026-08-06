@@ -78,6 +78,31 @@ export default function Precificacao({ usuario }) {
     });
   }
 
+  // Defeitos da OS (derivados dos apontamentos dos blocos) — para o boca selecionar um defeito inteiro.
+  function defeitosDaOs(os) {
+    const mapa = new Map();
+    (os.blocos || []).forEach((b) => (b.apontamentos || []).forEach((a) => {
+      if (a.id_defeito == null) return;
+      if (!mapa.has(a.id_defeito)) mapa.set(a.id_defeito, { id_defeito: a.id_defeito, defeito: a.defeito || `Defeito ${a.id_defeito}`, apts: [] });
+      mapa.get(a.id_defeito).apts.push({ id: a.id, horas: a.horas, faturavel: a.faturavel, id_area: b.id_area, area: b.area });
+    }));
+    return [...mapa.values()];
+  }
+
+  function selecionarDefeito(os, def, marcar) {
+    setSelMap((prev) => {
+      let base = prev;
+      if (selOs && selOs.id_os !== os.id_os) base = {};
+      const n = { ...base };
+      def.apts.forEach((a) => {
+        if (marcar) n[a.id] = { horas: num(a.horas), faturavel: a.faturavel, id_area: a.id_area, area: a.area };
+        else delete n[a.id];
+      });
+      setSelOs(Object.keys(n).length ? { id_os: os.id_os, numero: os.numero } : null);
+      return n;
+    });
+  }
+
   const selIds = Object.keys(selMap).map(Number);
   const selCount = selIds.length;
   const selHorasFat = selIds.reduce((s, id) => s + (selMap[id].faturavel ? selMap[id].horas : 0), 0);
@@ -222,6 +247,32 @@ export default function Precificacao({ usuario }) {
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: 16 }}>
                     {os.defeito && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 14 }}><b style={{ color: C.foreground }}>Defeito/pedido:</b> {os.defeito}</div>}
                     {bloqueadaSel && <div style={{ fontSize: 12, color: C.warning, marginBottom: 10 }}>Você tem uma seleção aberta na OS {selOs.numero}. Marcar aqui vai recomeçar a seleção nesta OS.</div>}
+
+                    {blocos.length > 0 && (() => {
+                      const defs = defeitosDaOs(os);
+                      if (defs.length === 0 || !podeFechar) return null;
+                      return (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={secTit}><Wrench size={14} style={{ color: C.warning }} /> Selecionar por defeito (puxa todos os apontamentos do defeito)</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {defs.map((d) => {
+                              const todosSel = d.apts.length > 0 && d.apts.every((a) => selMap[a.id] && (!selOs || selOs.id_os === os.id_os));
+                              const horasFat = d.apts.reduce((s, a) => s + (a.faturavel ? num(a.horas) : 0), 0);
+                              return (
+                                <button key={d.id_defeito} onClick={() => selecionarDefeito(os, d, !todosSel)} style={{
+                                  display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                  border: `1.5px solid ${todosSel ? C.primary : C.border}`, background: todosSel ? C.bluePale : "#fff", color: todosSel ? C.primary : C.foreground,
+                                }}>
+                                  {todosSel ? <Check size={13} /> : <span style={{ width: 13 }} />}
+                                  {d.defeito}
+                                  <span style={{ fontFamily: mono, fontSize: 11, color: C.muted }}>· {d.apts.length} apt · {fmtH(horasFat)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {blocos.length > 0 && (
                       <div style={{ marginBottom: servicos.length ? 20 : 0 }}>
