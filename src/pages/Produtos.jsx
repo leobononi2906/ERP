@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc } from "../config";
+import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History, Camera } from "lucide-react";
+import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
 import { EtiquetasLote } from "../EtiquetasLoteModal";
 import { DrawerEstoque, DrawerHistorico } from "../drawers";
@@ -10,7 +10,21 @@ const ORIGENS = [
   { v: 3, t: "3 - Nacional >40% import." }, { v: 4, t: "4 - Nacional (PPB)" }, { v: 5, t: "5 - Nacional <40% import." },
   { v: 6, t: "6 - Estrangeira s/ similar (direta)" }, { v: 7, t: "7 - Estrangeira s/ similar (interno)" }, { v: 8, t: "8 - Nacional >70% import." },
 ];
-const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, bloquear_desconto: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "" });
+const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, bloquear_desconto: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "", foto_url: "" });
+
+// Upload da foto do produto para o Storage (bucket público "produtos"); retorna a URL pública.
+async function uploadFotoProduto(file, referencia) {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const base = String(referencia || "prod").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || "prod";
+  const path = `${base}-${Date.now()}.${ext}`;
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/produtos/${path}`, {
+    method: "POST",
+    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "x-upsert": "true", "Content-Type": file.type || "application/octet-stream" },
+    body: file,
+  });
+  if (!res.ok) throw new Error("Falha no upload da foto (HTTP " + res.status + ")");
+  return `${SUPA_URL}/storage/v1/object/public/produtos/${path}`;
+}
 
 export default function Produtos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.produtos) || {};
@@ -101,6 +115,8 @@ function Toast({ toast }) {
 function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, voltar, erro, perms, prot, destravar, toast, ator }) {
   const novo = !form.id;
   const [drawer, setDrawer] = useState(null); // "estoque" | "hist"
+  const [subindoFoto, setSubindoFoto] = useState(false);
+  const [fotoErro, setFotoErro] = useState("");
   const cadOk = novo ? perms.incluir : perms.editar;
   const protOk = novo ? perms.incluir : (prot && perms.aprovar);
   const podeSalvar = cadOk || protOk;
@@ -121,6 +137,35 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
       {drawer === "hist" && <DrawerHistorico tabela="produtos" registro={form.id} titulo="Histórico do produto" sub={form.nome} onClose={() => setDrawer(null)} />}
       {erro && <Aviso cor="destructive">{erro}</Aviso>}
       {!novo && !cadOk && !protOk && <Aviso cor="muted"><Eye size={15} /> Modo leitura. Seu grupo não tem permissão para alterar produtos.</Aviso>}
+
+      <Secao titulo="Foto do produto">
+        <div style={{ gridColumn: "1 / -1", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ width: 96, height: 96, borderRadius: 10, border: `1px dashed ${C.border}`, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+            {form.foto_url ? <img src={form.foto_url} alt={form.nome || "produto"} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Package size={28} style={{ opacity: 0.3 }} />}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {cadOk && (
+              <label style={{ ...btnGhost(), cursor: subindoFoto ? "default" : "pointer", opacity: subindoFoto ? 0.6 : 1, width: "fit-content" }}>
+                <Camera size={15} /> {subindoFoto ? "Enviando..." : (form.foto_url ? "Trocar foto" : "Adicionar foto")}
+                <input type="file" accept="image/*" disabled={subindoFoto} style={{ display: "none" }}
+                  onChange={async (e) => {
+                    const file = e.target.files && e.target.files[0]; if (!file) return;
+                    setFotoErro("");
+                    if (!file.type.startsWith("image/")) { setFotoErro("Selecione uma imagem."); e.target.value = ""; return; }
+                    if (file.size > 5 * 1024 * 1024) { setFotoErro("Imagem muito grande (máx. 5MB)."); e.target.value = ""; return; }
+                    setSubindoFoto(true);
+                    try { const url = await uploadFotoProduto(file, form.referencia); setF("foto_url", url); }
+                    catch (err) { setFotoErro(err.message); }
+                    finally { setSubindoFoto(false); e.target.value = ""; }
+                  }} />
+              </label>
+            )}
+            {cadOk && form.foto_url && <button type="button" onClick={() => setF("foto_url", "")} style={{ ...btnGhost(), color: C.destructive, width: "fit-content" }}><X size={14} /> Remover</button>}
+            {fotoErro && <span style={{ fontSize: 12, color: C.destructive }}>{fotoErro}</span>}
+            <span style={{ fontSize: 11, color: C.textMuted }}>JPG/PNG até 5MB. Salva junto do cadastro; some ao remover.</span>
+          </div>
+        </div>
+      </Secao>
 
       <Secao titulo="Dados do produto">
         <Campo label="Referência"><input value={form.referencia} onChange={(e) => setF("referencia", e.target.value)} disabled={!cadOk} style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
