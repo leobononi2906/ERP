@@ -359,6 +359,7 @@ export default function Vendas({ usuario }) {
         id_venda: vendaAtual.id, id_forma_pagamento: fatForma,
         id_condicao_pagamento: fatCond || null, _ator: usuario.id,
         _lib_credito: libCredito,
+        _id_aprovador: libCredito ? usuario.id : null,
         parcelas: fatParcelas.length > 0 ? fatParcelas : null,
         nsu: fatNsu || null, bandeira: fatBandeira || null, num_transacao: fatNumTransacao || null,
       }});
@@ -373,7 +374,10 @@ export default function Vendas({ usuario }) {
       await recarregarDetalhe(vendaAtual.id);
       setFatOpen(false);
       notificar("Venda faturada com sucesso!");
-    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    } catch (e) {
+      const m = String(e.message || "");
+      notificar(m.includes("|") ? m.split("|")[1] : "Erro: " + m, "erro");
+    }
     finally { setSaving(false); }
   }
 

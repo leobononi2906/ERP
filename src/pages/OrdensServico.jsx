@@ -339,6 +339,7 @@ export default function OrdensServico({ usuario }) {
         id_os: osAtual.id, id_forma_pagamento: num(fatForma),
         id_condicao_pagamento: num(fatCond) || null, _ator: usuario.id,
         _lib_credito: libCredito,
+        _id_aprovador: libCredito ? usuario.id : null,
       }});
       if (res?.ok === false) {
         if (res.credito?.permite_liberacao && perms.aprovar && !libCredito) {
@@ -353,7 +354,8 @@ export default function OrdensServico({ usuario }) {
       if (osAtualizada) { setOsAtual(osAtualizada); setLista(l => l.map(o => o.id === osAtualizada.id ? osAtualizada : o)); }
       notificar("OS faturada com sucesso!");
     } catch (e) {
-      notificar("Erro: " + e.message, "erro");
+      const m = String(e.message || "");
+      notificar(m.includes("|") ? m.split("|")[1] : "Erro: " + m, "erro");
     } finally { setSaving(false); }
   }
 
