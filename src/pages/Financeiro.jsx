@@ -20,7 +20,6 @@ const ABAS = [
   { key: "receber", label: "Receber", icon: ArrowDownCircle },
   { key: "pagar", label: "Pagar", icon: ArrowUpCircle },
   { key: "contas", label: "Contas", icon: Landmark },
-  { key: "caixa", label: "Caixa", icon: DollarSign },
   { key: "cheques", label: "Cheques", icon: FileCheck2 },
   { key: "plano", label: "Plano de Contas", icon: FolderTree },
   { key: "centros", label: "Centros de Custo", icon: Building },

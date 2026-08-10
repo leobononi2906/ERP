@@ -272,14 +272,15 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
 
       <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: `3px solid ${protOk ? C.blueMid : C.warning}` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: protOk ? C.blueMid : C.warning, display: "flex", alignItems: "center", gap: 6 }}>{protOk ? <ShieldCheck size={14} /> : <Lock size={14} />} Preços e fiscal</div>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: protOk ? C.blueMid : C.warning, display: "flex", alignItems: "center", gap: 6 }}>{protOk ? <ShieldCheck size={14} /> : <Lock size={14} />} Preços e fiscal — base</div>
           {!novo && !protOk && (perms.aprovar ? <button onClick={destravar} style={{ ...btnGhost(), color: C.blueMid, borderColor: C.blueMid }}><Lock size={14} /> Editar preços e fiscal</button> : <span style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6 }}><Lock size={14} /> Requer permissão de aprovação</span>)}
         </div>
         {!novo && protOk && <Aviso cor="warning"><AlertCircle size={15} /> Alterações de preço/fiscal serão registradas na auditoria (quem, quando, de/para).</Aviso>}
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Preços</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>Preços base</div>
+        <div style={{ fontSize: 11.5, color: C.textMuted, marginBottom: 10 }}>Preço de venda <b>base</b> = usado quando a tabela do cliente não tem preço. Os preços reais por empresa/tabela (com markup) ficam no bloco <b>“Preços por empresa / tabela”</b> logo abaixo.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 16 }}>
-          <Campo label="Preço de custo (R$)"><input value={form.preco_custo} onChange={(e) => setF("preco_custo", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!protOk} style={{ ...inp(true, !protOk), fontFamily: mono }} /></Campo>
-          <Campo label="Preço de venda (R$)"><input value={form.preco_venda} onChange={(e) => setF("preco_venda", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!protOk} style={{ ...inp(true, !protOk), fontFamily: mono }} /></Campo>
+          <Campo label="Preço de custo cadastro (R$)"><input value={form.preco_custo} onChange={(e) => setF("preco_custo", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!protOk} style={{ ...inp(true, !protOk), fontFamily: mono }} /></Campo>
+          <Campo label="Preço de venda base (R$)"><input value={form.preco_venda} onChange={(e) => setF("preco_venda", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!protOk} style={{ ...inp(true, !protOk), fontFamily: mono }} /></Campo>
           <Campo label="Margem (calculada)"><div style={{ display: "flex", alignItems: "center", gap: 10, height: 40 }}><span style={{ fontFamily: mono, fontWeight: 700, fontSize: 18, color: margem >= 0 ? C.success : C.destructive }}>{margem.toFixed(1).replace(".", ",")}%</span><span style={{ fontSize: 12, color: C.textMuted }}>lucro {fmtBRL(lucro)}</span></div></Campo>
         </div>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><Receipt size={13} /> Fiscal (NF-e)</div>
