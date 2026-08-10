@@ -33,11 +33,80 @@ export default function Auxiliares({ usuario }) {
       { key: "unidades", label: "Unidades", render: () => <Unidades dados={dados} loading={loading} reload={carregar} /> },
       { key: "areas", label: "Áreas de Serviço", render: () => <AreasServico dados={dados} loading={loading} reload={carregar} /> },
       { key: "gruposprod", label: "Grupos de Produto", render: () => <GruposProduto dados={dados} loading={loading} reload={carregar} /> },
+      { key: "departamentos", label: "Departamentos", render: () => <DepartamentosAux /> },
       { key: "servicos", label: "Serviços (catálogo)", render: () => <Servicos usuario={usuario} /> },
       { key: "tipos", label: "Tipos de Operação", render: () => <TiposOperacao usuario={usuario} /> },
       { key: "precos", label: "Preços Especiais", render: () => <PrecosEspeciais usuario={usuario} /> },
       { key: "prismas", label: "Prismas", render: () => <Prismas usuario={usuario} /> },
     ]} />
+  );
+}
+
+/* ═══ DEPARTAMENTOS (com centro de custo) ═══ */
+function DepartamentosAux() {
+  const [deps, setDeps] = useState([]);
+  const [ccs, setCcs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [ed, setEd] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  async function carregar() {
+    setLoading(true);
+    try { const d = await rpc("erp_departamentos_listar", {}); setDeps(d?.departamentos || []); setCcs(d?.centros_custo || []); }
+    catch (e) { /* ignore */ }
+    setLoading(false);
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function salvar() {
+    if (!ed.descricao) return;
+    setSaving(true);
+    try {
+      const r = await rpc("erp_departamento_salvar", { p: { id: ed.id || null, descricao: ed.descricao, id_centro_custo: ed.id_centro_custo || null, ativo: ed.ativo !== false } });
+      if (r?.ok === false) { alert(r.erro || "Erro ao salvar"); } else { setEd(null); await carregar(); }
+    } catch (e) { alert("Erro ao salvar departamento"); }
+    setSaving(false);
+  }
+
+  if (loading) return <Carregando />;
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Cabecalho icon={Boxes} titulo="Departamentos" onNovo={() => setEd({ id: 0, descricao: "", id_centro_custo: "", ativo: true })} />
+      {ed && (
+        <div style={{ ...cardStyle(), marginBottom: 14, border: `2px solid ${C.primary}` }}>
+          <Campo label="Descrição *"><input value={ed.descricao} onChange={(e) => setEd({ ...ed, descricao: e.target.value })} style={inp(true)} autoFocus /></Campo>
+          <div style={{ marginTop: 10 }}>
+            <Campo label="Centro de custo">
+              <select value={ed.id_centro_custo || ""} onChange={(e) => setEd({ ...ed, id_centro_custo: e.target.value })} style={sel(true)}>
+                <option value="">— Sem centro de custo —</option>
+                {ccs.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
+              </select>
+            </Campo>
+          </div>
+          <label style={{ ...chk, marginTop: 10 }}><input type="checkbox" checked={ed.ativo !== false} onChange={(e) => setEd({ ...ed, ativo: e.target.checked })} /> Ativo</label>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={salvar} disabled={saving || !ed.descricao} style={btnPrimary()}><Save size={14} /> Salvar</button>
+            <button onClick={() => setEd(null)} style={btnGhost()}><X size={14} /></button>
+          </div>
+        </div>
+      )}
+      <div style={cardStyle()}>
+        <table style={tabela}>
+          <thead><tr><th style={th()}>Departamento</th><th style={th()}>Centro de custo</th><th style={{ ...th(), textAlign: "center" }}>Status</th><th style={{ ...th(), textAlign: "center" }}>Ações</th></tr></thead>
+          <tbody>
+            {deps.map((d) => (
+              <tr key={d.id} style={linha}>
+                <td style={{ ...td(), fontWeight: 600 }}>{d.descricao}</td>
+                <td style={{ ...td(), color: d.centro_custo ? C.foreground : C.textMuted }}>{d.centro_custo || "—"}</td>
+                <td style={{ ...td(), textAlign: "center" }}><Badge texto={d.ativo ? "ATIVO" : "INATIVO"} /></td>
+                <td style={{ ...td(), textAlign: "center" }}><button onClick={() => setEd({ ...d, id_centro_custo: d.id_centro_custo || "" })} style={btnIcon()} title="Editar"><Pencil size={14} /></button></td>
+              </tr>
+            ))}
+            {deps.length === 0 && <VazioRow n={4} />}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
