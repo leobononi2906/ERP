@@ -106,12 +106,18 @@ export default function Orcamentos({ usuario }) {
 
   /* ─── abrir detalhe ────────────────────────────────────────── */
   async function abrirDetalhe(orc) {
-    setOrcAtual(orc); setLoadDet(true); setView("detalhe"); setAddItem(false);
+    setOrcAtual(orc); setForm({ ...orc }); setErroForm(""); setLoadDet(true); setView("edicao"); setAddItem(false);
     try {
       const d = await rpc("orcamentos_detalhe_dados", { p_id_orcamento: orc.id });
       setItens(d.itens ?? []);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoadDet(false); }
+  }
+
+  function novoOrcamento() {
+    setOrcAtual(null); setItens([]); setAddItem(false); setErroForm("");
+    setForm({ id: null, id_empresa: fEmpresa || "", id_cliente: "", id_vendedor: "", data_validade: "", observacao: "" });
+    setView("edicao");
   }
 
   async function recarregarDetalhe(id) {
@@ -272,84 +278,18 @@ export default function Orcamentos({ usuario }) {
     </div>
   );
 
-  /* ═══ FORMULÁRIO ═══════════════════════════════════════════════ */
-  if (view === "form") {
+  /* ═══ PÁGINA ÚNICA: dados + itens ══════════════════════════════ */
+  if (view === "edicao") {
     const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-    return (
-      <div>{ToastEl}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <button onClick={() => setView("lista")} style={btnIcon()}><ArrowLeft size={16} /></button>
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{form.id ? `Editar Orçamento ${form.numero}` : "Novo Orçamento"}</h1>
-        </div>
-        {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
-        <Secao titulo="Dados do Orçamento">
-          <Campo label="Empresa *">
-            <select value={form.id_empresa || ""} onChange={(e) => setF("id_empresa", e.target.value)} style={sel(true)}>
-              <option value="">Selecione...</option>
-              {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Cliente *" span={2}>
-            <SelectBusca
-              opcoes={clientes.map(c => ({id: c.id, label: c.nome}))}
-              value={form.id_cliente || ""}
-              onChange={(id) => aplicarDefaultsCliente(id)}
-              placeholder="Selecione..."
-              full={true}
-            />
-          </Campo>
-          <Campo label="Vendedor">
-            <SelectBusca
-              opcoes={usuarios.map(u => ({id: u.id, label: u.nome}))}
-              value={form.id_vendedor || ""}
-              onChange={(id) => setF("id_vendedor", id)}
-              placeholder="—"
-              full={true}
-            />
-          </Campo>
-          <Campo label="Tabela de Preço">
-            <select value={form.id_tabela_preco || ""} onChange={(e) => setF("id_tabela_preco", e.target.value)} style={sel(true)}>
-              <option value="">Padrão</option>
-              {tabelasPreco.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Validade">
-            <input type="date" value={form.data_validade || ""} onChange={(e) => setF("data_validade", e.target.value)} style={inp(true)} />
-          </Campo>
-          <Campo label="Forma de Pagamento">
-            <select value={form.id_forma_pagamento || ""} onChange={(e) => setF("id_forma_pagamento", e.target.value)} style={sel(true)}>
-              <option value="">—</option>
-              {formasPag.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Condição de Pagamento">
-            <select value={form.id_condicao_pagamento || ""} onChange={(e) => setF("id_condicao_pagamento", e.target.value)} style={sel(true)}>
-              <option value="">—</option>
-              {condPag.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Observação" span={3}>
-            <textarea value={form.observacao || ""} onChange={(e) => setF("observacao", e.target.value)} rows={2} style={{ ...inp(true), height: "auto", resize: "vertical" }} />
-          </Campo>
-        </Secao>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={() => setView("lista")} style={btnGhost()}><X size={16} /> Cancelar</button>
-          <button onClick={salvar} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
-            <Save size={16} /> {saving ? "Salvando..." : form.id ? "Salvar" : "Criar Orçamento"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ═══ DETALHE ══════════════════════════════════════════════════ */
-  if (view === "detalhe" && orcAtual) {
+    const isNew = !orcAtual?.id;
+    const status = orcAtual?.status || "ABERTO";
+    const podeEditarDados = isNew ? perms.incluir : (status === "ABERTO" && perms.editar);
+    const podeAddItem = !isNew && status === "ABERTO" && perms.editar;
+    const podeAprovar = !isNew && status === "ABERTO" && perms.aprovar;
+    const podeReprovar = !isNew && ["ABERTO", "APROVADO"].includes(status) && perms.aprovar;
+    const podeConverter = !isNew && ["ABERTO", "APROVADO"].includes(status) && perms.aprovar && itens.length > 0;
     const totalProd = itens.filter((i) => i.tipo === "PRODUTO").reduce((s, i) => s + (num(i.valor_total) || 0), 0);
     const totalServ = itens.filter((i) => i.tipo === "SERVICO").reduce((s, i) => s + (num(i.valor_total) || 0), 0);
-    const podeEditar = ["ABERTO"].includes(orcAtual.status) && perms.editar;
-    const podeAprovar = orcAtual.status === "ABERTO" && perms.aprovar;
-    const podeReprovar = ["ABERTO", "APROVADO"].includes(orcAtual.status) && perms.aprovar;
-    const podeConverter = ["ABERTO", "APROVADO"].includes(orcAtual.status) && perms.aprovar && itens.length > 0;
 
     return (
       <div>{ToastEl}
@@ -357,27 +297,81 @@ export default function Orcamentos({ usuario }) {
           <button onClick={() => { setView("lista"); carregar(); }} style={btnIcon()}><ArrowLeft size={16} /></button>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Orçamento {orcAtual.numero}</h1>
-              <StatusBadge status={orcAtual.status} validade={orcAtual.data_validade} />
+              <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{isNew ? "Novo Orçamento" : `Orçamento ${orcAtual.numero}`}</h1>
+              {!isNew && <StatusBadge status={orcAtual.status} validade={orcAtual.data_validade} />}
             </div>
-            <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
-              {nomeCliente(orcAtual.id_cliente)}
-              {orcAtual.id_vendedor ? ` · Vendedor: ${nomeUsuario(orcAtual.id_vendedor)}` : ""}
-              {orcAtual.data_validade ? ` · Validade: ${new Date(orcAtual.data_validade + "T12:00:00").toLocaleDateString("pt-BR")}` : ""}
-            </p>
+            {!isNew && (
+              <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
+                {nomeCliente(orcAtual.id_cliente)}
+                {orcAtual.id_vendedor ? ` · Vendedor: ${nomeUsuario(orcAtual.id_vendedor)}` : ""}
+                {orcAtual.data_validade ? ` · Validade: ${new Date(orcAtual.data_validade + "T12:00:00").toLocaleDateString("pt-BR")}` : ""}
+              </p>
+            )}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {podeEditar && <button onClick={() => { setForm({ ...orcAtual }); setErroForm(""); setView("form"); }} style={btnGhost()}><Pencil size={14} /> Editar</button>}
             {podeAprovar && <button onClick={aprovar} disabled={saving} style={{ ...btnPrimary(), background: C.success }}><ThumbsUp size={14} /> Aprovar</button>}
             {podeReprovar && <button onClick={() => { setMotivoRepr(""); setReprovarOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><ThumbsDown size={14} /> Reprovar</button>}
             {podeConverter && <button onClick={converter} disabled={saving} style={btnPrimary()}><ArrowRightCircle size={14} /> Converter em Venda</button>}
           </div>
         </div>
 
-        {orcAtual.motivo_reprovacao && (
+        {orcAtual?.motivo_reprovacao && (
           <Aviso cor="destructive"><AlertCircle size={16} /> Reprovado: {orcAtual.motivo_reprovacao}</Aviso>
         )}
+        {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
 
+        {/* Dados (editável) */}
+        {podeEditarDados && (
+          <>
+            <Secao titulo="Dados do Orçamento">
+              <Campo label="Empresa *">
+                <select value={form.id_empresa || ""} onChange={(e) => setF("id_empresa", e.target.value)} style={sel(true)}>
+                  <option value="">Selecione...</option>
+                  {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>)}
+                </select>
+              </Campo>
+              <Campo label="Cliente *" span={2}>
+                <SelectBusca opcoes={clientes.map(c => ({ id: c.id, label: c.nome }))} value={form.id_cliente || ""} onChange={(id) => aplicarDefaultsCliente(id)} placeholder="Selecione..." full={true} />
+              </Campo>
+              <Campo label="Vendedor">
+                <SelectBusca opcoes={usuarios.map(u => ({ id: u.id, label: u.nome }))} value={form.id_vendedor || ""} onChange={(id) => setF("id_vendedor", id)} placeholder="—" full={true} />
+              </Campo>
+              <Campo label="Tabela de Preço">
+                <select value={form.id_tabela_preco || ""} onChange={(e) => setF("id_tabela_preco", e.target.value)} style={sel(true)}>
+                  <option value="">Padrão</option>
+                  {tabelasPreco.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
+                </select>
+              </Campo>
+              <Campo label="Validade">
+                <input type="date" value={form.data_validade || ""} onChange={(e) => setF("data_validade", e.target.value)} style={inp(true)} />
+              </Campo>
+              <Campo label="Forma de Pagamento">
+                <select value={form.id_forma_pagamento || ""} onChange={(e) => setF("id_forma_pagamento", e.target.value)} style={sel(true)}>
+                  <option value="">—</option>
+                  {formasPag.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
+                </select>
+              </Campo>
+              <Campo label="Condição de Pagamento">
+                <select value={form.id_condicao_pagamento || ""} onChange={(e) => setF("id_condicao_pagamento", e.target.value)} style={sel(true)}>
+                  <option value="">—</option>
+                  {condPag.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
+                </select>
+              </Campo>
+              <Campo label="Observação" span={3}>
+                <textarea value={form.observacao || ""} onChange={(e) => setF("observacao", e.target.value)} rows={2} style={{ ...inp(true), height: "auto", resize: "vertical" }} />
+              </Campo>
+            </Secao>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginBottom: 16 }}>
+              <button onClick={salvar} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
+                <Save size={16} /> {saving ? "Salvando..." : isNew ? "Criar Orçamento" : "Salvar dados"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {isNew ? (
+          <Aviso cor="muted"><AlertCircle size={16} /> Preencha os dados e clique em <b>&nbsp;Criar Orçamento&nbsp;</b> para começar a adicionar itens.</Aviso>
+        ) : (<>
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, margin: "16px 0" }}>
           {[
@@ -396,7 +390,7 @@ export default function Orcamentos({ usuario }) {
         <div style={cardStyle()}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Itens ({itens.length})</span>
-            {podeEditar && <button onClick={() => setAddItem(!addItem)} style={btnPrimary()}><Plus size={14} /> Adicionar item</button>}
+            {podeAddItem && <button onClick={() => setAddItem(!addItem)} style={btnPrimary()}><Plus size={14} /> Adicionar item</button>}
           </div>
 
           {addItem && (
@@ -473,7 +467,7 @@ export default function Orcamentos({ usuario }) {
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.valor_unitario)}</td>
                     <td style={{ ...td(), textAlign: "right" }}>{num(it.percentual_desconto) > 0 ? `${it.percentual_desconto}%` : "—"}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(it.valor_total)}</td>
-                    <td style={td()}>{podeEditar && <button onClick={() => removerItem(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><Trash2 size={13} /></button>}</td>
+                    <td style={td()}>{podeAddItem && <button onClick={() => removerItem(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><Trash2 size={13} /></button>}</td>
                   </tr>
                 ))}</tbody>
               </table>}
@@ -510,6 +504,7 @@ export default function Orcamentos({ usuario }) {
           }}
           onCancelar={() => setAprovModal({ aberto: false, mensagem: "", contexto: {} })}
         />
+        </>)}
       </div>
     );
   }
@@ -519,7 +514,7 @@ export default function Orcamentos({ usuario }) {
     <>{ToastEl}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
         <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Orçamentos</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {lista.length}</p></div>
-        {perms.incluir && <button onClick={() => { setForm({ id: null, id_empresa: fEmpresa || "", id_cliente: "", id_vendedor: "", data_validade: "", observacao: "" }); setErroForm(""); setView("form"); }} style={btnPrimary()}><Plus size={16} /> Novo Orçamento</button>}
+        {perms.incluir && <button onClick={novoOrcamento} style={btnPrimary()}><Plus size={16} /> Novo Orçamento</button>}
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
