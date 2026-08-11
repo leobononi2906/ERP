@@ -81,9 +81,10 @@ export default function ApuracaoFiscal({ usuario }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>
             {[
               ["Débito ICMS (saídas)", r.debito_icms, C.primary],
+              ["Crédito ICMS (entradas)", r.credito_icms, C.success],
+              ["Saldo ICMS a recolher", r.saldo_icms, C.destructive],
               ["ICMS-ST a recolher", r.icms_st_recolher, C.warning],
               ["DIFAL a recolher", r.difal_recolher, C.warning],
-              ["Saldo ICMS", r.saldo_icms, C.destructive],
               ["PIS devido", r.pis_devido, C.foreground],
               ["COFINS devido", r.cofins_devido, C.foreground],
             ].map(([l, v, cor], i) => (
@@ -134,8 +135,8 @@ export default function ApuracaoFiscal({ usuario }) {
 
           {/* Entradas + avisos */}
           <div style={{ ...cardStyle(), marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Entradas (informativo)</div>
-            <div style={{ fontSize: 13, color: C.muted }}>{ent?.n_notas || 0} nota(s) · produtos {fmtBRL(ent?.valor_produtos)} · IPI {fmtBRL(ent?.valor_ipi)} · ST {fmtBRL(ent?.valor_st)}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Entradas (compras confirmadas)</div>
+            <div style={{ fontSize: 13, color: C.muted }}>{ent?.n_notas || 0} nota(s) · produtos {fmtBRL(ent?.valor_produtos)} · IPI {fmtBRL(ent?.valor_ipi)} · ST {fmtBRL(ent?.valor_st)} · <b style={{ color: C.success }}>crédito ICMS {fmtBRL(ent?.credito_icms)}</b></div>
           </div>
           {(dados.avisos || []).map((a, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: C.warning, marginTop: 6 }}><AlertCircle size={14} /> {a}</div>

@@ -435,7 +435,8 @@ O legado (`FIREBIRD_SCRIPT_COMPLETO.md`) tem um fiscal robusto e **já tocado pe
 - **Motor de cálculo** `public.erp_calcular_impostos_item(jsonb)` → `fn_calcular_impostos_item` — puro, **regime-aware por empresa**. Resolve CST/CSOSN, cenários **NORMAL / ST_PROPRIO / ST_RETIDO**, **monofásico** (CST 04, PIS/COFINS zero), **DIFAL base dupla**, MVA ajustada (Simples usa original), IPI-na-base condicional, e origem do produto (importado → 4%).
 - **Integrado na emissão** `fn_gerar_nfe` — chama o motor por item e persiste tudo (CST/CSOSN, ST, ST-retido, DIFAL, FCP). IBS/CBS/IS seguem do grupo (Reforma — Fase 4).
 - **CFOP derivado** `fn_resolver_cfop(base, interestadual, cenario, consumidor_final)` — remodela âmbito (5↔6 / 1↔2) e sufixo (102/108/401/404/405/403). Plugado no `fn_gerar_nfe`.
-- **Apuração** `public.erp_apuracao_fiscal(id_empresa, mes, ano)` → `fn_apuracao_fiscal` — saídas por CFOP/CST + totais débito ICMS/ST/PIS/COFINS/DIFAL + entradas informativas (base EFD C190/E110).
+- **Apuração** `public.erp_apuracao_fiscal(id_empresa, mes, ano)` → `fn_apuracao_fiscal` — saídas por CFOP/CST (débito) **menos crédito de ICMS das entradas = saldo a recolher** (base EFD C190/E110).
+- **Crédito de ICMS na entrada** — `compras_recebimento_itens` ganhou cfop/cst_icms/bc_icms/aliq_icms/valor_icms; `fn_recebimento_calcular_credito(id)` calcula por item (produto com ST → sem crédito; senão valor × alíquota inter/interna do fornecedor→empresa) e é chamada no `erp_recebimento_confirmar`. RPC `erp_recebimento_recalcular_credito`.
 - **Config RPCs**: `erp_empresa_fiscal_salvar` (regime por empresa); `grupo_tributario_salvar` + `grupos_tributarios_dados` estendidas com `monofasico_pis_cofins`.
 - **Schema aditivo**: `empresas` (regime_tributario, crt, contribuinte_ipi, substituto_st); `grupos_tributarios.monofasico_pis_cofins`; `nfe_itens` (csosn, bc/valor_icms_st_ret, aliq/valor_fcp, valor_fcp_st, aliq_icms_inter, perc_part_dest, valor_icms_dest/remet, valor_fcp_dest). `icms_uf` semeada (internas PR 19,5 / SC 17 + interestaduais de PR/SC 12%/7%).
 
@@ -459,7 +460,7 @@ Empresas com os 3 regimes (1=REAL+substituto ST, 6=REAL+importador, 2/7=PRESUMID
 | Migrar catálogo real (produtos com NCM/CEST/origem) | Migração Firebird |
 | Curadoria NCM (monofásico / FCP / ST por UF) | Contador |
 | Configurar regime real de cada empresa | Leo (tela Config. Fiscal) |
-| Entrada item-level → crédito de ICMS na apuração | `nfe_entrada` hoje agregada |
+| ~~Entrada item-level → crédito de ICMS~~ ✅ FEITO 11/08 | via `compras_recebimento_itens` |
 | Geração de arquivo SPED (EFD ICMS/IPI, Contribuições) | Fase 3 |
 | FCP por lista de NCM (interno) | Curadoria + catálogo |
 | ISS (código serviço × município) para OS com instalação | — |
