@@ -56,6 +56,7 @@ import Relatorios from "./pages/Relatorios";
 import Entradas from "./pages/Entradas";
 import Devolucoes from "./pages/Devolucoes";
 import Demanda from "./pages/Demanda";
+import Cotacoes from "./pages/Cotacoes";
 import PedidosCompra from "./pages/PedidosCompra";
 import EstoqueParado from "./pages/EstoqueParado";
 import EstoqueUsoInterno from "./pages/EstoqueUsoInterno";
@@ -108,6 +109,7 @@ const MENU_GROUPS = [
     groupKey: "compras_g", label: "Compras", icon: Truck,
     items: [
       { key: "demanda", label: "Demanda / Sugestão", icon: TrendingUp, ok: true, permKey: "compras" },
+      { key: "cotacoes", label: "Cotações", icon: FileText, ok: true, permKey: "compras" },
       { key: "pedidos_compra", label: "Pedidos de Compra", icon: ShoppingCart, ok: true, permKey: "compras" },
       { key: "entradas", label: "Entradas (NF)", icon: PackageOpen, ok: true, permKey: "compras" },
       { key: "estoque_parado", label: "Estoque Parado", icon: PackageX, ok: true, permKey: "compras" },
@@ -312,9 +314,10 @@ export default function App() {
         {pagina === "entradas" && <Entradas usuario={usuario} />}
         {pagina === "devolucoes" && <Devolucoes usuario={usuario} />}
         {pagina === "demanda" && <Demanda usuario={usuario} />}
+        {pagina === "cotacoes" && <Cotacoes usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "pedidos_compra", "estoque_parado"].includes(pagina) && (
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>

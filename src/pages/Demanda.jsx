@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, AlertCircle, CheckCircle2, RefreshCw, ShoppingCart } from "lucide-react";
+import { TrendingUp, AlertCircle, CheckCircle2, RefreshCw, ShoppingCart, FileText } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Campo, Skeleton, SelectBusca } from "../ui";
 import { irPara } from "../nav";
@@ -114,6 +114,23 @@ export default function Demanda({ usuario }) {
     finally { setGerando(false); }
   }
 
+  async function gerarCotacao() {
+    if (selecionados.length === 0) { notificar("Marque itens e informe a quantidade.", "erro"); return; }
+    if (!fEmpresa) { notificar("Selecione a empresa para abrir a cotação.", "erro"); return; }
+    setGerando(true);
+    try {
+      const itensCot = selecionados.map((r) => ({ id_produto: r.id_produto, quantidade: effQtd(r) }));
+      const id = await rpc("erp_cotacao_salvar", {
+        p_cab: { id: null, id_empresa: Number(fEmpresa), id_usuario: usuario.id, observacao: "Gerada da Demanda / Sugestão" },
+        p_itens: itensCot,
+      });
+      notificar(`Cotação criada com ${itensCot.length} item(ns). Abrindo...`);
+      setSel(new Set()); setQtd({}); setForn({});
+      setTimeout(() => irPara("cotacoes", { id_cotacao: id }), 700);
+    } catch (e) { notificar("Erro ao gerar cotação: " + (e.message || e), "erro"); }
+    finally { setGerando(false); }
+  }
+
   const nCrit = rows.filter((r) => r.urgencia === "CRITICO").length;
   const nAlert = rows.filter((r) => r.urgencia === "ALERTA").length;
   const totalSugerido = rows.reduce((s, r) => s + num(r.sugestao_qtd) * num(r.preco_custo), 0);
@@ -200,7 +217,10 @@ export default function Demanda({ usuario }) {
           </div>
           <div style={{ flex: 1 }} />
           {perms.incluir
-            ? <button onClick={gerarPedidos} disabled={gerando || selecionados.length === 0} style={{ ...btnPrimary(), background: C.success, opacity: (gerando || selecionados.length === 0) ? 0.5 : 1 }}><ShoppingCart size={15} /> {gerando ? "Gerando..." : "Gerar pedido(s) de compra"}</button>
+            ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={gerarCotacao} disabled={gerando || selecionados.length === 0} style={{ ...btnPrimary(), opacity: (gerando || selecionados.length === 0) ? 0.5 : 1 }} title="Cotar com vários fornecedores antes de fechar o pedido"><FileText size={15} /> {gerando ? "..." : "Gerar cotação"}</button>
+                <button onClick={gerarPedidos} disabled={gerando || selecionados.length === 0} style={{ ...btnGhost(), background: C.success, color: "#fff", borderColor: C.success, opacity: (gerando || selecionados.length === 0) ? 0.5 : 1 }} title="Gera o pedido direto (exige fornecedor na linha)"><ShoppingCart size={15} /> Pedido direto</button>
+              </div>
             : <span style={{ fontSize: 12, color: C.textMuted }}>Sem permissão para incluir compras</span>}
         </div>
       )}
