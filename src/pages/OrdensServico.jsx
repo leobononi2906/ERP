@@ -9,7 +9,7 @@ import { getEmpresaAtiva, useEmpresaAtiva } from "../empresa";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor, ModalAprovacao } from "../ui";
 
 // status do defeito (unidade de trabalho do pátio)
 const DEF_ST = {
@@ -318,6 +318,7 @@ export default function OrdensServico({ usuario }) {
   const [condicoesPag, setCondicoesPag] = useState([]);
   const [fatForma, setFatForma] = useState("");
   const [fatCond, setFatCond] = useState("");
+  const [fatAprov, setFatAprov] = useState({ aberto: false, mensagem: "" });
 
   async function abrirFaturamento() {
     try {
@@ -331,7 +332,7 @@ export default function OrdensServico({ usuario }) {
     }
   }
 
-  async function confirmarFaturamento(libCredito = false) {
+  async function confirmarFaturamento(libCredito = false, aprovadorId = null) {
     if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
     setSaving(true);
     try {
@@ -339,12 +340,12 @@ export default function OrdensServico({ usuario }) {
         id_os: osAtual.id, id_forma_pagamento: num(fatForma),
         id_condicao_pagamento: num(fatCond) || null, _ator: usuario.id,
         _lib_credito: libCredito,
-        _id_aprovador: libCredito ? usuario.id : null,
+        _id_aprovador: libCredito ? (aprovadorId || usuario.id) : null,
       }});
       if (res?.ok === false) {
-        if (res.credito?.permite_liberacao && perms.aprovar && !libCredito) {
+        if (res.credito?.permite_liberacao && !libCredito) {
           setSaving(false);
-          if (window.confirm(res.msg + "\n\nVocê tem permissão de aprovação. Liberar o crédito e faturar mesmo assim?")) { confirmarFaturamento(true); }
+          setFatAprov({ aberto: true, mensagem: res.msg });
           return;
         }
         notificar(res.msg, "erro"); setSaving(false); return;
@@ -1235,6 +1236,24 @@ export default function OrdensServico({ usuario }) {
             </div>
           </div>
         )}
+
+        <ModalAprovacao
+          aberto={fatAprov.aberto}
+          titulo="Liberar crédito acima do limite"
+          mensagem={fatAprov.mensagem}
+          modulo="os"
+          acao="CREDITO_LIBERADO"
+          contexto={{ id_os: osAtual?.id }}
+          solicitante={usuario.id}
+          idEmpresa={osAtual?.id_empresa}
+          tipo="CREDITO"
+          origem="OS"
+          idOrigem={osAtual?.id}
+          numeroOrigem={osAtual?.numero}
+          descricao={`OS ${osAtual?.numero || ""} — ${fatAprov.mensagem || "crédito acima do limite do cliente"}`}
+          onAprovado={(aprovador) => { setFatAprov({ aberto: false, mensagem: "" }); confirmarFaturamento(true, aprovador?.id); }}
+          onCancelar={() => setFatAprov({ aberto: false, mensagem: "" })}
+        />
       </div>
     );
   }

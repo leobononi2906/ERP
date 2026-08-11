@@ -82,6 +82,7 @@ export default function Vendas({ usuario }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [motivoCancel, setMotivoCancel] = useState("");
   const [aprovModal, setAprovModal] = useState({ aberto: false, mensagem: "", contexto: {} });
+  const [fatAprov, setFatAprov] = useState({ aberto: false, mensagem: "" });
   const [histVenda, setHistVenda] = useState(false);
   const [drawerProdV, setDrawerProdV] = useState(null);
 
@@ -347,7 +348,7 @@ export default function Vendas({ usuario }) {
   const parcelasBatem = Math.abs(totalParcelas - totalVenda) < 0.01;
 
   /* ─── faturar ──────────────────────────────────────────────── */
-  async function faturar(libCredito = false) {
+  async function faturar(libCredito = false, aprovadorId = null) {
     if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
     if (fatParcelas.length > 0 && !parcelasBatem) {
       notificar(`As parcelas somam ${fmtBRL(totalParcelas)} e a venda é ${fmtBRL(totalVenda)}.`, "erro"); return;
@@ -359,14 +360,14 @@ export default function Vendas({ usuario }) {
         id_venda: vendaAtual.id, id_forma_pagamento: fatForma,
         id_condicao_pagamento: fatCond || null, _ator: usuario.id,
         _lib_credito: libCredito,
-        _id_aprovador: libCredito ? usuario.id : null,
+        _id_aprovador: libCredito ? (aprovadorId || usuario.id) : null,
         parcelas: fatParcelas.length > 0 ? fatParcelas : null,
         nsu: fatNsu || null, bandeira: fatBandeira || null, num_transacao: fatNumTransacao || null,
       }});
       if (res?.ok === false) {
-        if (res.credito?.permite_liberacao && perms.aprovar && !libCredito) {
+        if (res.credito?.permite_liberacao && !libCredito) {
           setSaving(false);
-          if (window.confirm(res.msg + "\n\nVocê tem permissão de aprovação. Liberar o crédito e faturar mesmo assim?")) { faturar(true); }
+          setFatAprov({ aberto: true, mensagem: res.msg });
           return;
         }
         notificar(res.msg, "erro"); setSaving(false); return;
@@ -902,6 +903,24 @@ export default function Vendas({ usuario }) {
             lancarItem(true, aprovador);
           }}
           onCancelar={() => setAprovModal({ aberto: false, mensagem: "", contexto: {} })}
+        />
+
+        <ModalAprovacao
+          aberto={fatAprov.aberto}
+          titulo="Liberar crédito acima do limite"
+          mensagem={fatAprov.mensagem}
+          modulo="vendas"
+          acao="CREDITO_LIBERADO"
+          contexto={{ id_venda: vendaAtual?.id }}
+          solicitante={usuario.id}
+          idEmpresa={vendaAtual?.id_empresa}
+          tipo="CREDITO"
+          origem="VENDA"
+          idOrigem={vendaAtual?.id}
+          numeroOrigem={vendaAtual?.numero}
+          descricao={`Venda ${vendaAtual?.numero || ""} — ${fatAprov.mensagem || "crédito acima do limite do cliente"}`}
+          onAprovado={(aprovador) => { setFatAprov({ aberto: false, mensagem: "" }); faturar(true, aprovador?.id); }}
+          onCancelar={() => setFatAprov({ aberto: false, mensagem: "" })}
         />
 
         {histVenda && !isNew && <DrawerHistorico tabela="vendas" registro={vendaAtual.id} titulo="Histórico da venda" sub={`Venda ${vendaAtual.numero}`} onClose={() => setHistVenda(false)} />}
