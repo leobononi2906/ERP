@@ -440,9 +440,12 @@ O legado (`FIREBIRD_SCRIPT_COMPLETO.md`) tem um fiscal robusto e **já tocado pe
 - **Config RPCs**: `erp_empresa_fiscal_salvar` (regime por empresa); `grupo_tributario_salvar` + `grupos_tributarios_dados` estendidas com `monofasico_pis_cofins`.
 - **Schema aditivo**: `empresas` (regime_tributario, crt, contribuinte_ipi, substituto_st); `grupos_tributarios.monofasico_pis_cofins`; `nfe_itens` (csosn, bc/valor_icms_st_ret, aliq/valor_fcp, valor_fcp_st, aliq_icms_inter, perc_part_dest, valor_icms_dest/remet, valor_fcp_dest). `icms_uf` semeada (internas PR 19,5 / SC 17 + interestaduais de PR/SC 12%/7%).
 
+- **Chave de acesso da NF-e (44 díg. + DV módulo 11)** — `fn_nfe_dv_mod11`, `fn_uf_codigo_ibge` (27 UFs), `fn_nfe_montar_chave`; **trigger `trg_nfe_chave`** preenche a chave em todo INSERT com número (não altera `fn_gerar_nfe`); RPC `erp_nfe_gerar_chave(id, forçar)` para (re)gerar/backfill. 100% interno, provedor-agnóstico. Testado: chave 44 díg., DV recalculado confere.
+- **Gerador SPED — EFD ICMS/IPI** `public.erp_sped_efd_icms_ipi(id_empresa, mes, ano)` → `fn_sped_efd_icms_ipi` — monta o TXT posicional (pipe) com blocos **0** (0000/0001/0005/0150/0990), **C** (C001/C100/C190/C990), **E** (E001/E100/E110/E990) e **9** (9001/9900/9990/9999 com contadores automáticos). E110 vem da apuração (débito−crédito=saldo). Helpers `fn_sped_num` (vírgula decimal) e `fn_so_digitos`. **v1 estrutural** — ver caveats em 8.5.
+
 ### 8.2 Front — commitado + Vercel
 - **Sistema → Config. Fiscal** (`ConfigFiscal.jsx`) — regime por empresa + toggle monofásico nos grupos. Commit `234d673`.
-- **Financeiro → Apuração Fiscal** (`ApuracaoFiscal.jsx`) — resumo mensal por CFOP/CST. Commit `4ded43f`.
+- **Financeiro → Apuração Fiscal** (`ApuracaoFiscal.jsx`) — resumo mensal por CFOP/CST + **botão "Exportar SPED"** (baixa o .txt do EFD ICMS/IPI). Commit `4ded43f` + este.
 - Segurança (contexto): liberação de crédito no faturar exige aprovador válido (`erp_exigir_aprovador`, commit `0e3352b`) — **compõe** com a "autorização remota (sino)" da outra frente: o sino fornece o aprovador no front, o guard valida no backend (sem conflito, verificado 11/08).
 
 ### 8.3 Validações feitas
@@ -461,10 +464,15 @@ Empresas com os 3 regimes (1=REAL+substituto ST, 6=REAL+importador, 2/7=PRESUMID
 | Curadoria NCM (monofásico / FCP / ST por UF) | Contador |
 | Configurar regime real de cada empresa | Leo (tela Config. Fiscal) |
 | ~~Entrada item-level → crédito de ICMS~~ ✅ FEITO 11/08 | via `compras_recebimento_itens` |
-| Geração de arquivo SPED (EFD ICMS/IPI, Contribuições) | Fase 3 |
+| ~~Chave de acesso NF-e (44 díg + DV)~~ ✅ FEITO 11/08 | trigger `trg_nfe_chave` |
+| ~~SPED EFD ICMS/IPI (v1 estrutural)~~ ✅ FEITO 11/08 | `erp_sped_efd_icms_ipi` + botão no front |
+| SPED EFD-Contribuições (PIS/COFINS, Bloco M) | Próximo sub-passo SPED |
+| **Transmissão à SEFAZ** (assinar XML + enviar) | **Decisão do Leo**: provedor (Focus/NFe.io/Tecnospeed) + certificado A1 — único bloqueio p/ emitir NF real |
 | FCP por lista de NCM (interno) | Curadoria + catálogo |
 | ISS (código serviço × município) para OS com instalação | — |
 | Versionar regras por vigência | Prepara a virada da Reforma |
+
+**Caveats do SPED v1 (EFD ICMS/IPI)** — antes de entregar ao fisco precisa: **COD_MUN** (código IBGE do município) no 0000/0150 (hoje vazio — falta cadastro na empresa/cliente), **IE** da empresa, registro **0100** (contabilista), **0190/0200** (unidades/produtos) e **C170** (itens por nota) se o perfil exigir, além de validação pelo **PVA da Receita** e pelo contador. O esqueleto e os contadores do bloco 9 já saem corretos.
 
 ---
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { Calculator, RefreshCw, AlertCircle } from "lucide-react";
+import { Calculator, RefreshCw, AlertCircle, Download } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
-import { cardStyle, sel, th, td, btnPrimary, Skeleton } from "../ui";
+import { cardStyle, sel, th, td, btnPrimary, btnGhost, Skeleton } from "../ui";
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const hoje = new Date();
@@ -38,6 +38,24 @@ export default function ApuracaoFiscal({ usuario }) {
     finally { setLoading(false); }
   }, [idEmpresa, mes, ano]);
 
+  const [gerandoSped, setGerandoSped] = useState(false);
+  const baixarSped = useCallback(async () => {
+    if (!idEmpresa) { setErro("Selecione a empresa."); return; }
+    setGerandoSped(true); setErro(null);
+    try {
+      const txt = await rpc("erp_sped_efd_icms_ipi", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
+      if (!txt) { setErro("Nenhum dado no período para gerar o SPED."); return; }
+      const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `EFD_ICMS_IPI_emp${idEmpresa}_${String(mes).padStart(2, "0")}${ano}.txt`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) { setErro(e.message); }
+    finally { setGerandoSped(false); }
+  }, [idEmpresa, mes, ano]);
+
   const s = dados?.saidas, r = dados?.resumo, ent = dados?.entradas;
 
   return (
@@ -69,6 +87,7 @@ export default function ApuracaoFiscal({ usuario }) {
           </select>
         </div>
         <button onClick={apurar} disabled={loading} style={{ ...btnPrimary(), height: 38, opacity: loading ? 0.6 : 1 }}><Calculator size={15} /> {loading ? "Apurando..." : "Apurar"}</button>
+        <button onClick={baixarSped} disabled={gerandoSped} title="Gera o arquivo EFD ICMS/IPI (SPED Fiscal) do período" style={{ ...btnGhost(), height: 38, opacity: gerandoSped ? 0.6 : 1 }}><Download size={15} /> {gerandoSped ? "Gerando..." : "Exportar SPED"}</button>
       </div>
 
       {erro && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, background: C.destructiveBg, color: C.destructive }}><AlertCircle size={16} /> {erro}</div>}
