@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History, Camera } from "lucide-react";
+import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History, Camera, Trash2, Truck } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
 import { EtiquetasLote } from "../EtiquetasLoteModal";
@@ -188,6 +188,108 @@ function EmpresasProduto({ idProduto, ator, podeEditar }) {
   );
 }
 
+function FornecedoresProduto({ idProduto, podeEditar }) {
+  const [linhas, setLinhas] = useState([]);
+  const [forns, setForns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState(null);
+  const [nova, setNova] = useState({ id_fornecedor: "", referencia_fornecedor: "", preco_custo: "", prazo_entrega_dias: "", principal: false });
+
+  const carregar = () => {
+    setLoading(true);
+    Promise.all([
+      rpc("erp_produto_fornecedores_listar", { p_id_produto: idProduto }),
+      rpc("fornecedores_dados", { p_busca: null, p_ativo: true }),
+    ]).then(([l, d]) => {
+      setLinhas(Array.isArray(l) ? l : []);
+      setForns((d?.fornecedores || []).map((f) => ({ id: f.id, nome: f.nome })));
+    }).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [idProduto]);
+
+  async function salvarLinha(l) {
+    setMsg(null);
+    try {
+      const r = await rpc("produto_fornecedor_salvar", {
+        p_id: l.id || null, p_id_produto: idProduto, p_id_fornecedor: Number(l.id_fornecedor),
+        p_referencia_fornecedor: l.referencia_fornecedor || null, p_preco_custo: num(l.preco_custo) || 0,
+        p_prazo_entrega_dias: num(l.prazo_entrega_dias) || 0, p_principal: !!l.principal, p_ativo: l.ativo !== false,
+      });
+      if (r && r.ok === false) { setMsg({ t: "erro", x: r.erro || "Falha ao salvar." }); return false; }
+      setMsg({ t: "ok", x: "Fornecedor salvo." });
+      return true;
+    } catch (e) { setMsg({ t: "erro", x: e.message }); return false; }
+  }
+
+  async function adicionar() {
+    if (!nova.id_fornecedor) { setMsg({ t: "erro", x: "Selecione o fornecedor." }); return; }
+    const ok = await salvarLinha(nova);
+    if (ok) { setNova({ id_fornecedor: "", referencia_fornecedor: "", preco_custo: "", prazo_entrega_dias: "", principal: false }); carregar(); }
+  }
+  async function excluir(id) {
+    if (!window.confirm("Remover este fornecedor do produto?")) return;
+    try { await rpc("produto_fornecedor_excluir", { p_id: id }); carregar(); }
+    catch (e) { setMsg({ t: "erro", x: e.message }); }
+  }
+  const setLinha = (i, k, v) => setLinhas((ls) => ls.map((l, idx) => (idx === i ? { ...l, [k]: v } : l)));
+
+  if (loading) return <div style={{ gridColumn: "1 / -1" }}><Skeleton h={100} /></div>;
+  const disponiveis = forns.filter((f) => !linhas.some((l) => String(l.id_fornecedor) === String(f.id)));
+  return (
+    <div style={{ gridColumn: "1 / -1" }}>
+      <div style={{ fontSize: 11.5, color: C.textMuted, marginBottom: 10 }}>
+        Fornecedores que fornecem este produto (código do fornecedor, último custo e prazo). O marcado como <b>principal</b> vira sugestão padrão na compra. Serve de base para cotações e pedidos.
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 720 }}>
+          <thead><tr>
+            {["Fornecedor", "Ref. fornecedor", "Custo", "Prazo (d)", "Principal", "Ativo", ""].map((h, i) => (
+              <th key={i} style={{ ...th(false), padding: "8px 8px" }}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {linhas.length === 0 && <tr><td colSpan={7} style={{ padding: "16px 8px", color: C.textMuted, textAlign: "center" }}>Nenhum fornecedor vinculado.</td></tr>}
+            {linhas.map((l, i) => (
+              <tr key={l.id} style={{ borderTop: `1px solid ${C.border}`, opacity: l.ativo === false ? 0.55 : 1 }}>
+                <td style={{ padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{l.fornecedor}</td>
+                <td style={{ padding: "6px 8px" }}><input value={l.referencia_fornecedor ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "referencia_fornecedor", e.target.value)} style={{ ...inp(true, !podeEditar), width: 130, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.preco_custo ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "preco_custo", e.target.value.replace(/[^\d.,]/g, ""))} inputMode="decimal" style={{ ...inp(true, !podeEditar), width: 90, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.prazo_entrega_dias ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "prazo_entrega_dias", e.target.value.replace(/[^\d]/g, ""))} inputMode="numeric" style={{ ...inp(true, !podeEditar), width: 64, fontFamily: mono, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px", textAlign: "center" }}><input type="checkbox" checked={!!l.principal} disabled={!podeEditar} onChange={(e) => setLinha(i, "principal", e.target.checked)} /></td>
+                <td style={{ padding: "6px 8px", textAlign: "center" }}><input type="checkbox" checked={l.ativo !== false} disabled={!podeEditar} onChange={(e) => setLinha(i, "ativo", e.target.checked)} /></td>
+                <td style={{ padding: "6px 8px", whiteSpace: "nowrap", textAlign: "right" }}>
+                  {podeEditar && <>
+                    <button onClick={async () => { if (await salvarLinha(l)) carregar(); }} style={{ ...btnGhost(), padding: "4px 8px" }}><Save size={14} /></button>
+                    <button onClick={() => excluir(l.id)} style={{ ...btnGhost(), padding: "4px 8px", color: C.destructive, marginLeft: 6 }}><Trash2 size={14} /></button>
+                  </>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {podeEditar && (
+        <div style={{ marginTop: 12, padding: 12, background: C.surface2, borderRadius: 8, display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ minWidth: 200 }}>
+            <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>Fornecedor</label>
+            <select value={nova.id_fornecedor} onChange={(e) => setNova((n) => ({ ...n, id_fornecedor: e.target.value }))} style={{ ...sel(true), minWidth: 200 }}>
+              <option value="">Selecione...</option>
+              {disponiveis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+          </div>
+          <div><label style={lblF}>Ref. fornecedor</label><input value={nova.referencia_fornecedor} onChange={(e) => setNova((n) => ({ ...n, referencia_fornecedor: e.target.value }))} style={{ ...inp(true), width: 130, fontFamily: mono }} /></div>
+          <div><label style={lblF}>Custo</label><input value={nova.preco_custo} onChange={(e) => setNova((n) => ({ ...n, preco_custo: e.target.value.replace(/[^\d.,]/g, "") }))} inputMode="decimal" style={{ ...inp(true), width: 90, fontFamily: mono }} /></div>
+          <div><label style={lblF}>Prazo (d)</label><input value={nova.prazo_entrega_dias} onChange={(e) => setNova((n) => ({ ...n, prazo_entrega_dias: e.target.value.replace(/[^\d]/g, "") }))} inputMode="numeric" style={{ ...inp(true), width: 64, fontFamily: mono }} /></div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, height: 40, cursor: "pointer" }}><input type="checkbox" checked={nova.principal} onChange={(e) => setNova((n) => ({ ...n, principal: e.target.checked }))} /> Principal</label>
+          <button onClick={adicionar} style={btnPrimary()}><Plus size={14} /> Adicionar</button>
+        </div>
+      )}
+      {msg && <span style={{ fontSize: 12.5, color: msg.t === "erro" ? C.destructive : C.success, display: "block", marginTop: 8 }}>{msg.x}</span>}
+    </div>
+  );
+}
+const lblF = { display: "block", fontSize: 10.5, fontWeight: 600, color: "#8A94A6", marginBottom: 4 };
+
 function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, voltar, erro, perms, prot, destravar, toast, ator }) {
   const novo = !form.id;
   const [drawer, setDrawer] = useState(null); // "estoque" | "hist"
@@ -303,6 +405,13 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
         </Secao>
       )}
       {novo && <Aviso cor="muted"><AlertCircle size={15} /> Salve o produto para marcar em quais empresas ele é vendido e ajustar o fiscal por empresa.</Aviso>}
+
+      {!novo && (
+        <Secao titulo="Fornecedores">
+          <FornecedoresProduto idProduto={form.id} podeEditar={cadOk} />
+        </Secao>
+      )}
+      {novo && <Aviso cor="muted"><Truck size={15} /> Salve o produto para vincular fornecedores (código, custo, prazo).</Aviso>}
 
       <div style={{ ...cardStyle(), borderLeft: `3px solid ${C.border}` }}>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Boxes size={14} /> Estoque <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: C.textMuted }}>· somente leitura (movimenta no módulo Estoque)</span></div>
