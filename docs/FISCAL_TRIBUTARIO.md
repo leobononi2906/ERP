@@ -466,7 +466,7 @@ Empresas com os 3 regimes (1=REAL+substituto ST, 6=REAL+importador, 2/7=PRESUMID
 | ~~Entrada item-level → crédito de ICMS~~ ✅ FEITO 11/08 | via `compras_recebimento_itens` |
 | ~~Chave de acesso NF-e (44 díg + DV)~~ ✅ FEITO 11/08 | trigger `trg_nfe_chave` |
 | ~~SPED EFD ICMS/IPI (v1 estrutural)~~ ✅ FEITO 11/08 | `erp_sped_efd_icms_ipi` + botão no front |
-| SPED EFD-Contribuições (PIS/COFINS, Bloco M) | Próximo sub-passo SPED |
+| ~~SPED EFD-Contribuições (PIS/COFINS, Bloco M)~~ ✅ FEITO 11/08 | `erp_sped_efd_contrib` (0/C/M/1/9; regime→cumulativo×não; Simples bloqueado) + botão no front |
 | **Transmissão à SEFAZ** (assinar XML + enviar) | **Decisão do Leo**: provedor (Focus/NFe.io/Tecnospeed) + certificado A1 — único bloqueio p/ emitir NF real |
 | FCP por lista de NCM (interno) | Curadoria + catálogo |
 | ISS (código serviço × município) para OS com instalação | — |

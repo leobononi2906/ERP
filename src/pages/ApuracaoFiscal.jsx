@@ -38,22 +38,24 @@ export default function ApuracaoFiscal({ usuario }) {
     finally { setLoading(false); }
   }, [idEmpresa, mes, ano]);
 
-  const [gerandoSped, setGerandoSped] = useState(false);
-  const baixarSped = useCallback(async () => {
+  const [gerandoSped, setGerandoSped] = useState("");
+  const baixarSped = useCallback(async (tipo) => {
     if (!idEmpresa) { setErro("Selecione a empresa."); return; }
-    setGerandoSped(true); setErro(null);
+    const rpcNome = tipo === "contrib" ? "erp_sped_efd_contrib" : "erp_sped_efd_icms_ipi";
+    const prefixo = tipo === "contrib" ? "EFD_Contribuicoes" : "EFD_ICMS_IPI";
+    setGerandoSped(tipo); setErro(null);
     try {
-      const txt = await rpc("erp_sped_efd_icms_ipi", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
+      const txt = await rpc(rpcNome, { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
       if (!txt) { setErro("Nenhum dado no período para gerar o SPED."); return; }
       const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `EFD_ICMS_IPI_emp${idEmpresa}_${String(mes).padStart(2, "0")}${ano}.txt`;
+      a.download = `${prefixo}_emp${idEmpresa}_${String(mes).padStart(2, "0")}${ano}.txt`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch (e) { setErro(e.message); }
-    finally { setGerandoSped(false); }
+    finally { setGerandoSped(""); }
   }, [idEmpresa, mes, ano]);
 
   const s = dados?.saidas, r = dados?.resumo, ent = dados?.entradas;
@@ -87,7 +89,8 @@ export default function ApuracaoFiscal({ usuario }) {
           </select>
         </div>
         <button onClick={apurar} disabled={loading} style={{ ...btnPrimary(), height: 38, opacity: loading ? 0.6 : 1 }}><Calculator size={15} /> {loading ? "Apurando..." : "Apurar"}</button>
-        <button onClick={baixarSped} disabled={gerandoSped} title="Gera o arquivo EFD ICMS/IPI (SPED Fiscal) do período" style={{ ...btnGhost(), height: 38, opacity: gerandoSped ? 0.6 : 1 }}><Download size={15} /> {gerandoSped ? "Gerando..." : "Exportar SPED"}</button>
+        <button onClick={() => baixarSped("icms")} disabled={!!gerandoSped} title="Gera o arquivo EFD ICMS/IPI (SPED Fiscal) do período" style={{ ...btnGhost(), height: 38, opacity: gerandoSped ? 0.6 : 1 }}><Download size={15} /> {gerandoSped === "icms" ? "Gerando..." : "SPED ICMS/IPI"}</button>
+        <button onClick={() => baixarSped("contrib")} disabled={!!gerandoSped} title="Gera o arquivo EFD-Contribuições (PIS/COFINS) do período" style={{ ...btnGhost(), height: 38, opacity: gerandoSped ? 0.6 : 1 }}><Download size={15} /> {gerandoSped === "contrib" ? "Gerando..." : "SPED Contrib."}</button>
       </div>
 
       {erro && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, background: C.destructiveBg, color: C.destructive }}><AlertCircle size={16} /> {erro}</div>}

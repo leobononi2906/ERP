@@ -240,7 +240,39 @@ VT → tudo não. Esse motor de incidências garante o eSocial correto.
 
 ---
 
-## 10. Próximo passo (cruzamento — a fazer)
-Igual ao fiscal: **cruzar com o banco atual + Firebird** (folha/ponto que já exista no ERP antigo), montar o "tem/falta" +
-de-para, e só então implementar — começando pelo núcleo **cadastro + rubricas com incidências + motor de folha (INSS/IRRF/FGTS)**
-com **tabelas versionadas por competência**, deixando eSocial/DCTFWeb/EFD-Reinf/FGTS Digital como camada de geração posterior.
+## 10. Status de implementação (11/08/2026)
+
+### 10.1 De-para Firebird (feito) — o legado NÃO tem folha
+Vasculhado o SGA_BONONI: **não existe folha, rubrica, INSS/IRRF/FGTS de folha, férias, rescisão, dependente, ponto nem eSocial**.
+As colunas INSS/IRRF do legado são **retenção fiscal sobre nota de serviço**, não folha. O que há é cadastro de funcionário
+p/ oficina/comissão: `TBL_CATFUNC` (147, pessoa mora em TBL_CLIENTE), `TBL_CARGO` (8, na prática = setor), `TBL_DEPARTAMENTO`
+(56, hierárquico), `TBL_APONTAMENTO_FUNC` (14.689, horas em OS p/ custo, não ponto). **Conclusão: o módulo de folha é greenfield**;
+do legado só migra o cadastro básico (deduplicar por CPF — pessoa pode ser cliente+funcionário; `SALARIO`/`TURNO`/`DATA_DEMISSAO`
+majoritariamente nulos → recoletar). No Supabase, `fin_rh_*` (custo p/ DRE) e `public.rh_funcionarios` (stub, 105) são de outros
+módulos — **não tocar**.
+
+### 10.2 Backend — motor de folha (aplicado, testado)
+- **Tabelas versionadas por competência**: `rh_inss_faixa` (4 faixas 2026), `rh_irrf_faixa` (5), `rh_parametro` (10 chaves:
+  mínimo, teto, dedução dependente, simplificado, salário-família cota/limite, redutor zera/teto, FGTS). Seed vigência 2026-01-01.
+- **Motor** (`Teste ERP`, wrappers em public): `fn_folha_inss` (progressivo c/ teto) · `fn_folha_irrf` (escolhe método
+  completo×simplificado + aplica **redutor Lei 15.270/2025**) · `fn_folha_fgts` · `fn_folha_calcular` / `erp_folha_calcular`
+  (orquestra proventos/descontos/líquido + salário-família) · `fn_rh_param` (parâmetro vigente).
+- **Rubricas com incidências** `rh_rubrica` (17 semeadas: salário, HE 50/100, ad. noturno, insalub/peric, DSR, comissão,
+  salário-família, 13º, INSS, IRRF, VT, adiantamento, pensão, faltas, FGTS) com flags incide_inss/irrf/fgts + reflexo DSR/férias/13º.
+  RPC `erp_rh_rubricas`.
+- **Testado** (salários 1.621 / 3.000 / 5.000 / 8.000 / 15.000): INSS progressivo com teto ✓; **redutor 2026 zera IR até R$ 5.000**
+  ✓; teto INSS R$ 988,09 em 15.000 ✓.
+
+### 10.3 Front — `SimuladorFolha.jsx` (menu **RH / Pessoal → Folha (Simulador)**)
+Calculadora que prova o motor: entrada (salário, dependentes, filhos salário-família, pensão, outros, aprendiz) →
+demonstrativo (base, INSS, IRRF com detalhe do redutor, FGTS, líquido) + tabela de rubricas com incidências.
+
+### 10.4 Caveats / a validar com contador
+- **Redutor IRRF 2026** na faixa R$ 5.000–7.350 está por **interpolação linear** (aproximação) — confirmar o coeficiente exato da Lei 15.270/2025.
+- Alíquotas/tabelas 2026 conferidas em fontes oficiais, mas **validar com a contabilidade** antes de uso real.
+
+### 10.5 Próximos passos
+1. **Cadastro de colaborador (DP)**: vínculo/categoria eSocial, CBO, admissão, dependentes — decidir migração dos 147 do Firebird (deduplicar por CPF) vs. recadastro.
+2. **Encargos patronais por regime** (CPP 20% / RAT×FAP / Terceiros; Simples anexo IV) — precisa CNAE/FPAS/RAT/FAP por CNPJ.
+3. **Férias / 13º / rescisão** (verbas por tipo de desligamento).
+4. **Geração eSocial / DCTFWeb / EFD-Reinf / FGTS Digital** (camada de arquivo, depois do cadastro).
