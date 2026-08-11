@@ -113,7 +113,7 @@ function AbaGrupos({ dados, onReload }) {
   async function salvarPermissoes() {
     setSaving(true);
     try {
-      await rpc("erp_grupo_permissoes_salvar", { p_id_grupo: editPerms.id, p_permissoes: perms.filter((p) => p.pode_visualizar || p.pode_incluir || p.pode_editar || p.pode_excluir) });
+      await rpc("erp_grupo_permissoes_salvar", { p_id_grupo: editPerms.id, p_permissoes: perms.filter((p) => p.pode_visualizar || p.pode_incluir || p.pode_editar || p.pode_excluir || p.pode_aprovar || p.pode_exportar || p.pode_ajustar_estoque || p.pode_dar_desconto) });
       setEditPerms(null);
       await onReload();
     } catch (e) { alert("Erro ao salvar permissões"); }
