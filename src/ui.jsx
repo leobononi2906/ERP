@@ -137,11 +137,31 @@ export function SelectBusca({ opcoes = [], value, onChange, placeholder = "Selec
  *   onAprovado: (aprovador) => void — chamado com {id, nome, login} do aprovador
  *   onCancelar: () => void
  */
-export function ModalAprovacao({ aberto, titulo, mensagem, modulo, acao, contexto, onAprovado, onCancelar }) {
+export function ModalAprovacao({ aberto, titulo, mensagem, modulo, acao, contexto, onAprovado, onCancelar,
+  solicitante, idEmpresa, tipo, origem, idOrigem, numeroOrigem, descricao }) {
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modo, setModo] = useState("login"); // login | aguardando
+  const [reqId, setReqId] = useState(null);
+
+  // Polling da autorização remota: quando aprovada, libera com o mesmo callback.
+  useEffect(() => {
+    if (!aberto || modo !== "aguardando" || !reqId) return;
+    let vivo = true;
+    const tick = async () => {
+      try {
+        const r = await rpc("erp_autorizacao_consultar", { p_id: reqId });
+        if (!vivo || !r) return;
+        if (r.status === "APROVADA") { vivo = false; limpar(); onAprovado({ id: r.id_aprovador, nome: r.aprovador }); }
+        else if (r.status === "REJEITADA") { vivo = false; setModo("login"); setErro("Rejeitada" + (r.motivo ? `: ${r.motivo}` : "") + (r.aprovador ? ` (por ${r.aprovador})` : "")); }
+      } catch { /* mantém aguardando */ }
+    };
+    tick();
+    const t = setInterval(tick, 4000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [aberto, modo, reqId]); // eslint-disable-line
 
   if (!aberto) return null;
 
@@ -154,44 +174,70 @@ export function ModalAprovacao({ aberto, titulo, mensagem, modulo, acao, context
         p_login: login.trim(), p_senha: senha, p_modulo: modulo,
         p_acao: acao || "APROVACAO", p_contexto: contexto || {},
       });
-      if (res?.ok) {
-        setLogin(""); setSenha(""); setErro("");
-        onAprovado(res.aprovador);
-      } else {
-        setErro(res?.erro || "Falha na autenticação.");
-      }
+      if (res?.ok) { limpar(); onAprovado(res.aprovador); }
+      else { setErro(res?.erro || "Falha na autenticação."); }
     } catch (err) {
       setErro(err.message || "Erro de conexão.");
     } finally { setLoading(false); }
   }
 
-  function fechar() { setLogin(""); setSenha(""); setErro(""); onCancelar(); }
+  async function solicitarRemota() {
+    setLoading(true); setErro("");
+    try {
+      const r = await rpc("erp_autorizacao_solicitar", { p: {
+        tipo: tipo || "APROVACAO", modulo, id_empresa: idEmpresa || null, id_solicitante: solicitante,
+        origem: origem || null, id_origem: idOrigem || null, numero_origem: numeroOrigem || null,
+        titulo: titulo || "Autorização necessária", descricao: descricao || mensagem || null,
+        detalhes: contexto || {},
+      } });
+      if (r?.ok) { setReqId(r.id); setModo("aguardando"); }
+      else { setErro(r?.erro || "Falha ao solicitar autorização."); }
+    } catch (err) { setErro(err.message || "Erro de conexão."); }
+    finally { setLoading(false); }
+  }
+
+  function limpar() { setLogin(""); setSenha(""); setErro(""); setModo("login"); setReqId(null); }
+  function fechar() { limpar(); onCancelar(); }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={fechar}>
-      <form onSubmit={autenticar} onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 28, width: 380, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+      <form onSubmit={autenticar} onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 28, width: 400, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.foreground, marginBottom: 6 }}>{titulo || "Aprovação necessária"}</div>
         {mensagem && <div style={{ fontSize: 13, color: C.warning, background: C.warningBg, padding: "8px 12px", borderRadius: 8, marginBottom: 14 }}>{mensagem}</div>}
-        <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 14 }}>Informe as credenciais de um aprovador autorizado.</div>
 
-        <label style={{ display: "block", marginBottom: 10 }}>
-          <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>Login</span>
-          <input value={login} onChange={(e) => setLogin(e.target.value)} autoFocus style={inp(true)} autoComplete="username" />
-        </label>
+        {modo === "aguardando" ? (
+          <div style={{ textAlign: "center", padding: "14px 0 6px" }}>
+            <div style={{ fontSize: 13, color: C.foreground, marginBottom: 6 }}>Solicitação enviada. Aguardando liberação de um responsável…</div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>Quem tem permissão recebe a notificação e pode liberar de qualquer lugar. Esta janela libera sozinha assim que for aprovada.</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button type="button" onClick={fechar} style={btnGhost()}>Fechar</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 14 }}>Informe as credenciais de um aprovador{solicitante ? ", ou solicite a liberação remota." : "."}</div>
 
-        <label style={{ display: "block", marginBottom: 14 }}>
-          <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>Senha</span>
-          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} style={inp(true)} autoComplete="current-password" />
-        </label>
+            <label style={{ display: "block", marginBottom: 10 }}>
+              <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>Login</span>
+              <input value={login} onChange={(e) => setLogin(e.target.value)} autoFocus style={inp(true)} autoComplete="username" />
+            </label>
 
-        {erro && <div style={{ fontSize: 12, color: C.destructive, background: C.destructiveBg, padding: "6px 10px", borderRadius: 6, marginBottom: 10 }}>{erro}</div>}
+            <label style={{ display: "block", marginBottom: 14 }}>
+              <span style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>Senha</span>
+              <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} style={inp(true)} autoComplete="current-password" />
+            </label>
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button type="button" onClick={fechar} style={btnGhost()} disabled={loading}>Cancelar</button>
-          <button type="submit" style={{ ...btnPrimary(), background: C.success, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-            {loading ? "Verificando..." : "Aprovar"}
-          </button>
-        </div>
+            {erro && <div style={{ fontSize: 12, color: C.destructive, background: C.destructiveBg, padding: "6px 10px", borderRadius: 6, marginBottom: 10 }}>{erro}</div>}
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" onClick={fechar} style={btnGhost()} disabled={loading}>Cancelar</button>
+              {solicitante && <button type="button" onClick={solicitarRemota} style={btnGhost()} disabled={loading}>Solicitar liberação remota</button>}
+              <button type="submit" style={{ ...btnPrimary(), background: C.success, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+                {loading ? "Verificando..." : "Aprovar aqui"}
+              </button>
+            </div>
+          </>
+        )}
       </form>
     </div>
   );

@@ -890,6 +890,13 @@ export default function Vendas({ usuario }) {
           modulo="vendas"
           acao="DESCONTO_LIBERADO"
           contexto={aprovModal.contexto}
+          solicitante={usuario.id}
+          idEmpresa={vendaAtual?.id_empresa}
+          tipo="DESCONTO"
+          origem="VENDA"
+          idOrigem={vendaAtual?.id}
+          numeroOrigem={vendaAtual?.numero}
+          descricao={`Venda ${vendaAtual?.numero || ""} — desconto de ${aprovModal.contexto?.percentual ?? ""}% acima do limite permitido.`}
           onAprovado={(aprovador) => {
             setAprovModal({ aberto: false, mensagem: "", contexto: {} });
             lancarItem(true, aprovador);

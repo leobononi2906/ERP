@@ -498,6 +498,13 @@ export default function Orcamentos({ usuario }) {
           modulo="orcamentos"
           acao="DESCONTO_LIBERADO"
           contexto={aprovModal.contexto}
+          solicitante={usuario.id}
+          idEmpresa={orcAtual?.id_empresa}
+          tipo="DESCONTO"
+          origem="ORCAMENTO"
+          idOrigem={orcAtual?.id}
+          numeroOrigem={orcAtual?.numero}
+          descricao={`Orçamento ${orcAtual?.numero || ""} — desconto de ${aprovModal.contexto?.percentual ?? ""}% acima do limite permitido.`}
           onAprovado={(aprovador) => {
             setAprovModal({ aberto: false, mensagem: "", contexto: {} });
             lancarItem(true, aprovador);

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { C, setLogUsuario, rpc } from "./config";
 import { navHandoff } from "./nav";
+import SinoAutorizacoes from "./SinoAutorizacoes";
 import { getEmpresaAtiva, setEmpresaAtiva } from "./empresa";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -279,6 +280,8 @@ export default function App() {
             </select>
           </div>
           {!empAtiva && <span style={{ fontSize: 11.5, color: C.textMuted }}>Consultando todas — escolha uma empresa para lançar documentos nela.</span>}
+          <div style={{ flex: 1 }} />
+          <SinoAutorizacoes usuario={usuario} />
         </div>
 
         {pagina === "dashboard" && <Dashboard />}
