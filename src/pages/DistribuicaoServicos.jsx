@@ -14,6 +14,15 @@ function tempoAberto(dataInicio) {
   return `${h}h${m.toString().padStart(2, "0")}m`;
 }
 
+// Horário de lançamento (dd/mm HH:MM) — dado imutável usado para a sequência
+function fmtLancado(dt) {
+  if (!dt) return "—";
+  const d = new Date(dt);
+  const data = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${data} ${hora}`;
+}
+
 export default function DistribuicaoServicos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.os) || {};
 
@@ -179,7 +188,7 @@ export default function DistribuicaoServicos({ usuario }) {
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 820 }}>
-              <thead><tr>{["OS", "Cliente", "Defeito", "Área", "Técnico (opcional)", "Apont.", "Ação"].map((h, i) => <th key={i} style={th()}>{h}</th>)}</tr></thead>
+              <thead><tr>{["OS", "Cliente", "Lançado", "Defeito", "Área", "Técnico (opcional)", "Apont.", "Ação"].map((h, i) => <th key={i} style={th()}>{h}</th>)}</tr></thead>
               <tbody>
                 {servSolic.map(d => {
                   const k = "D" + d.id;
@@ -188,6 +197,7 @@ export default function DistribuicaoServicos({ usuario }) {
                     <tr key={k} style={{ borderBottom: `1px solid ${C.border}`, background: d.distribuido ? "transparent" : "rgba(180,83,9,0.05)" }}>
                       <td style={td()}><span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{d.numero_os}</span></td>
                       <td style={{ ...td(), maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.cliente}</td>
+                      <td style={{ ...td(), fontFamily: mono, fontSize: 11.5, color: C.muted, whiteSpace: "nowrap" }}>{fmtLancado(d.criado_em)}</td>
                       <td style={{ ...td(), maxWidth: 260 }}><span style={{ fontFamily: mono, fontSize: 11, color: C.muted }}>{d.codigo}</span> {d.descricao}{d.id_defeito_origem && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, background: C.bluePale, color: C.blueMid, padding: "1px 6px", borderRadius: 4 }}>CÓPIA</span>}</td>
                       <td style={td()}>
                         <select value={areaVal} onChange={e => setAreaSel(a => ({ ...a, [k]: e.target.value }))} style={{ ...sel(), minWidth: 130, fontSize: 12 }}>
@@ -234,7 +244,7 @@ export default function DistribuicaoServicos({ usuario }) {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 800 }}>
               <thead><tr>
-                {["OS", "Cliente", "Area", "Servico", "Status", "Tecnico", "Tempo", "Acao"].map((h, i) => (
+                {["OS", "Cliente", "Lançado", "Area", "Servico", "Status", "Tecnico", "Tempo", "Acao"].map((h, i) => (
                   <th key={i} style={th()}>{h}</th>
                 ))}
               </tr></thead>
@@ -245,6 +255,7 @@ export default function DistribuicaoServicos({ usuario }) {
                       <span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{s.numero_os}</span>
                     </td>
                     <td style={{ ...td(), fontWeight: 500, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.cliente}</td>
+                    <td style={{ ...td(), fontFamily: mono, fontSize: 11.5, color: C.muted, whiteSpace: "nowrap" }}>{fmtLancado(s.criado_em)}</td>
                     <td style={td()}>{s.area ? <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{s.area_codigo || s.area}</span> : <span style={{ color: C.textMuted }}>—</span>}</td>
                     <td style={{ ...td(), maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: s.origem === "PRODUCAO" ? 600 : 400, color: s.origem === "PRODUCAO" ? "#6B3FA0" : C.foreground }}>{s.descricao}</td>
                     <td style={td()}><Badge texto={s.status} cor={STATUS_MAP[s.status]} /></td>
