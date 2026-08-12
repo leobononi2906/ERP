@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Play, AlertCircle, X, FileText, Download } from "lucide-react";
+import { Play, AlertCircle, X, FileText, Download, Wallet, CheckCircle } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, sel, th, td, btnPrimary, Skeleton } from "../ui";
 
@@ -17,6 +17,8 @@ export default function Folha({ usuario }) {
   const [erro, setErro] = useState(null);
   const [detalhe, setDetalhe] = useState(null);
   const [guias, setGuias] = useState(null);
+  const [msgOk, setMsgOk] = useState(null);
+  const [gerandoCp, setGerandoCp] = useState(false);
 
   useEffect(() => { (async () => {
     try { const d = await rpc("erp_rh_dominios", {}); const e = d?.empresas || []; setEmpresas(e); if (e.length) setIdEmpresa(String(e[0].id)); } catch { /* noop */ }
@@ -53,6 +55,16 @@ export default function Folha({ usuario }) {
       a.href = url; a.download = `eSocial_S1200_emp${idEmpresa}_${String(mes).padStart(2, "0")}${ano}.json`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     } catch (e) { setErro(e.message); }
+  };
+
+  const gerarContasPagar = async () => {
+    if (!f?.id) return;
+    if (!window.confirm(`Gerar contas a pagar da folha ${guias?.competencia}? Serão criados títulos (salários no dia 5, guias no dia 20). Regenerar substitui os títulos ainda em aberto.`)) return;
+    setGerandoCp(true); setErro(null); setMsgOk(null);
+    try {
+      const r = await rpc("erp_folha_gerar_contas_pagar", { p_id_folha: f.id, p_id_usuario: usuario?.id ?? null, p_id_centro_custo: 5 });
+      setMsgOk(`${r.titulos_gerados} título(s) gerado(s) no contas a pagar — total ${fmtBRL(r.total)}. Salários vencem ${new Date(r.venc_salarios).toLocaleDateString("pt-BR")}, guias ${new Date(r.venc_guias).toLocaleDateString("pt-BR")}.`);
+    } catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); } finally { setGerandoCp(false); }
   };
 
   const f = dados?.folha, hol = dados?.holerites || [];
@@ -135,8 +147,12 @@ export default function Folha({ usuario }) {
             <div style={{ ...cardStyle(), marginTop: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>Guias & eSocial — {guias.competencia}</div>
-                <button onClick={baixarEsocial} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, background: "transparent", color: C.primary, border: `1px solid ${C.primary}` }}><Download size={14} /> Baixar lote eSocial S-1200</button>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={gerarContasPagar} disabled={gerandoCp} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, opacity: gerandoCp ? 0.6 : 1 }}><Wallet size={14} /> {gerandoCp ? "Gerando..." : "Gerar contas a pagar"}</button>
+                  <button onClick={baixarEsocial} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, background: "transparent", color: C.primary, border: `1px solid ${C.primary}` }}><Download size={14} /> Lote eSocial S-1200</button>
+                </div>
               </div>
+              {msgOk && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 14px", borderRadius: 8, fontSize: 12.5, background: C.success + "18", color: C.success }}><CheckCircle size={15} /> {msgOk}</div>}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                 <div style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>FGTS Digital (DAE)</div>

@@ -283,7 +283,14 @@ demonstrativo (base, INSS, IRRF com detalhe do redutor, FGTS, líquido) + tabela
 - **Rescisão / Férias / 13º**: `fn_rescisao_calcular` (verbas por tipo de desligamento, aviso 30+3/ano máx 90, multa FGTS 40/20/0), `fn_ferias_calcular` (dias+1/3, abono indenizado), `fn_decimo_terceiro_calcular` (avos, INSS/IRRF isolados). Front `VerbasTrabalhistas.jsx` (3 abas).
 - **Guias & eSocial**: `erp_encargos_guias` (FGTS Digital venc. dia 20, DCTFWeb previdenciário, eSocial prazo dia 15) + `erp_esocial_s1200_lote` (payload JSON por colaborador, pronto p/ o integrador serializar em XML). Card + download na tela Folha.
 
-### 10.7 Caveats / próximos
+### 10.7 Folha → Contas a Pagar (FEITO 12/08) — o RH como controle que alimenta o financeiro
+Como a contabilidade é externa, o RH aqui é **controle + relatório que gera contas a pagar** no financeiro.
+- `fn_folha_gerar_contas_pagar(id_folha, id_usuario, id_centro_custo=5)` / `erp_folha_gerar_contas_pagar`: cria títulos **CP** (`titulos`, origem `FOLHA`, id_origem=id_folha) — um por colaborador (líquido, plano 13 Folha de Pagamento, centro de custo do departamento ou Administrativo, **venc. dia 5**) + guias consolidadas: **FGTS** (plano 27, dia 20), **INSS/DCTFWeb** (INSS+CPP+RAT+Terceiros, plano 26, dia 20) e **IRRF** (plano 13, dia 20).
+- **Idempotente**: regenera apagando só os títulos ABERTOS da folha; barra se algum já foi baixado.
+- Botão **"Gerar contas a pagar"** no card Guias da tela Folha. Testado emp1 ago/2026: 4 títulos, R$ 6.857,06 (= custo total).
+- **BUG corrigido de passagem**: `public.erp_titulo_salvar` gravava em `log_acessos(tabela, id_registro)` — colunas inexistentes (o certo é `tabela_afetada`/`registro_id`) — o que fazia **toda criação de título falhar**. Corrigido; a criação de contas a pagar/receber via esse RPC voltou a funcionar.
+
+### 10.8 Caveats / próximos
 - Cálculos de **rescisão/férias** são estimativas (FGTS estimado se saldo não informado; médias de variáveis e férias vencidas não automáticas) — **validar com contador**. Redutor IRRF 5k–7,35k ainda é interpolação (10.4).
 - **eSocial é payload JSON**, não o XML assinado — falta o integrador (serialização XML + assinatura + envio), análogo à transmissão SEFAZ da NF-e.
 - Falta: PLR, SST (S-2210/2220/2240), ponto/jornada, banco de horas, EFD-Reinf/DCTFWeb como arquivo, e **migração dos ~147 do Firebird** (dedup por CPF).
