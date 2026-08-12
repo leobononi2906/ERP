@@ -19,6 +19,8 @@ export default function Folha({ usuario }) {
   const [guias, setGuias] = useState(null);
   const [msgOk, setMsgOk] = useState(null);
   const [gerandoCp, setGerandoCp] = useState(false);
+  const [resumoProv, setResumoProv] = useState(null);
+  const [gerando13, setGerando13] = useState(0);
 
   useEffect(() => { (async () => {
     try { const d = await rpc("erp_rh_dominios", {}); const e = d?.empresas || []; setEmpresas(e); if (e.length) setIdEmpresa(String(e[0].id)); } catch { /* noop */ }
@@ -31,6 +33,7 @@ export default function Folha({ usuario }) {
       setDados(await rpc("erp_folha_obter", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) }));
       const g = await rpc("erp_encargos_guias", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
       setGuias(g && !g.erro ? g : null);
+      setResumoProv(await rpc("erp_provisoes_resumo", { p_id_empresa: Number(idEmpresa), p_ano: Number(ano) }));
     }
     catch (e) { setErro(e.message); } finally { setLoading(false); }
   }, [idEmpresa, mes, ano]);
@@ -40,7 +43,11 @@ export default function Folha({ usuario }) {
   const gerar = async () => {
     if (!idEmpresa) { setErro("Selecione a empresa."); return; }
     setGerando(true); setErro(null);
-    try { await rpc("erp_folha_gerar", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) }); await carregar(); }
+    try {
+      const r = await rpc("erp_folha_gerar", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
+      if (r?.id_folha) await rpc("erp_folha_provisao", { p_id_folha: r.id_folha });
+      await carregar();
+    }
     catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); } finally { setGerando(false); }
   };
 
@@ -67,7 +74,18 @@ export default function Folha({ usuario }) {
     } catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); } finally { setGerandoCp(false); }
   };
 
+  const gerar13 = async (parcela) => {
+    if (!idEmpresa) return;
+    if (!window.confirm(`Gerar contas a pagar da ${parcela}ª parcela do 13º/${ano}? (vencimento ${parcela === 1 ? "30/11" : "20/12"})`)) return;
+    setGerando13(parcela); setErro(null); setMsgOk(null);
+    try {
+      const r = await rpc("erp_folha_gerar_13_contas_pagar", { p_id_empresa: Number(idEmpresa), p_ano: Number(ano), p_parcela: parcela, p_id_usuario: usuario?.id ?? null, p_id_centro_custo: 5 });
+      setMsgOk(`13º ${parcela}ª parcela: ${r.titulos_gerados} título(s) — total ${fmtBRL(r.total)}, vencimento ${new Date(r.vencimento).toLocaleDateString("pt-BR")}.`);
+    } catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); } finally { setGerando13(0); }
+  };
+
   const f = dados?.folha, hol = dados?.holerites || [];
+  const acum = resumoProv?.acumulado;
 
   return (
     <div>
@@ -172,6 +190,33 @@ export default function Folha({ usuario }) {
               </div>
             </div>
           )}
+          {/* Provisões & 13º */}
+          <div style={{ ...cardStyle(), marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Provisões & 13º Salário</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => gerar13(1)} disabled={gerando13 !== 0} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, opacity: gerando13 ? 0.6 : 1 }}><Wallet size={14} /> {gerando13 === 1 ? "..." : "Gerar 13º 1ª parcela"}</button>
+                <button onClick={() => gerar13(2)} disabled={gerando13 !== 0} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, opacity: gerando13 ? 0.6 : 1 }}><Wallet size={14} /> {gerando13 === 2 ? "..." : "Gerar 13º 2ª parcela"}</button>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>Provisão mensal (accrual) — 1/12 do 13º e das férias (com 1/3) + encargos (FGTS + INSS patronal).</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+              {[
+                ["Provisão 13º (mês)", f.provisao_13],
+                ["Provisão férias (mês)", f.provisao_ferias],
+                ["Encargos s/ provisão (mês)", f.provisao_encargos],
+                ["Provisão total (mês)", f.provisao_total, C.primary],
+              ].map(([l, v, cor], i) => (
+                <div key={i} style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: C.textMuted, marginBottom: 4 }}>{l}</div>
+                  <div style={{ fontSize: 17, fontWeight: 700, fontFamily: mono, color: cor || C.foreground }}>{fmtBRL(v)}</div>
+                </div>
+              ))}
+            </div>
+            {acum && Number(acum.total) > 0 && (
+              <div style={{ marginTop: 10, fontSize: 12.5, color: C.muted }}>Acumulado {ano}: 13º {fmtBRL(acum.prov_13)} · férias {fmtBRL(acum.prov_ferias)} · encargos {fmtBRL(acum.encargos)} · <b style={{ color: C.foreground }}>total provisionado {fmtBRL(acum.total)}</b></div>
+            )}
+          </div>
         </>
       ) : (
         <div style={{ ...cardStyle(), textAlign: "center", padding: "48px 0", color: C.textMuted }}><FileText size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Selecione a competência e clique em Gerar folha.</div></div>

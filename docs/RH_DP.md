@@ -290,7 +290,12 @@ Como a contabilidade é externa, o RH aqui é **controle + relatório que gera c
 - Botão **"Gerar contas a pagar"** no card Guias da tela Folha. Testado emp1 ago/2026: 4 títulos, R$ 6.857,06 (= custo total).
 - **BUG corrigido de passagem**: `public.erp_titulo_salvar` gravava em `log_acessos(tabela, id_registro)` — colunas inexistentes (o certo é `tabela_afetada`/`registro_id`) — o que fazia **toda criação de título falhar**. Corrigido; a criação de contas a pagar/receber via esse RPC voltou a funcionar.
 
-### 10.8 Caveats / próximos
+### 10.8 Provisões de folha + 13º gerando contas a pagar (FEITO 12/08)
+- **Provisão mensal (accrual)**: `fn_folha_calcular_provisao`/`erp_folha_provisao(id_folha)` grava em `rh_folha` — 13º (1/12 da base), férias (base×4/3÷12) e encargos (FGTS 8% + INSS patronal efetivo). Calculada automaticamente ao gerar a folha. `erp_provisoes_resumo(id_empresa, ano)` traz o **acumulado do ano**. Card "Provisões & 13º" na tela Folha. Testado emp1: 13º 426,75 + férias 569,00 + encargos 356,48 = **1.352,23/mês**.
+- **13º → contas a pagar**: `fn_folha_gerar_13_contas_pagar`/`erp_folha_gerar_13_contas_pagar(id_empresa, ano, parcela)` — **1ª parcela** (50%, venc 30/11) e **2ª parcela** (líquido, venc 20/12) por colaborador (avos proporcionais à admissão), + guias FGTS/INSS-DCTFWeb/IRRF do 13º na 2ª. Títulos origem `FOLHA`, id_origem `900000+empresa` (não colide com a folha mensal). Idempotente por parcela/ano. Botões na tela Folha. Testado emp1/2026: 1ª parcela 2.560,50 · 2ª parcela 4.296,56 (FGTS trata aprendiz 2%).
+- **Provisão vs pagamento**: a provisão é controle/relatório do passivo acumulado; o desembolso real vira conta a pagar via o gerador de 13º (e, para férias, via a calculadora quando o colaborador as tira).
+
+### 10.9 Caveats / próximos
 - Cálculos de **rescisão/férias** são estimativas (FGTS estimado se saldo não informado; médias de variáveis e férias vencidas não automáticas) — **validar com contador**. Redutor IRRF 5k–7,35k ainda é interpolação (10.4).
 - **eSocial é payload JSON**, não o XML assinado — falta o integrador (serialização XML + assinatura + envio), análogo à transmissão SEFAZ da NF-e.
 - Falta: PLR, SST (S-2210/2220/2240), ponto/jornada, banco de horas, EFD-Reinf/DCTFWeb como arquivo, e **migração dos ~147 do Firebird** (dedup por CPF).
