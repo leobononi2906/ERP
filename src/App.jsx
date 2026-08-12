@@ -61,6 +61,7 @@ import Cotacoes from "./pages/Cotacoes";
 import ConfigFiscal from "./pages/ConfigFiscal";
 import ApuracaoFiscal from "./pages/ApuracaoFiscal";
 import SimuladorFolha from "./pages/SimuladorFolha";
+import Colaboradores from "./pages/Colaboradores";
 import PedidosCompra from "./pages/PedidosCompra";
 import EstoqueParado from "./pages/EstoqueParado";
 import EstoqueUsoInterno from "./pages/EstoqueUsoInterno";
@@ -132,6 +133,7 @@ const MENU_GROUPS = [
   {
     groupKey: "rh_g", label: "RH / Pessoal", icon: Users,
     items: [
+      { key: "colaboradores", label: "Colaboradores", icon: Users, ok: true },
       { key: "folha_sim", label: "Folha (Simulador)", icon: Users, ok: true },
     ],
   },
@@ -331,9 +333,10 @@ export default function App() {
         {pagina === "config_fiscal" && <ConfigFiscal usuario={usuario} />}
         {pagina === "fiscal" && <ApuracaoFiscal usuario={usuario} />}
         {pagina === "folha_sim" && <SimuladorFolha usuario={usuario} />}
+        {pagina === "colaboradores" && <Colaboradores usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "config_fiscal", "fiscal", "folha_sim"].includes(pagina) && (
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "config_fiscal", "fiscal", "folha_sim", "colaboradores"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>

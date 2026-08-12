@@ -271,8 +271,15 @@ demonstrativo (base, INSS, IRRF com detalhe do redutor, FGTS, líquido) + tabela
 - **Redutor IRRF 2026** na faixa R$ 5.000–7.350 está por **interpolação linear** (aproximação) — confirmar o coeficiente exato da Lei 15.270/2025.
 - Alíquotas/tabelas 2026 conferidas em fontes oficiais, mas **validar com a contabilidade** antes de uso real.
 
-### 10.5 Próximos passos
-1. **Cadastro de colaborador (DP)**: vínculo/categoria eSocial, CBO, admissão, dependentes — decidir migração dos 147 do Firebird (deduplicar por CPF) vs. recadastro.
-2. **Encargos patronais por regime** (CPP 20% / RAT×FAP / Terceiros; Simples anexo IV) — precisa CNAE/FPAS/RAT/FAP por CNPJ.
-3. **Férias / 13º / rescisão** (verbas por tipo de desligamento).
-4. **Geração eSocial / DCTFWeb / EFD-Reinf / FGTS Digital** (camada de arquivo, depois do cadastro).
+### 10.5 Cadastro de colaborador (DP) — FEITO 11/08
+- **Tabelas** `rh_colaborador` (vínculo, **categoria eSocial derivada por vínculo**, CBO, admissão/demissão, salário/unidade, jornada, id_empresa/cargo/departamento) e `rh_dependente` (finalidade: IRRF / salário-família / plano de saúde).
+- **RPCs**: `erp_rh_dominios` (empresas/cargos/departamentos/vínculos), `erp_colaboradores_listar`, `erp_colaborador_obter` (+dependentes), `erp_colaborador_salvar`, `erp_dependente_salvar`, `erp_dependente_remover`; helper `fn_rh_categoria_esocial`.
+- **Front** `Colaboradores.jsx` (menu **RH / Pessoal → Colaboradores**): lista com filtro empresa/busca + modal de cadastro com dependentes inline.
+- **Testado**: João (CLT→cat 101, 1 dependente) e Maria (Aprendiz→cat **103** automático, FGTS 2%). Dados fictícios em homologação (limpar no go-live).
+
+### 10.6 Próximos passos
+1. **Encargos patronais por regime** (CPP 20% / RAT×FAP / Terceiros; Simples anexo IV) — precisa CNAE/FPAS/RAT/FAP por CNPJ.
+2. **Férias / 13º / rescisão** (verbas por tipo de desligamento) — usar `tipo_desligamento` já no cadastro.
+3. **Rodar a folha do colaborador cadastrado** (hoje o simulador é avulso; ligar `erp_folha_calcular` ao `rh_colaborador` + dependentes → holerite/competência).
+4. **Geração eSocial / DCTFWeb / EFD-Reinf / FGTS Digital** (camada de arquivo).
+5. **Migração** dos ~147 funcionários do Firebird (deduplicar por CPF; salário/demissão nulos → recoletar).
