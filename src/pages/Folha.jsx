@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Play, AlertCircle, X, FileText } from "lucide-react";
+import { Play, AlertCircle, X, FileText, Download } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, sel, th, td, btnPrimary, Skeleton } from "../ui";
 
@@ -16,6 +16,7 @@ export default function Folha({ usuario }) {
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState(null);
   const [detalhe, setDetalhe] = useState(null);
+  const [guias, setGuias] = useState(null);
 
   useEffect(() => { (async () => {
     try { const d = await rpc("erp_rh_dominios", {}); const e = d?.empresas || []; setEmpresas(e); if (e.length) setIdEmpresa(String(e[0].id)); } catch { /* noop */ }
@@ -24,7 +25,11 @@ export default function Folha({ usuario }) {
   const carregar = useCallback(async () => {
     if (!idEmpresa) return;
     setLoading(true); setErro(null);
-    try { setDados(await rpc("erp_folha_obter", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) })); }
+    try {
+      setDados(await rpc("erp_folha_obter", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) }));
+      const g = await rpc("erp_encargos_guias", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
+      setGuias(g && !g.erro ? g : null);
+    }
     catch (e) { setErro(e.message); } finally { setLoading(false); }
   }, [idEmpresa, mes, ano]);
 
@@ -38,6 +43,17 @@ export default function Folha({ usuario }) {
   };
 
   const abrirDetalhe = async (id) => { try { setDetalhe(await rpc("erp_holerite_detalhe", { p_id_holerite: id })); } catch (e) { setErro(e.message); } };
+
+  const baixarEsocial = async () => {
+    try {
+      const lote = await rpc("erp_esocial_s1200_lote", { p_id_empresa: Number(idEmpresa), p_mes: Number(mes), p_ano: Number(ano) });
+      const blob = new Blob([JSON.stringify(lote, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `eSocial_S1200_emp${idEmpresa}_${String(mes).padStart(2, "0")}${ano}.json`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (e) { setErro(e.message); }
+  };
 
   const f = dados?.folha, hol = dados?.holerites || [];
 
@@ -114,6 +130,32 @@ export default function Folha({ usuario }) {
               </div>
             )}
           </div>
+
+          {guias && (
+            <div style={{ ...cardStyle(), marginTop: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>Guias & eSocial — {guias.competencia}</div>
+                <button onClick={baixarEsocial} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, background: "transparent", color: C.primary, border: `1px solid ${C.primary}` }}><Download size={14} /> Baixar lote eSocial S-1200</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                <div style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>FGTS Digital (DAE)</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: mono, color: C.primary }}>{fmtBRL(guias.fgts_digital.valor)}</div>
+                  <div style={{ fontSize: 11.5, color: C.muted, marginTop: 4 }}>Vencimento {guias.fgts_digital.vencimento}</div>
+                </div>
+                <div style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>DCTFWeb (DARF previdenciário)</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: mono, color: C.warning }}>{fmtBRL(guias.dctfweb.total_previdenciario)}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>INSS {fmtBRL(guias.dctfweb.inss_empregado)} · CPP {fmtBRL(guias.dctfweb.cpp_patronal)} · RAT {fmtBRL(guias.dctfweb.rat_fap)} · Terc. {fmtBRL(guias.dctfweb.terceiros)} · venc. {guias.dctfweb.vencimento}</div>
+                </div>
+                <div style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>eSocial</div>
+                  <div style={{ fontSize: 13, color: C.foreground }}>{guias.esocial.eventos}</div>
+                  <div style={{ fontSize: 11.5, color: C.muted, marginTop: 4 }}>Prazo de envio {guias.esocial.prazo}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div style={{ ...cardStyle(), textAlign: "center", padding: "48px 0", color: C.textMuted }}><FileText size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Selecione a competência e clique em Gerar folha.</div></div>
