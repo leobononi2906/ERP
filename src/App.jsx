@@ -135,10 +135,10 @@ const MENU_GROUPS = [
   {
     groupKey: "rh_g", label: "RH / Pessoal", icon: Users,
     items: [
-      { key: "colaboradores", label: "Colaboradores", icon: Users, ok: true },
-      { key: "folha", label: "Folha de Pagamento", icon: FileText, ok: true },
-      { key: "verbas", label: "Rescisão · Férias · 13º", icon: FileText, ok: true },
-      { key: "folha_sim", label: "Folha (Simulador)", icon: Users, ok: true },
+      { key: "colaboradores", label: "Colaboradores", icon: Users, ok: true, permKey: "rh" },
+      { key: "folha", label: "Folha de Pagamento", icon: FileText, ok: true, permKey: "rh" },
+      { key: "verbas", label: "Rescisão · Férias · 13º", icon: FileText, ok: true, permKey: "rh" },
+      { key: "folha_sim", label: "Folha (Simulador)", icon: Users, ok: true, permKey: "rh" },
     ],
   },
   {

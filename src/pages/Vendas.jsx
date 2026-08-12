@@ -532,12 +532,6 @@ export default function Vendas({ usuario }) {
                       {tiposSaida.filter((t) => t.ativo && (!t.restrito || perms.aprovar || String(t.id) === String(form.id_tipo_saida))).map((t) => <option key={t.id} value={t.id}>{t.descricao}{t.restrito ? " 🔒" : ""}{t.padrao ? " ★" : ""}</option>)}
                     </select>
                   </Campo>
-                  <Campo label="Tabela de Preço">
-                    <select value={form.id_tabela_preco || ""} onChange={(e) => { setF("id_tabela_preco", e.target.value); if (!isNew) recalcularPrecos(e.target.value); }} style={sel(true)} disabled={!podeEditarDados}>
-                      <option value="">Padrão</option>
-                      {tabelasPreco.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
-                    </select>
-                  </Campo>
                   <Campo label="Condição de Pagamento">
                     <select value={form.id_condicao_pagamento || ""} onChange={(e) => setF("id_condicao_pagamento", e.target.value)} style={sel(true)} disabled={!podeEditarDados}>
                       <option value="">À vista</option>

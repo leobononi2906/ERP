@@ -336,15 +336,6 @@ export default function Orcamentos({ usuario }) {
               <Campo label="Vendedor">
                 <SelectBusca opcoes={usuarios.map(u => ({ id: u.id, label: u.nome }))} value={form.id_vendedor || ""} onChange={(id) => setF("id_vendedor", id)} placeholder="—" full={true} />
               </Campo>
-              <Campo label="Tabela de Preço">
-                <select value={form.id_tabela_preco || ""} onChange={(e) => setF("id_tabela_preco", e.target.value)} style={sel(true)}>
-                  <option value="">Padrão</option>
-                  {tabelasPreco.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}
-                </select>
-              </Campo>
-              <Campo label="Validade">
-                <input type="date" value={form.data_validade || ""} onChange={(e) => setF("data_validade", e.target.value)} style={inp(true)} />
-              </Campo>
               <Campo label="Forma de Pagamento">
                 <select value={form.id_forma_pagamento || ""} onChange={(e) => setF("id_forma_pagamento", e.target.value)} style={sel(true)}>
                   <option value="">—</option>
