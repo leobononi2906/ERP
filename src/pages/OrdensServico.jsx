@@ -56,6 +56,7 @@ export default function OrdensServico({ usuario }) {
   const [osAtual, setOsAtual] = useState(null);
   const [osServicos, setOsServicos] = useState([]);
   const [osPecas, setOsPecas] = useState([]);
+  const [osOrcamentos, setOsOrcamentos] = useState([]);
   const [osApontamentos, setOsApontamentos] = useState([]);
   const [abaDetalhe, setAbaDetalhe] = useState("servicos");
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
@@ -118,6 +119,7 @@ export default function OrdensServico({ usuario }) {
       setExpedicoesOs(d.expedicoes ?? []);
       setOsDefeitos(d.defeitos ?? []);
       rpc("os_defeitos_listar", { p_id_os: os.id }).then((dd) => setOsDefeitos(Array.isArray(dd) ? dd : (d.defeitos ?? []))).catch(() => {});
+      rpc("erp_os_orcamentos", { p_id_os: os.id }).then((oo) => setOsOrcamentos(Array.isArray(oo) ? oo : [])).catch(() => setOsOrcamentos([]));
       rpc("os_prismas_dados", { p_id_vendedor: os.id_vendedor || null }).then((pd) => setPrismasOs(pd?.prismas || [])).catch(() => {});
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
@@ -639,6 +641,11 @@ export default function OrdensServico({ usuario }) {
                 <Undo2 size={14} /> Devolver
               </button>
             )}
+            {!osAtual.cancelada && (
+              <button onClick={() => irPara("orcamentos", { id_os: osAtual.id, numero_os: osAtual.numero, id_cliente: osAtual.id_cliente, id_empresa: osAtual.id_empresa })} style={btnGhost()}>
+                <FileText size={14} /> Novo orçamento
+              </button>
+            )}
           </div>
         </div>
 
@@ -681,6 +688,33 @@ export default function OrdensServico({ usuario }) {
             </div>
           </div>
         </div>
+
+        {/* Orçamentos vinculados a esta OS */}
+        {osOrcamentos.length > 0 && (
+          <div style={{ ...cardStyle(), margin: "12px 0", padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", gap: 8 }}>
+              <FileText size={15} color={C.primary} /> Orçamentos desta OS
+              <span style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>· {osOrcamentos.length}</span>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead><tr>{["Nº", "Status", "Emissão", "Validade", "Vendedor", "Total"].map((h, i) => <th key={i} style={th(i === 5)}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {osOrcamentos.map((o) => (
+                    <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <td style={{ ...td(), fontFamily: mono, fontWeight: 700, color: C.primary }}>{o.numero}</td>
+                      <td style={td()}>{o.status}</td>
+                      <td style={td()}>{o.data_emissao ? new Date(o.data_emissao).toLocaleDateString("pt-BR") : "—"}</td>
+                      <td style={td()}>{o.data_validade ? new Date(o.data_validade + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                      <td style={td()}>{o.vendedor || "—"}</td>
+                      <td style={{ ...td(true), fontFamily: mono }}>{fmtBRL(o.valor_total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, margin: "12px 0" }}>

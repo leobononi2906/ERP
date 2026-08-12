@@ -10,6 +10,7 @@ import {
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
 } from "../ui";
 import { useEmpresaAtiva, getEmpresaAtiva } from "../empresa";
+import { consumirCtx } from "../nav";
 
 
 const STATUS_BADGE = {
@@ -48,6 +49,7 @@ export default function Orcamentos({ usuario }) {
   /* ─── state: dados ─────────────────────────────────────────── */
   const [loading, setLoading] = useState(true);
   const [lista, setLista] = useState([]);
+  const [osVinc, setOsVinc] = useState(null);   // OS vinculada ao orçamento em edição {id, numero}
   const [clientes, setClientes] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [servicos, setServicos] = useState([]);
@@ -104,20 +106,38 @@ export default function Orcamentos({ usuario }) {
   }
   useEffect(() => { carregar(); }, [fEmpresa]);
 
+  // Chegada "por dentro da OS": abre um novo orçamento já vinculado
+  useEffect(() => {
+    if (loading) return;
+    const ctx = consumirCtx();
+    if (ctx && ctx.id_os) novoOrcamentoDaOS(ctx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   /* ─── abrir detalhe ────────────────────────────────────────── */
   async function abrirDetalhe(orc) {
     setOrcAtual(orc); setForm({ ...orc }); setErroForm(""); setLoadDet(true); setView("edicao"); setAddItem(false);
     try {
       const d = await rpc("orcamentos_detalhe_dados", { p_id_orcamento: orc.id });
       setItens(d.itens ?? []);
+      setOsVinc(d.orcamento?.id_os ? { id: d.orcamento.id_os, numero: d.numero_os } : null);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setLoadDet(false); }
   }
 
   function novoOrcamento() {
-    setOrcAtual(null); setItens([]); setAddItem(false); setErroForm("");
-    setForm({ id: null, id_empresa: fEmpresa || "", id_cliente: "", id_vendedor: "", data_validade: "", observacao: "" });
+    setOrcAtual(null); setItens([]); setAddItem(false); setErroForm(""); setOsVinc(null);
+    setForm({ id: null, id_empresa: fEmpresa || "", id_cliente: "", id_vendedor: "", data_validade: "", observacao: "", id_os: null });
     setView("edicao");
+  }
+
+  // Abre um novo orçamento já vinculado a uma OS (iniciado "por dentro da OS")
+  function novoOrcamentoDaOS(ctx) {
+    setOrcAtual(null); setItens([]); setAddItem(false); setErroForm("");
+    setOsVinc({ id: ctx.id_os, numero: ctx.numero_os });
+    setForm({ id: null, id_empresa: String(ctx.id_empresa || fEmpresa || ""), id_cliente: "", id_vendedor: "", data_validade: "", observacao: "", id_os: ctx.id_os });
+    setView("edicao");
+    if (ctx.id_cliente) aplicarDefaultsCliente(String(ctx.id_cliente));
   }
 
   async function recarregarDetalhe(id) {
@@ -299,6 +319,7 @@ export default function Orcamentos({ usuario }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{isNew ? "Novo Orçamento" : `Orçamento ${orcAtual.numero}`}</h1>
               {!isNew && <StatusBadge status={orcAtual.status} validade={orcAtual.data_validade} />}
+              {osVinc?.id && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: C.bluePale, color: C.blueMid, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}><Wrench size={12} /> OS {osVinc.numero || osVinc.id}</span>}
             </div>
             {!isNew && (
               <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
