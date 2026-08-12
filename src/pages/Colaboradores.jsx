@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, Plus, Search, X, Trash2, Save, UserPlus } from "lucide-react";
+import { Users, Plus, Search, X, Trash2, Save, UserPlus, KeyRound } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton } from "../ui";
 
@@ -19,6 +19,9 @@ export default function Colaboradores({ usuario }) {
   const [form, setForm] = useState(null);          // objeto do colaborador em edição (null = modal fechado)
   const [deps, setDeps] = useState([]);
   const [salvando, setSalvando] = useState(false);
+  const [acesso, setAcesso] = useState(null);          // usuário vinculado (login) ou null
+  const [acessoForm, setAcessoForm] = useState({ login: "", senha: "" });
+  const [gerandoAcesso, setGerandoAcesso] = useState(false);
 
   useEffect(() => { (async () => {
     try { const d = await rpc("erp_rh_dominios", {}); setDom(d); } catch (e) { setErro(e.message); }
@@ -34,12 +37,28 @@ export default function Colaboradores({ usuario }) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const abrirNovo = () => { setForm({ ...vazio(), id_empresa: idEmpresa || (dom?.empresas?.[0]?.id ?? "") }); setDeps([]); };
+  const abrirNovo = () => { setForm({ ...vazio(), id_empresa: idEmpresa || (dom?.empresas?.[0]?.id ?? "") }); setDeps([]); setAcesso(null); setAcessoForm({ login: "", senha: "" }); };
   const abrirEdicao = async (id) => {
-    try { const r = await rpc("erp_colaborador_obter", { p_id: id }); setForm(r.colaborador); setDeps(r.dependentes || []); }
+    try {
+      const r = await rpc("erp_colaborador_obter", { p_id: id });
+      setForm(r.colaborador); setDeps(r.dependentes || []); setAcesso(r.acesso || null);
+      setAcessoForm({ login: "", senha: "" });
+    }
     catch (e) { setErro(e.message); }
   };
-  const fechar = () => { setForm(null); setDeps([]); };
+  const fechar = () => { setForm(null); setDeps([]); setAcesso(null); };
+
+  const gerarAcesso = async () => {
+    if (!form?.id) { setErro("Salve o colaborador antes de gerar o acesso."); return; }
+    setGerandoAcesso(true); setErro(null);
+    try {
+      const r = await rpc("erp_colaborador_gerar_acesso", { p: { id_colaborador: form.id, login: acessoForm.login, senha: acessoForm.senha || null } });
+      if (r?.ok) {
+        setAcesso({ id: r.id_usuario, login: r.login, ativo: true });
+        setAcessoForm({ login: "", senha: "" });
+      }
+    } catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); } finally { setGerandoAcesso(false); }
+  };
   const setF = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
   const salvar = async () => {
@@ -131,7 +150,7 @@ export default function Colaboradores({ usuario }) {
               <Campo l="Matrícula"><input value={form.matricula || ""} onChange={setF("matricula")} style={inpF} /></Campo>
               <Campo l="CPF"><input value={form.cpf || ""} onChange={setF("cpf")} style={inpF} /></Campo>
               <Campo l="PIS/NIS"><input value={form.pis_nis || ""} onChange={setF("pis_nis")} style={inpF} /></Campo>
-              <Campo l="Empresa">
+              <Campo l="Empresa (vínculo) *">
                 <select value={form.id_empresa || ""} onChange={setF("id_empresa")} style={selF}>
                   <option value="">—</option>
                   {(dom?.empresas || []).map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
@@ -154,10 +173,47 @@ export default function Colaboradores({ usuario }) {
                   {(dom?.departamentos || []).map((d) => <option key={d.id} value={d.id}>{d.descricao}</option>)}
                 </select>
               </Campo>
+              <Campo l="Centro de custo (folha)">
+                <select value={form.id_centro_custo || ""} onChange={setF("id_centro_custo")} style={selF}>
+                  <option value="">— (usa o do depto)</option>
+                  {(dom?.centros_custo || []).map((cc) => <option key={cc.id} value={cc.id}>{cc.descricao}</option>)}
+                </select>
+              </Campo>
               <Campo l="CBO"><input value={form.cbo || ""} onChange={setF("cbo")} style={inpF} /></Campo>
               <Campo l="Salário base (R$)"><input type="number" value={form.salario_base ?? ""} onChange={setF("salario_base")} style={inpF} /></Campo>
               <Campo l="Admissão"><input type="date" value={(form.data_admissao || "").slice(0, 10)} onChange={setF("data_admissao")} style={inpF} /></Campo>
               <Campo l="Jornada (h/sem)"><input type="number" value={form.jornada_horas_semana ?? 44} onChange={setF("jornada_horas_semana")} style={inpF} /></Campo>
+            </div>
+
+            {/* Acesso ao sistema (vínculo colaborador -> usuário/login) */}
+            <div style={{ marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <KeyRound size={15} color={C.primary} />
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>Acesso ao sistema</div>
+              </div>
+              {acesso ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: C.muted + "11", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}>
+                  <span>Login: <b style={{ fontFamily: mono }}>{acesso.login}</b></span>
+                  <span style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 20, background: (acesso.ativo ? C.success : C.destructive) + "22", color: acesso.ativo ? C.success : C.destructive }}>{acesso.ativo ? "ativo" : "inativo"}</span>
+                  <span style={{ fontSize: 12, color: C.textMuted }}>· gerencie perfil/grupos e senha em Administração → Usuários</span>
+                </div>
+              ) : !form.id ? (
+                <div style={{ fontSize: 12.5, color: C.textMuted }}>Salve o colaborador para poder gerar um acesso (login) vinculado.</div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                  <div>
+                    <label style={lbl}>Login</label>
+                    <input value={acessoForm.login} onChange={(e) => setAcessoForm((s) => ({ ...s, login: e.target.value }))} placeholder="ex.: joao.silva" style={{ ...inpF, minWidth: 160 }} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Senha (opcional)</label>
+                    <input value={acessoForm.senha} onChange={(e) => setAcessoForm((s) => ({ ...s, senha: e.target.value }))} placeholder="padrão: bononi123" style={{ ...inpF, minWidth: 160 }} />
+                  </div>
+                  <button onClick={gerarAcesso} disabled={gerandoAcesso || !acessoForm.login.trim()} style={{ ...btnGhost(), height: 38, opacity: (gerandoAcesso || !acessoForm.login.trim()) ? 0.6 : 1 }}>
+                    <KeyRound size={14} /> {gerandoAcesso ? "Gerando..." : "Gerar acesso"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Dependentes */}
