@@ -69,6 +69,7 @@ import EstoqueParado from "./pages/EstoqueParado";
 import EstoqueUsoInterno from "./pages/EstoqueUsoInterno";
 import CaixaLoja from "./pages/financeiro/Caixa";
 import Cobranca from "./pages/Cobranca";
+import Remessas from "./pages/Remessas";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
@@ -110,6 +111,7 @@ const MENU_GROUPS = [
       { key: "uso_interno", label: "Uso Interno", icon: PackageX, ok: true, permKey: "estoque" },
       { key: "separacao", label: "Separação", icon: PackageOpen, ok: true },
       { key: "solicitacoes", label: "Solicitações de Peça", icon: PackageOpen, ok: true, permAny: ["estoque", "os"] },
+      { key: "remessas", label: "Remessas / Retornos", icon: Undo2, ok: true, permKey: "estoque" },
     ],
   },
   {
@@ -323,6 +325,7 @@ export default function App() {
         {pagina === "caixa_loja" && <CaixaLoja usuario={usuario} />}
         {pagina === "cobranca" && <Cobranca usuario={usuario} />}
         {pagina === "separacao" && <Separacao usuario={usuario} />}
+        {pagina === "remessas" && <Remessas usuario={usuario} />}
         {pagina === "financeiro" && <Financeiro usuario={usuario} />}
         {pagina === "servicos" && <Servicos usuario={usuario} />}
         {pagina === "precos_especiais" && <PrecosEspeciais usuario={usuario} />}
@@ -342,7 +345,7 @@ export default function App() {
         {pagina === "verbas" && <VerbasTrabalhistas usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "config_fiscal", "fiscal", "folha_sim", "colaboradores", "folha", "verbas"].includes(pagina) && (
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "remessas", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "config_fiscal", "fiscal", "folha_sim", "colaboradores", "folha", "verbas"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
