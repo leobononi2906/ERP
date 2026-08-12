@@ -277,9 +277,13 @@ demonstrativo (base, INSS, IRRF com detalhe do redutor, FGTS, líquido) + tabela
 - **Front** `Colaboradores.jsx` (menu **RH / Pessoal → Colaboradores**): lista com filtro empresa/busca + modal de cadastro com dependentes inline.
 - **Testado**: João (CLT→cat 101, 1 dependente) e Maria (Aprendiz→cat **103** automático, FGTS 2%). Dados fictícios em homologação (limpar no go-live).
 
-### 10.6 Próximos passos
-1. **Encargos patronais por regime** (CPP 20% / RAT×FAP / Terceiros; Simples anexo IV) — precisa CNAE/FPAS/RAT/FAP por CNPJ.
-2. **Férias / 13º / rescisão** (verbas por tipo de desligamento) — usar `tipo_desligamento` já no cadastro.
-3. **Rodar a folha do colaborador cadastrado** (hoje o simulador é avulso; ligar `erp_folha_calcular` ao `rh_colaborador` + dependentes → holerite/competência).
-4. **Geração eSocial / DCTFWeb / EFD-Reinf / FGTS Digital** (camada de arquivo).
-5. **Migração** dos ~147 funcionários do Firebird (deduplicar por CPF; salário/demissão nulos → recoletar).
+### 10.6 Folha real, encargos, verbas e eSocial — FEITO 11/08
+- **Folha por competência**: `rh_folha` (cabeçalho) + `rh_holerite` + `rh_holerite_item`. `fn_folha_gerar`/`erp_folha_gerar` percorre colaboradores CLT ativos, aplica o motor com dependentes, persiste holerite/itens; `erp_folha_obter`, `erp_holerite_detalhe`. Front `Folha.jsx` (menu RH → Folha de Pagamento): KPIs + holerites + detalhe.
+- **Encargos patronais por regime**: params na empresa (cnae/fpas/rat_aliquota/fap/terceiros_aliquota/anexo_simples/desoneracao_folha); `fn_folha_encargos` (Simples I–III/V: CPP no DAS; Anexo IV e Real/Presumido: CPP 20% + RAT×FAP + Terceiros). Config na tela **Config. Fiscal** (`erp_empresa_encargo_salvar`).
+- **Rescisão / Férias / 13º**: `fn_rescisao_calcular` (verbas por tipo de desligamento, aviso 30+3/ano máx 90, multa FGTS 40/20/0), `fn_ferias_calcular` (dias+1/3, abono indenizado), `fn_decimo_terceiro_calcular` (avos, INSS/IRRF isolados). Front `VerbasTrabalhistas.jsx` (3 abas).
+- **Guias & eSocial**: `erp_encargos_guias` (FGTS Digital venc. dia 20, DCTFWeb previdenciário, eSocial prazo dia 15) + `erp_esocial_s1200_lote` (payload JSON por colaborador, pronto p/ o integrador serializar em XML). Card + download na tela Folha.
+
+### 10.7 Caveats / próximos
+- Cálculos de **rescisão/férias** são estimativas (FGTS estimado se saldo não informado; médias de variáveis e férias vencidas não automáticas) — **validar com contador**. Redutor IRRF 5k–7,35k ainda é interpolação (10.4).
+- **eSocial é payload JSON**, não o XML assinado — falta o integrador (serialização XML + assinatura + envio), análogo à transmissão SEFAZ da NF-e.
+- Falta: PLR, SST (S-2210/2220/2240), ponto/jornada, banco de horas, EFD-Reinf/DCTFWeb como arquivo, e **migração dos ~147 do Firebird** (dedup por CPF).

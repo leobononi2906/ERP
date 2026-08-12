@@ -44,6 +44,21 @@ export default function ConfigFiscal({ usuario }) {
     finally { setSavingEmp(null); }
   }
 
+  async function salvarEncargo(e) {
+    setSavingEmp("enc" + e.id);
+    try {
+      await rpc("erp_empresa_encargo_salvar", { p: {
+        id: e.id, cnae: e.cnae || null, fpas: e.fpas || null,
+        rat_aliquota: e.rat_aliquota ?? null, fap: e.fap ?? 1.0,
+        terceiros_aliquota: e.terceiros_aliquota ?? null, anexo_simples: e.anexo_simples ?? null,
+        desoneracao_folha: !!e.desoneracao_folha,
+      }});
+      notificar(`Encargos de ${e.nome_fantasia || "empresa"} salvos.`);
+      await carregar();
+    } catch (err) { notificar("Erro: " + err.message, "erro"); }
+    finally { setSavingEmp(null); }
+  }
+
   // toggle monofásico direto na linha (grava na hora)
   async function toggleMonofasico(g) {
     try {
@@ -104,6 +119,35 @@ export default function ConfigFiscal({ usuario }) {
                       <td style={{ ...td(), textAlign: "right" }}>
                         <button onClick={() => salvarEmpresa(e)} disabled={savingEmp === e.id} style={{ ...btnPrimary(), padding: "6px 12px", opacity: savingEmp === e.id ? 0.6 : 1 }}><Save size={14} /> {savingEmp === e.id ? "..." : "Salvar"}</button>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ─── Encargos patronais (RH) por empresa ─── */}
+          <div style={{ ...cardStyle(), marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <Landmark size={16} style={{ color: C.primary }} />
+              <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Encargos patronais (folha) por empresa</h2>
+            </div>
+            <p style={{ fontSize: 12.5, color: C.muted, margin: "0 0 14px" }}>Define CPP/RAT×FAP/Terceiros da folha. Simples anexos I–III/V: CPP no DAS (deixe anexo ≠ 4). Anexo IV e Presumido/Real recolhem por fora.</p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 860 }}>
+                <thead><tr>{["Empresa", "CNAE", "FPAS", "RAT %", "FAP", "Terceiros %", "Anexo Simples", "Desonerada", ""].map((h, i) => <th key={i} style={th(i >= 3 && i <= 6)}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {empresas.map((e) => (
+                    <tr key={e.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <td style={{ ...td(), fontWeight: 500 }}>{e.nome_fantasia || `Empresa ${e.id}`}</td>
+                      <td style={td()}><input value={e.cnae || ""} onChange={(ev) => setEmp(e.id, "cnae", ev.target.value)} style={{ ...inp(), width: 90, fontFamily: mono }} /></td>
+                      <td style={td()}><input value={e.fpas || ""} onChange={(ev) => setEmp(e.id, "fpas", ev.target.value)} style={{ ...inp(), width: 60, fontFamily: mono }} /></td>
+                      <td style={{ ...td(), textAlign: "right" }}><input type="number" step="0.01" value={e.rat_aliquota ?? ""} onChange={(ev) => setEmp(e.id, "rat_aliquota", ev.target.value)} style={{ ...inp(), width: 64, fontFamily: mono, textAlign: "right" }} /></td>
+                      <td style={{ ...td(), textAlign: "right" }}><input type="number" step="0.0001" value={e.fap ?? 1} onChange={(ev) => setEmp(e.id, "fap", ev.target.value)} style={{ ...inp(), width: 70, fontFamily: mono, textAlign: "right" }} /></td>
+                      <td style={{ ...td(), textAlign: "right" }}><input type="number" step="0.01" value={e.terceiros_aliquota ?? ""} onChange={(ev) => setEmp(e.id, "terceiros_aliquota", ev.target.value)} style={{ ...inp(), width: 64, fontFamily: mono, textAlign: "right" }} /></td>
+                      <td style={{ ...td(), textAlign: "center" }}><input type="number" value={e.anexo_simples ?? ""} onChange={(ev) => setEmp(e.id, "anexo_simples", ev.target.value)} placeholder="—" style={{ ...inp(), width: 54, fontFamily: mono, textAlign: "center" }} /></td>
+                      <td style={{ ...td(), textAlign: "center" }}><input type="checkbox" checked={!!e.desoneracao_folha} onChange={(ev) => setEmp(e.id, "desoneracao_folha", ev.target.checked)} /></td>
+                      <td style={{ ...td(), textAlign: "right" }}><button onClick={() => salvarEncargo(e)} disabled={savingEmp === "enc" + e.id} style={{ ...btnPrimary(), padding: "6px 12px", opacity: savingEmp === "enc" + e.id ? 0.6 : 1 }}><Save size={14} /> {savingEmp === "enc" + e.id ? "..." : "Salvar"}</button></td>
                     </tr>
                   ))}
                 </tbody>
