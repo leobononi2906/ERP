@@ -805,26 +805,26 @@ export default function Vendas({ usuario }) {
                 ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
-                      <th style={{ ...th, width: 50 }}>#</th>
-                      <th style={th}>Vencimento</th>
-                      <th style={{ ...th, textAlign: "right" }}>Valor</th>
+                      <th style={{ ...th(),width: 50 }}>#</th>
+                      <th style={th()}>Vencimento</th>
+                      <th style={{ ...th(),textAlign: "right" }}>Valor</th>
                     </tr></thead>
                     <tbody>
                       {fatParcelas.map((p, i) => (
                         <tr key={i}>
-                          <td style={td}>{p.numero}</td>
-                          <td style={td}>
+                          <td style={td()}>{p.numero}</td>
+                          <td style={td()}>
                             <input type="date" value={p.vencimento || ""} onChange={(e) => setParcela(i, "vencimento", e.target.value)} style={{ ...inp(true), padding: "5px 8px" }} />
                           </td>
-                          <td style={{ ...td, textAlign: "right" }}>
+                          <td style={{ ...td(),textAlign: "right" }}>
                             <input type="number" step="0.01" value={p.valor} onChange={(e) => setParcela(i, "valor", e.target.value)} style={{ ...inp(true), padding: "5px 8px", textAlign: "right", width: 120 }} />
                           </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot><tr>
-                      <td style={{ ...td, fontWeight: 700 }} colSpan={2}>Total das parcelas</td>
-                      <td style={{ ...td, textAlign: "right", fontWeight: 700, color: parcelasBatem ? C.success : C.destructive }}>{fmtBRL(totalParcelas)}</td>
+                      <td style={{ ...td(),fontWeight: 700 }} colSpan={2}>Total das parcelas</td>
+                      <td style={{ ...td(),textAlign: "right", fontWeight: 700, color: parcelasBatem ? C.success : C.destructive }}>{fmtBRL(totalParcelas)}</td>
                     </tr></tfoot>
                   </table>
                 )}
@@ -841,8 +841,8 @@ export default function Vendas({ usuario }) {
                     <tbody>
                       {fatPreview.rateio.map((r, i) => (
                         <tr key={i}>
-                          <td style={td}>{r.descricao || r.tipo_linha}</td>
-                          <td style={{ ...td, textAlign: "right", fontFamily: mono }}>{fmtBRL(num(r.valor))}</td>
+                          <td style={td()}>{r.descricao || r.tipo_linha}</td>
+                          <td style={{ ...td(),textAlign: "right", fontFamily: mono }}>{fmtBRL(num(r.valor))}</td>
                         </tr>
                       ))}
                     </tbody>
