@@ -52,7 +52,7 @@ export default function Colaboradores({ usuario }) {
     if (!form?.id) { setErro("Salve o colaborador antes de gerar o acesso."); return; }
     setGerandoAcesso(true); setErro(null);
     try {
-      const r = await rpc("erp_colaborador_gerar_acesso", { p: { id_colaborador: form.id, login: acessoForm.login, senha: acessoForm.senha || null } });
+      const r = await rpc("erp_colaborador_gerar_acesso", { p: { id_colaborador: form.id, login: acessoForm.login, senha: acessoForm.senha || null, _ator: usuario.id } });
       if (r?.ok) {
         setAcesso({ id: r.id_usuario, login: r.login, ativo: true });
         setAcessoForm({ login: "", senha: "" });
@@ -64,7 +64,7 @@ export default function Colaboradores({ usuario }) {
   const salvar = async () => {
     setSalvando(true); setErro(null);
     try {
-      const salvo = await rpc("erp_colaborador_salvar", { p: form });
+      const salvo = await rpc("erp_colaborador_salvar", { p: { ...form, _ator: usuario.id } });
       // dependentes novos (sem id) são vinculados ao colaborador salvo
       for (const d of deps.filter((x) => !x.id && x._novo)) {
         await rpc("erp_dependente_salvar", { p: { ...d, id_colaborador: salvo.id } });
