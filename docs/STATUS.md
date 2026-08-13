@@ -3,7 +3,8 @@
 > Documento de contexto para **iniciar uma nova conversa** já orientado. Resume o que
 > está pronto, o que falta, as regras de negócio e as armadilhas conhecidas.
 >
-> **▶ Última sessão (11/08/2026):** segurança (Furo #1 e #2-camada1), autorização remota por notificação (sino), cotação de compra + produto×fornecedor. **Próximo passo e detalhes em [`docs/HANDOFF_2026-08-11.md`](HANDOFF_2026-08-11.md).**
+> **▶ Última sessão (12/08/2026):** tabela de preço segue o cliente + validade automática; distribuição c/ horário de lançamento; fix menu RH; **colaborador = mestre da pessoa** (login/CC/empresa na folha); vários orçamentos → mesma OS; **módulo Remessa/Retorno**; guard de permissão nas RPCs novas. **Detalhes, estado da segurança e plano do guard em [`docs/HANDOFF_2026-08-12.md`](HANDOFF_2026-08-12.md).**
+> **▶ Sessão anterior (11/08/2026):** segurança (Furo #1 e #2-camada1), autorização remota (sino), cotação + produto×fornecedor — [`docs/HANDOFF_2026-08-11.md`](HANDOFF_2026-08-11.md).
 
 ## Repositórios e infra (não confundir)
 - **Front do ERP (o app de verdade):** `leobononi2906/ERP` — React + Vite (inline styles + objeto `C` do `config.js`, **não** Tailwind). Páginas em `src/pages/*.jsx`, menu/rotas em `src/App.jsx`, UI em `src/ui.jsx`, componentes reutilizáveis em `src/Hub.jsx` e `src/drawers.jsx`, migrations em `supabase/migrations/`.
