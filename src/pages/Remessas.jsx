@@ -97,6 +97,18 @@ export default function Remessas({ usuario }) {
     } catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); } finally { setRegRet(false); }
   };
 
+  const encerrar = async () => {
+    const motivo = window.prompt("Encerrar esta remessa (baixa manual). Motivo (opcional):", "");
+    if (motivo === null) return; // cancelou
+    setErro(null);
+    try {
+      const d = await rpc("erp_remessa_encerrar", { p: { id: form.id, motivo: motivo || null, _ator: usuario.id } });
+      setForm({ ...d.remessa, data_remessa: (d.remessa.data_remessa || "").slice(0, 10), prazo_retorno: (d.remessa.prazo_retorno || "").slice(0, 10) });
+      setItens(d.itens || []); setRetornos(d.retornos || []);
+      carregar();
+    } catch (e) { setErro(e.message.replace(/^[A-Z_]+\|\s*/, "")); }
+  };
+
   const empresaNome = (id) => (dom?.empresas || []).find((e) => e.id === id)?.nome || "";
 
   /* ─────────────── detalhe/edição ─────────────── */
@@ -240,9 +252,16 @@ export default function Remessas({ usuario }) {
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button onClick={fechar} style={{ ...btnGhost(), height: 40 }}>Fechar</button>
-          {(isNew || semRetorno) && <button onClick={salvar} disabled={salvando} style={{ ...btnPrimary(), height: 40, opacity: salvando ? 0.6 : 1 }}><Save size={15} /> {salvando ? "Salvando..." : "Salvar remessa"}</button>}
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <div>
+            {!isNew && form.status !== "RETORNADA" && form.status !== "ENCERRADA" && (
+              <button onClick={encerrar} style={{ ...btnGhost(), height: 40, color: C.muted }}>Encerrar (baixa manual)</button>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={fechar} style={{ ...btnGhost(), height: 40 }}>Fechar</button>
+            {(isNew || semRetorno) && <button onClick={salvar} disabled={salvando} style={{ ...btnPrimary(), height: 40, opacity: salvando ? 0.6 : 1 }}><Save size={15} /> {salvando ? "Salvando..." : "Salvar remessa"}</button>}
+          </div>
         </div>
       </div>
     );
