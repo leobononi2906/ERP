@@ -42,6 +42,7 @@ Grava **quem/quando/de→para**. **Já logam:** produtos, clientes, serviços, *
 - Índices trigram (pg_trgm) para busca por nome quando a base crescer.
 
 ## Armadilhas conhecidas (não repetir)
+- **`th` e `td` de `ui.jsx` são FUNÇÕES** (`th(right)`, `td()`), não objetos. Usar sempre `style={td()}` / `style={{ ...td(), ... }}`. Passar `style={td}` (a função) dispara **React error #62** ("style expects a mapping, not a string") e **derruba o app inteiro** (tela branca). Foi a causa do crash ao faturar venda com parcelas/rateio (13/08). Crash de render NÃO cai em try/catch — só no `window.onerror` global (grava em `erp_logs_frontend`, ver via `erp_logs_erros`), NÃO em `log_acessos`.
 - **NUNCA** nomear estado de índice de seleção como `sel` (colide com o helper `sel()` do `ui.jsx` e quebra a tela). Usar `hi`/`linha`/`idxSel`.
 - Overload de RPC com mesmo conjunto de args → PGRST203. Ao acrescentar parâmetro, **o front sempre envia o novo param** (ex.: `os_salvar` com `p_ator`, `servico_salvar(p jsonb)`), ou renomear a antiga.
 - `clientes.codigo` é **integer** → castar `codigo::text` em ILIKE.
