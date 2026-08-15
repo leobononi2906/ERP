@@ -63,6 +63,44 @@ Três níveis, do melhor para o pior:
 
 Fontes a integrar: e-commerce, ferramenta de atendimento, planilha de metas.
 
+#### Regra de infraestrutura (decidida em 15/08/2026)
+
+> **Tudo que o sistema precisa enxergar tem que estar na nuvem.
+> O que mora só no computador do Leonardo não existe para o sistema.**
+
+O agente roda em container remoto e efêmero. Não tem — e nunca terá — acesso ao
+disco local. Não é configuração, é arquitetura.
+
+| Fonte | Onde vive | Acessível |
+|---|---|---|
+| ERP: vendas, financeiro, estoque, OS | Supabase | Sim |
+| Código do ERP | GitHub | Sim |
+| Planilhas (e-commerce, clientes, metas) | Google Drive | Sim — validado 15/08 |
+| E-mail e agenda | Gmail / Google Calendar | Sim |
+| Pasta de dados dos dashboards | PC local | **Não — pendência** |
+
+**Solução da pendência:** instalar o Google Drive para computador e mover a
+pasta de dados para dentro dele. O arquivo continua sendo aberto e salvo
+localmente como sempre; a sincronização para a nuvem é automática. Não muda o
+fluxo de trabalho — muda o endereço da pasta, uma única vez.
+
+**Estrutura padrão no Drive:**
+
+```
+Bononi — Centro de Comando/
+  01_Dados/         dados brutos dos dashboards (sincronizado do PC)
+  02_Metas/         metas por canal, vendedor e mês
+  03_Relatorios/    saída semanal do Comitê de Segunda
+  04_Ideias/        capturas de ideia (áudio/texto) do CEO
+```
+
+#### Persistência da conversa
+
+A sessão é efêmera; o repositório é permanente. Regra de trabalho:
+**toda decisão, ideia ou definição relevante levantada em conversa deve ser
+gravada em arquivo no repositório.** O que fica só no chat se perde.
+O CEO fala; o agente arquiva.
+
 ### Camada 3 — Comitê de Segunda (o ritual)
 
 Toda segunda de manhã, automático. **Uma página**, quatro blocos:
@@ -147,9 +185,21 @@ Fechar o ciclo: número → decisão → dono → cobrança → resultado.
 | Insumo | Por quê | Status |
 |---|---|---|
 | **Metas por canal/vendedor/mês** | Sem meta, número não vira decisão. É o insumo mais importante. | Pendente |
+| **Subir a pasta de dados do PC para o Drive** | Fecha o único ponto cego de infraestrutura | Pendente |
 | Plataforma de e-commerce | Definir se tem API ou se vai por arquivo | Pendente |
 | Ferramenta de atendimento | Idem | Pendente |
 | Definição de "canal" | Como separar loja / distribuição / e-commerce / serviços no ERP | Pendente |
+
+### Arquivos já localizados no Drive (15/08/2026)
+
+Relevantes para o Centro de Comando, a avaliar no piloto:
+
+- `vendas Ecomm Live.xlsx` — vendas do e-commerce
+- `Stonni_Clientes_Distribuicao_1.xlsx` — carteira da distribuição
+- `clientes_consolidado (1).xlsx`
+- `VENDEDORES ECOMMERCE`
+- `Politica Atualizada.xlsx` — política comercial
+- `CONTROLE OP GARANTIA` — controle de garantias
 
 ---
 
