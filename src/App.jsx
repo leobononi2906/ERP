@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash, Tag,
+  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash, Tag, Wallet,
 } from "lucide-react";
 import { C, setLogUsuario, rpc } from "./config";
 import { navHandoff } from "./nav";
@@ -59,6 +59,7 @@ import Devolucoes from "./pages/Devolucoes";
 import Demanda from "./pages/Demanda";
 import Cotacoes from "./pages/Cotacoes";
 import ConfigFiscal from "./pages/ConfigFiscal";
+import ConfigPagamento from "./pages/ConfigPagamento";
 import ApuracaoFiscal from "./pages/ApuracaoFiscal";
 import SimuladorFolha from "./pages/SimuladorFolha";
 import Colaboradores from "./pages/Colaboradores";
@@ -148,6 +149,7 @@ const MENU_GROUPS = [
     items: [
       { key: "admin", label: "Administração", icon: UserCog, ok: true },
       { key: "config_fiscal", label: "Config. Fiscal", icon: FileText, ok: true },
+      { key: "config_pagamento", label: "Perfis de Pagamento", icon: Wallet, ok: true },
     ],
   },
 ];
@@ -338,6 +340,7 @@ export default function App() {
         {pagina === "demanda" && <Demanda usuario={usuario} />}
         {pagina === "cotacoes" && <Cotacoes usuario={usuario} />}
         {pagina === "config_fiscal" && <ConfigFiscal usuario={usuario} />}
+        {pagina === "config_pagamento" && <ConfigPagamento usuario={usuario} />}
         {pagina === "fiscal" && <ApuracaoFiscal usuario={usuario} />}
         {pagina === "folha_sim" && <SimuladorFolha usuario={usuario} />}
         {pagina === "colaboradores" && <Colaboradores usuario={usuario} />}
