@@ -256,9 +256,9 @@ export default function Cotacoes({ usuario }) {
         <div style={{ ...cardStyle(), marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted, marginBottom: 6 }}>Adicionar produto</label>
           <BuscaServidor
-            campos={[{ key: "nome", label: "Nome" }, { key: "referencia", label: "Referência" }, { key: "codigo_barras", label: "Cód. barras" }]}
+            campos={[{ key: "codigo_nome", label: "Código + Nome" }, { key: "referencia", label: "Ref. fornecedor" }, { key: "codigo_barras", label: "Cód. barras" }]}
             buscar={(campo, termo) => rpc("erp_produtos_buscar", { p_campo: campo, p_termo: termo, p_limit: 30 })}
-            render={(p) => ({ label: p.nome, sub: [p.referencia].filter(Boolean).join(" · ") })}
+            render={(p) => ({ label: p.nome, sub: [p.codigo ? "#" + p.codigo : null, p.referencia].filter(Boolean).join(" · ") })}
             onSelect={addProduto}
             placeholder="Buscar produto (nome, ref, cód)..."
             full

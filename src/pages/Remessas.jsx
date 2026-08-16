@@ -173,9 +173,10 @@ export default function Remessas({ usuario }) {
           {semRetorno && (
             <div style={{ marginBottom: 10 }}>
               <BuscaServidor
-                campos={[{ key: "nome", label: "Nome" }, { key: "referencia", label: "Referência" }, { key: "codigo_barras", label: "Cód. barras" }]}
+                campos={[{ key: "codigo_nome", label: "Código + Nome" }, { key: "referencia", label: "Ref. fornecedor" }, { key: "codigo_barras", label: "Cód. barras" }]}
                 buscar={(campo, termo) => rpc("erp_produtos_buscar", { p_campo: campo, p_termo: termo, p_limit: 30 })}
-                render={(p) => ({ label: p.nome, sub: [p.referencia, fmtBRL(p.preco_venda)].filter(Boolean).join(" · ") })}
+                render={(p) => ({ label: p.nome, sub: [p.codigo ? "#" + p.codigo : null, p.referencia, fmtBRL(p.preco_venda)].filter(Boolean).join(" · ") })}
+                placeholder="Buscar produto (código ou nome)..."
                 onSelect={addProduto}
                 selecionadoLabel=""
                 placeholder="Adicionar produto por nome, referência ou cód. barras..."
