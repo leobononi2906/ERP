@@ -58,10 +58,29 @@ export default function Vendas({ usuario }) {
   const [vendaAtual, setVendaAtual] = useState(null);
   const [itens, setItens] = useState([]);
   const [credito, setCredito] = useState(null);
+  const [travaCredito, setTravaCredito] = useState(null);
   async function carregarCredito(idCliente, idEmpresa) {
-    if (!idCliente) { setCredito(null); return; }
+    if (!idCliente) { setCredito(null); setTravaCredito(null); return; }
     try { const r = await rpc("erp_cliente_credito", { p_id_cliente: Number(idCliente), p_id_empresa: idEmpresa ? Number(idEmpresa) : null }); setCredito(r); }
     catch { setCredito(null); }
+    try { const t = await rpc("erp_credito_abertura_check", { p_id_cliente: Number(idCliente) }); setTravaCredito(t); }
+    catch { setTravaCredito(null); }
+  }
+  const ehFinanceiro = usuario?.perfil === "ADMIN";
+  async function liberarConsultaCredito() {
+    try {
+      const r = await rpc("erp_credito_liberar_consulta", { p_id_cliente: Number(form.id_cliente), p_id_usuario: usuario.id });
+      if (r?.ok) { notificar("Cadastro atualizado — cliente liberado."); carregarCredito(form.id_cliente, form.id_empresa || fEmpresa); }
+      else notificar(r?.msg || "Não foi possível liberar.", "erro");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+  }
+  async function avisarFinanceiroCredito() {
+    try {
+      await rpc("erp_notificar", { p: { tipo: "CREDITO", titulo: "Reconsulta de crédito necessária",
+        corpo: (travaCredito?.cliente || "Cliente") + " — " + (travaCredito?.motivo || "cadastro desatualizado"),
+        papel_destino: "ADMIN", origem: "CLIENTES", id_origem: Number(form.id_cliente), link_pagina: "clientes", prioridade: 1 } });
+      notificar("Financeiro avisado — aguarde a liberação.");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
   }
   const [titulos, setTitulos] = useState([]);
   const [rateio, setRateio] = useState([]);
@@ -349,6 +368,7 @@ export default function Vendas({ usuario }) {
 
   /* ─── faturar ──────────────────────────────────────────────── */
   async function faturar(libCredito = false, aprovadorId = null) {
+    if (travaCredito?.bloqueado) { notificar("Cliente com cadastro de crédito desatualizado — o financeiro precisa liberar antes de faturar.", "erro"); return; }
     if (!fatForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
     if (fatParcelas.length > 0 && !parcelasBatem) {
       notificar(`As parcelas somam ${fmtBRL(totalParcelas)} e a venda é ${fmtBRL(totalVenda)}.`, "erro"); return;
@@ -461,6 +481,15 @@ export default function Vendas({ usuario }) {
               <span style={{ opacity: 0.85 }}>Limite {fmtBRL(credito.limite)} · Em aberto {fmtBRL(credito.devedor)}</span>
               {num(credito.saldo) > 0 && <span style={{ fontWeight: 600 }}>💰 Saldo a favor {fmtBRL(credito.saldo)}</span>}
               {num(credito.qtd_vencidos) > 0 && <span style={{ fontWeight: 700, background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: 6 }}>⚠ {credito.qtd_vencidos} vencido(s): {fmtBRL(credito.vencidos)}</span>}
+            </div>
+          )}
+          {travaCredito?.bloqueado && (
+            <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(217,48,37,0.22)", border: "1px solid rgba(255,255,255,0.35)", fontSize: 12.5 }}>
+              <div style={{ fontWeight: 800, marginBottom: 3 }}>🔒 Cadastro de crédito precisa de atualização</div>
+              <div style={{ opacity: 0.92, marginBottom: 8 }}>{travaCredito.motivo}</div>
+              {ehFinanceiro
+                ? <button onClick={liberarConsultaCredito} style={{ background: "#fff", color: C.destructive, border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Liberar consulta agora</button>
+                : <button onClick={avisarFinanceiroCredito} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.5)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Avisar financeiro</button>}
             </div>
           )}
         </div>
