@@ -29,7 +29,7 @@ function validaCNPJ(v) {
   const d1 = calc(c.slice(0, 12)); const d2 = calc(c.slice(0, 12) + d1); return d1 === +c[12] && d2 === +c[13];
 }
 const docValido = (doc, pessoa) => { const d = soDigitos(doc); if (!d) return true; return pessoa === "F" ? validaCPF(d) : validaCNPJ(d); };
-const vazio = () => ({ id: null, tipo_pessoa: "J", tipo: "CLIENTE", nome: "", nome_fantasia: "", cpf_cnpj: "", rg_ie: "", inscricao_municipal: "", email: "", telefone: "", celular: "", whatsapp: "", cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", limite_credito: "", situacao: "ATIVO", id_empresa: "", observacao: "", indicador_ie: 9, inscricao_suframa: "", iss_retido: false, email_nfe: "" });
+const vazio = () => ({ id: null, tipo_pessoa: "J", tipo: "CLIENTE", nome: "", nome_fantasia: "", cpf_cnpj: "", rg_ie: "", inscricao_municipal: "", email: "", telefone: "", celular: "", whatsapp: "", cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", limite_credito: "", id_perfil_pagamento: "", situacao: "ATIVO", id_empresa: "", observacao: "", indicador_ie: 9, inscricao_suframa: "", iss_retido: false, email_nfe: "" });
 
 export default function Clientes({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.clientes) || {};
@@ -45,10 +45,12 @@ export default function Clientes({ usuario }) {
   const [erroForm, setErroForm] = useState("");
   const [busca, setBusca] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
+  const [perfisPag, setPerfisPag] = useState([]);
 
   useEffect(() => {
     let a = true;
     rpc("clientes_dados").then((j) => { if (a && j && j.clientes) { setClientes(j.clientes); setEmpresas(j.empresas || []); setLive(true); } }).catch(() => { }).finally(() => a && setLoading(false));
+    rpc("erp_perfis_pagamento_lista").then((r) => { if (a && Array.isArray(r)) setPerfisPag(r); }).catch(() => { });
     return () => { a = false; };
   }, []);
 
@@ -93,6 +95,9 @@ export default function Clientes({ usuario }) {
     try {
       const row = await rpc("cliente_salvar", { p: { ...form, _ator: usuario.id } });
       salvo.id = row.id || form.id; aplicar(salvo);
+      if (salvo.id && form.id_perfil_pagamento) {
+        try { await rpc("erp_cliente_definir_perfil", { p_id_cliente: Number(salvo.id), p_id_perfil: Number(form.id_perfil_pagamento), p_id_usuario: usuario.id }); } catch { /* ignora */ }
+      }
       notificar(form.id ? "Cliente atualizado — registrado na auditoria." : "Cliente cadastrado.");
     } catch (e) { if (!salvo.id) salvo.id = Math.max(0, ...clientes.map((c) => c.id)) + 1; aplicar(salvo); notificar("Salvo localmente (demo — sem conexão).", "warn"); }
     finally { setSaving(false); setView("lista"); }
@@ -203,6 +208,13 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
           <Campo label="Limite de crédito (R$)">
             <input value={form.limite_credito} onChange={(e) => setF("limite_credito", e.target.value.replace(/[^\d.,]/g, ""))} disabled={!perms.aprovar} style={{ ...inp(true, !perms.aprovar), fontFamily: mono }} />
             {!perms.aprovar && <span style={{ fontSize: 11, color: C.textMuted }}>Cliente nasce sem crédito; liberação exige aprovação.</span>}
+          </Campo>
+          <Campo label="Perfil de pagamento">
+            <select value={form.id_perfil_pagamento || ""} onChange={(e) => setF("id_perfil_pagamento", e.target.value)} style={sel(true)}>
+              <option value="">— (usa o padrão) —</option>
+              {perfisPag.map((p) => <option key={p.id} value={p.id}>{p.nome}{p.padrao ? " (padrão)" : ""}</option>)}
+            </select>
+            <span style={{ fontSize: 11, color: C.textMuted }}>Define formas/condições. Perfil à vista = sem financeiro; crédito = passa pela trava de consulta.</span>
           </Campo>
           <Campo label="Situação"><select value={form.situacao} onChange={(e) => setF("situacao", e.target.value)} disabled={!fiscOk} style={sel(true, !fiscOk)}>{SITUACOES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Campo>
         </div>
