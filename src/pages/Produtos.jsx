@@ -10,7 +10,7 @@ const ORIGENS = [
   { v: 3, t: "3 - Nacional >40% import." }, { v: 4, t: "4 - Nacional (PPB)" }, { v: 5, t: "5 - Nacional <40% import." },
   { v: 6, t: "6 - Estrangeira s/ similar (direta)" }, { v: 7, t: "7 - Estrangeira s/ similar (interno)" }, { v: 8, t: "8 - Nacional >70% import." },
 ];
-const vazio = () => ({ id: null, referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, bloquear_desconto: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "", foto_url: "", localizacao: "" });
+const vazio = () => ({ id: null, codigo: "", referencia: "", nome: "", descricao: "", codigo_barras: "", ncm: "", id_grupo: "", id_marca: "", id_unidade: "", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 0, estoque_maximo: 0, situacao: "ATIVO", origem: 0, produzido: false, bloquear_desconto: false, cest: "", cfop_padrao: "", cst_csosn: "", aliquota_icms: "", foto_url: "", localizacao: "" });
 
 // Upload da foto do produto para o Storage (bucket público "produtos"); retorna a URL pública.
 async function uploadFotoProduto(file, referencia) {
@@ -346,7 +346,8 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
       </Secao>
 
       <Secao titulo="Dados do produto">
-        <Campo label="Referência"><input value={form.referencia} onChange={(e) => setF("referencia", e.target.value)} disabled={!cadOk} style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
+        <Campo label="Código"><input value={form.codigo || "— gerado ao salvar —"} readOnly disabled title="Código sequencial interno — não editável" style={{ ...inp(true, true), fontFamily: mono, color: C.textMuted }} /></Campo>
+        <Campo label="Ref. fornecedor"><input value={form.referencia} onChange={(e) => setF("referencia", e.target.value)} disabled={!cadOk} style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="Nome *" span={2}><input value={form.nome} onChange={(e) => setF("nome", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
         <Campo label="Grupo"><select value={form.id_grupo} onChange={(e) => setF("id_grupo", e.target.value)} disabled={!cadOk} style={sel(true, !cadOk)}><option value="">—</option>{grupos.map((g) => <option key={g.id} value={g.id}>{g.descricao}</option>)}</select></Campo>
         <Campo label="Marca"><select value={form.id_marca} onChange={(e) => setF("id_marca", e.target.value)} disabled={!cadOk} style={sel(true, !cadOk)}><option value="">—</option>{marcas.map((m) => <option key={m.id} value={m.id}>{m.descricao}</option>)}</select></Campo>
