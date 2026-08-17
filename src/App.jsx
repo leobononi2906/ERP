@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, Package, ShoppingCart, Wrench, DollarSign, FileText,
   Building2, LogOut, Truck, ClipboardList, Settings, UserCog, ChevronDown, ChevronRight,
-  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash, Tag, Wallet,
+  Boxes, PackageOpen, BarChart3, Undo2, TrendingUp, PackageX, Clock, Layers, Hash, Tag, Wallet, Search,
 } from "lucide-react";
-import { C, setLogUsuario, rpc } from "./config";
+import { C, mono, setLogUsuario, rpc, ATALHOS } from "./config";
 import { navHandoff } from "./nav";
 import SinoAutorizacoes from "./SinoAutorizacoes";
+import ConsultaRapida from "./ConsultaRapida";
 import { getEmpresaAtiva, setEmpresaAtiva } from "./empresa";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -176,11 +177,21 @@ export default function App() {
   const [gruposAbertos, setGruposAbertos] = useState({ comercial: true });
   const [empresas, setEmpresas] = useState([]);
   const [empAtiva, setEmpAtiva] = useState(getEmpresaAtiva());
+  const [consultaAberta, setConsultaAberta] = useState(false);
 
   useEffect(() => {
     const h = () => { if (navHandoff.pagina) setPagina(navHandoff.pagina); };
     window.addEventListener("erp-nav", h);
     return () => window.removeEventListener("erp-nav", h);
+  }, []);
+
+  // Atalho global da consulta rápida (F2): abre por cima sem fechar o que está aberto.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === ATALHOS.consultaRapida) { e.preventDefault(); setConsultaAberta((v) => !v); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   useEffect(() => {
@@ -301,8 +312,12 @@ export default function App() {
           </div>
           {!empAtiva && <span style={{ fontSize: 11.5, color: C.textMuted }}>Consultando todas — escolha uma empresa para lançar documentos nela.</span>}
           <div style={{ flex: 1 }} />
+          <button onClick={() => setConsultaAberta(true)} title="Consulta rápida (F2)" style={{ display: "flex", alignItems: "center", gap: 6, height: 38, padding: "0 12px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface2, cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.muted, marginRight: 8 }}>
+            <Search size={15} /> Consulta <kbd style={{ fontSize: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontFamily: mono }}>F2</kbd>
+          </button>
           <SinoAutorizacoes usuario={usuario} />
         </div>
+        <ConsultaRapida aberto={consultaAberta} onClose={() => setConsultaAberta(false)} usuario={usuario} />
 
         {pagina === "dashboard" && <Dashboard />}
         {pagina === "cadastros" && <CadastrosHub usuario={usuario} />}

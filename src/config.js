@@ -61,6 +61,9 @@ export const C = {
   destructive: "#D93025", destructiveBg: "#FEF0EF", sidebar: "#1A3A8F",
 };
 export const mono = "'DM Mono', ui-monospace, monospace";
+
+// Atalhos de teclado globais (tecla → ação). Consulta rápida abre por cima sem fechar o que está aberto.
+export const ATALHOS = { consultaRapida: "F2" };
 export const num = (v) => Number(String(v).replace(",", ".")) || 0;
 export const fmtBRL = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 // ATOR removido — usar usuario.id do login
