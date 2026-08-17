@@ -7,7 +7,7 @@ import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Camp
 const mascaraPlaca = (v) => (v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
 const RE_PLACA = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/; // antiga ABC1234 e Mercosul ABC1D23
 const placaValida = (v) => RE_PLACA.test(mascaraPlaca(v));
-const VAZIO = () => ({ id: null, placa: "", marca: "", modelo: "", cor: "", ano_fabricacao: "", ano_modelo: "", chassi: "", renavam: "", km_atual: "", combustivel: "", id_cliente: "", observacao: "", ativo: true });
+const VAZIO = () => ({ id: null, placa: "", marca: "", modelo: "", cor: "", id_cor: "", ano_fabricacao: "", ano_modelo: "", chassi: "", renavam: "", km_atual: "", combustivel: "", id_cliente: "", observacao: "", ativo: true });
 
 export default function Veiculos({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.veiculos) || {};
@@ -20,14 +20,20 @@ export default function Veiculos({ usuario }) {
   const [toast, setToast] = useState(null);
   const [erroForm, setErroForm] = useState("");
   const [busca, setBusca] = useState("");
+  const [marcas, setMarcas] = useState([]);
+  const [cores, setCores] = useState([]);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
+
+  const carregarDominios = () => Promise.all([rpc("erp_marcas_listar"), rpc("erp_cores_listar")])
+    .then(([m, c]) => { setMarcas(Array.isArray(m) ? m : []); setCores(Array.isArray(c) ? c : []); }).catch(() => {});
 
   useEffect(() => {
     let ok = true;
     rpc("veiculos_dados").then((d) => {
       if (ok) { setLista(d.veiculos ?? []); setClientes(d.clientes ?? []); }
     }).catch(() => {}).finally(() => ok && setLoading(false));
+    carregarDominios();
     return () => { ok = false; };
   }, []);
 
@@ -41,7 +47,7 @@ export default function Veiculos({ usuario }) {
     const payload = {
       id: form.id || null,
       placa: form.placa.toUpperCase().trim(),
-      marca: form.marca || null, modelo: form.modelo || null, cor: form.cor || null,
+      marca: form.marca || null, modelo: form.modelo || null, cor: form.cor || null, id_cor: Number(form.id_cor) || null,
       ano_fabricacao: Number(form.ano_fabricacao) || null, ano_modelo: Number(form.ano_modelo) || null,
       chassi: form.chassi || null, renavam: form.renavam || null,
       km_atual: Number(form.km_atual) || 0, combustivel: form.combustivel || null,
@@ -82,9 +88,9 @@ export default function Veiculos({ usuario }) {
           {form.placa && !placaValida(form.placa) && <span style={{ fontSize: 11, color: C.destructive }}>Formato ABC1234 ou ABC1D23</span>}
         </Campo>
         <Campo label="Renavam"><input value={form.renavam} onChange={(e) => setF("renavam", e.target.value)} style={inp(true)} /></Campo>
-        <Campo label="Marca"><input value={form.marca} onChange={(e) => setF("marca", e.target.value)} placeholder="Ex: Mercedes-Benz" style={inp(true)} /></Campo>
+        <Campo label="Marca"><DominioSelect value={form.marca} opcoes={marcas} getKey={(o) => o.descricao} onSelect={(it) => setF("marca", it ? it.descricao : "")} onNovo={async (d) => { const r = await rpc("erp_marca_salvar", { p_descricao: d, p_id: null }); await carregarDominios(); return r; }} rotulo="marca" /></Campo>
         <Campo label="Modelo"><input value={form.modelo} onChange={(e) => setF("modelo", e.target.value)} placeholder="Ex: Actros 2651" style={inp(true)} /></Campo>
-        <Campo label="Cor"><input value={form.cor} onChange={(e) => setF("cor", e.target.value)} style={inp(true)} /></Campo>
+        <Campo label="Cor"><DominioSelect value={form.id_cor} opcoes={cores} getKey={(o) => o.id} onSelect={(it) => setForm((f) => ({ ...f, id_cor: it ? it.id : "", cor: it ? it.descricao : "" }))} onNovo={async (d) => { const r = await rpc("erp_cor_salvar", { p_descricao: d, p_id: null }); await carregarDominios(); return r; }} rotulo="cor" /></Campo>
         <Campo label="Ano Fab."><input value={form.ano_fabricacao} onChange={(e) => setF("ano_fabricacao", e.target.value)} inputMode="numeric" maxLength={4} style={inp(true)} /></Campo>
         <Campo label="Ano Mod."><input value={form.ano_modelo} onChange={(e) => setF("ano_modelo", e.target.value)} inputMode="numeric" maxLength={4} style={inp(true)} /></Campo>
         <Campo label="Chassi"><input value={form.chassi} onChange={(e) => setF("chassi", e.target.value)} style={inp(true)} /></Campo>
@@ -144,5 +150,27 @@ export default function Veiculos({ usuario }) {
             </table></div>}
       </div>
     </>
+  );
+}
+
+// Dropdown de domínio (marca/cor) com "+" inline: seleciona de uma lista ou cadastra na hora (find-or-create).
+function DominioSelect({ value, opcoes, getKey, onSelect, onNovo, rotulo }) {
+  const [busy, setBusy] = useState(false);
+  async function novo() {
+    const desc = window.prompt(`Nova ${rotulo}:`, "");
+    if (!desc || !desc.trim()) return;
+    setBusy(true);
+    try { const item = await onNovo(desc.trim()); if (item && (item.id || item.descricao)) onSelect(item); }
+    catch (e) { window.alert("Erro: " + (e.message || e)); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      <select value={value ?? ""} onChange={(e) => onSelect(opcoes.find((o) => String(getKey(o)) === e.target.value) || null)} style={{ ...sel(true), flex: 1 }}>
+        <option value="">Selecione...</option>
+        {opcoes.map((o) => <option key={o.id} value={getKey(o)}>{o.descricao}</option>)}
+      </select>
+      <button type="button" onClick={novo} disabled={busy} title={`Cadastrar ${rotulo}`} style={{ ...btnGhost(), padding: "0 12px" }}><Plus size={14} /></button>
+    </div>
   );
 }
