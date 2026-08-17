@@ -78,6 +78,13 @@
 
 ---
 
+## 2026-08-18 — Separação (bug confirmar + código + regras)
+
+- ✅ **BUG confirmar RESOLVIDO** (commit ff6cd52): `SeparacaoDetalhe` não recebia a prop `usuario` → `confirmar`/`cancelar`/`entregar` estouravam com "usuario is not defined". Passei `usuario` do pai.
+- ✅ **Código sequencial na Separação**: `erp_separacao_detalhe` agora retorna `codigo`; coluna Código na tabela de itens + no picking impresso.
+- ✅ **Regras já garantidas no backend** (`erp_separacao_confirmar`): não separa MAIS que o pedido; falta a menos **exige motivo predefinido** (ERRO_LANCAMENTO / VENDA_PERDIDA) e gera venda perdida; **não aceita item não solicitado** (só processa itens da expedição). Front já tem o dropdown de motivo.
+- 🔜 **A DECIDIR/CONSTRUIR — lançamento direto na OS (só autorizado):** o Leo quer um modo em que **pessoa autorizada** lança/entrega a peça **direto na OS**, sem passar pela fila de separação. Gatear por permissão; registrar no log; ainda assim baixar estoque corretamente e não permitir item fora do que foi pedido/autorizado. Definir a UI (botão na OS aba Peças "entregar direto") e a RPC.
+
 ## 2026-08-17 (noite) — Veículo (modelo/placa) + Fotos no servidor interno
 
 - **Modelo de veículo = LIVRE** (texto). Decisão do Leo: não vira domínio. Mas planejar **buscador de placa** (API de placa → preenche marca/modelo/ano/cor automático) — "agiliza demais". Próximo acelerador do cadastro de veículo.
