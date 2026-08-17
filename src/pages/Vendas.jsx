@@ -58,6 +58,7 @@ export default function Vendas({ usuario }) {
   /* ─── detalhe ──────────────────────────────────────────────── */
   const [vendaAtual, setVendaAtual] = useState(null);
   const [itens, setItens] = useState([]);
+  const [expedicoes, setExpedicoes] = useState([]);
   const [credito, setCredito] = useState(null);
   const [travaCredito, setTravaCredito] = useState(null);
   const [novoClienteAberto, setNovoClienteAberto] = useState(false);
@@ -228,6 +229,7 @@ export default function Vendas({ usuario }) {
     const d = await rpc("vendas_detalhe_dados", { p_id_venda: id });
     setVendaAtual(d.venda); setForm((f) => ({ ...f, ...d.venda }));
     setItens(d.itens ?? []);
+    setExpedicoes(d.expedicoes ?? []);
     setTitulos(d.titulos ?? []);
     setRateio(d.rateio ?? []);
     setLista((l) => l.map((x) => x.id === d.venda.id ? d.venda : x));
@@ -347,6 +349,15 @@ export default function Vendas({ usuario }) {
       await recarregarDetalhe(vendaAtual.id);
       notificar("Item removido e estoque devolvido.");
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
+  }
+
+  function itemEmSeparacao(idItem) {
+    if (!expedicoes || expedicoes.length === 0) return false;
+    return expedicoes.some((exp) => {
+      if (!["SOLICITADA", "EM_SEPARACAO"].includes(exp.status)) return false;
+      if (!Array.isArray(exp.itens)) return false;
+      return exp.itens.some((item) => item.id_venda_item === idItem);
+    });
   }
 
   /* ─── faturar: preview de movimentação financeira ─────────────── */
@@ -767,18 +778,24 @@ export default function Vendas({ usuario }) {
                     <thead><tr>
                       {["Tipo", "Descrição", "Qtd", "Valor Unit.", perms.exportar ? "Custo" : null, "Desc %", "Total", ""].filter(Boolean).map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}
                     </tr></thead>
-                    <tbody>{itens.map((it) => (
-                      <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <tbody>{itens.map((it) => {
+                      const emSeparacao = itemEmSeparacao(it.id);
+                      return (
+                      <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: emSeparacao ? 0.8 : 1 }}>
                         <td style={td()}><Badge texto={it.tipo} cor={it.tipo === "PRODUTO" ? "ATIVO" : "ABERTA"} /></td>
-                        <td style={{ ...td(), fontWeight: 500 }}>{it.descricao}{it.referencia ? <span style={{ color: C.muted, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}</td>
+                        <td style={{ ...td(), fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                          {emSeparacao && <Lock size={13} color={C.warning} title="Em separação — só a boqueta altera" />}
+                          {it.descricao}{it.referencia ? <span style={{ color: C.muted, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}
+                        </td>
                         <td style={{ ...td(), textAlign: "right" }}>{it.quantidade}</td>
                         <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.valor_unitario)}</td>
                         {perms.exportar && <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.muted }}>{fmtBRL(it.valor_custo)}</td>}
                         <td style={{ ...td(), textAlign: "right" }}>{num(it.percentual_desconto) > 0 ? `${it.percentual_desconto}%` : "—"}</td>
                         <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(it.valor_total)}</td>
-                        <td style={td()}>{podeEditarItens && <button onClick={() => removerItem(it.id)} style={{ ...btnIcon(), color: C.destructive }} title="Remover"><Trash2 size={13} /></button>}</td>
+                        <td style={td()}>{podeEditarItens && <button onClick={() => removerItem(it.id)} disabled={emSeparacao} style={{ ...btnIcon(), color: emSeparacao ? C.muted : C.destructive, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode remover" : "Remover"}><Trash2 size={13} /></button>}</td>
                       </tr>
-                    ))}</tbody>
+                      );
+                    })}</tbody>
                   </table>}
             </div>
 

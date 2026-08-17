@@ -447,6 +447,15 @@ export default function OrdensServico({ usuario }) {
     } finally { setSaving(false); }
   }
 
+  function pecaEmSeparacao(idPeca) {
+    if (!expedicoesOs || expedicoesOs.length === 0) return false;
+    return expedicoesOs.some((exp) => {
+      if (!["SOLICITADA", "EM_SEPARACAO"].includes(exp.status)) return false;
+      if (!Array.isArray(exp.itens)) return false;
+      return exp.itens.some((item) => item.id_os_peca === idPeca);
+    });
+  }
+
   /* ─── Produção (OP dentro da OS) ─────────────────────────────── */
   const [modalProducao, setModalProducao] = useState(false);
   const [formProd, setFormProd] = useState({ id_produto: "", quantidade: 1, valor_unitario: "", id_area: "" });
@@ -1112,9 +1121,11 @@ export default function OrdensServico({ usuario }) {
                     <tbody>
                       {osPecas.map((p) => {
                         const aptAbertoProd = p.produzido ? osApontamentos.find((a) => a.id_os_peca === p.id && !a.hora_termino) : null;
+                        const emSeparacao = pecaEmSeparacao(p.id);
                         return (
-                        <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: p.consumo ? 0.85 : 1 }}>
-                          <td style={{ ...td(), fontWeight: 500 }}>
+                        <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: (p.consumo || emSeparacao) ? 0.85 : 1 }}>
+                          <td style={{ ...td(), fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                            {emSeparacao && <Lock size={13} color={C.warning} title="Em separação — só a boqueta altera" />}
                             {p.descricao}
                             {p.consumo && <span style={{ marginLeft: 8, background: C.warningBg, color: C.warning, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>CONSUMO</span>}
                             {p.produzido && <span style={{ marginLeft: 8, background: "#E8E0F8", color: "#6B3FA0", fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>PRODUÇÃO · {p.status || "PENDENTE"}</span>}
@@ -1128,16 +1139,16 @@ export default function OrdensServico({ usuario }) {
                             {p.produzido && p.status !== "CONCLUIDO" && (
                               <span style={{ display: "inline-flex", gap: 6 }}>
                                 {aptAbertoProd ? (
-                                  <button onClick={() => finalizarApontamento(aptAbertoProd)} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30` }} title="Finalizar apontamento">
+                                  <button onClick={() => finalizarApontamento(aptAbertoProd)} disabled={emSeparacao} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30`, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode finalizar" : "Finalizar apontamento"}>
                                     <Square size={14} />
                                   </button>
                                 ) : (
-                                  <button onClick={() => iniciarApontamentoProducao(p.id)} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${C.success}30` }} title="Iniciar apontamento">
+                                  <button onClick={() => iniciarApontamentoProducao(p.id)} disabled={emSeparacao} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${C.success}30`, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode iniciar" : "Iniciar apontamento"}>
                                     <Play size={14} />
                                   </button>
                                 )}
                                 {perms.aprovar && (
-                                  <button onClick={() => concluirProducao(p.id)} style={{ ...btnIcon(), color: C.primary, borderColor: C.primary }} title="Concluir produção">
+                                  <button onClick={() => concluirProducao(p.id)} disabled={emSeparacao} style={{ ...btnIcon(), color: emSeparacao ? C.muted : C.primary, borderColor: emSeparacao ? C.muted : C.primary, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode concluir" : "Concluir produção"}>
                                     <CheckCircle2 size={14} />
                                   </button>
                                 )}
