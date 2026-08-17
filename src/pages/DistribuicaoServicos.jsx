@@ -41,6 +41,8 @@ export default function DistribuicaoServicos({ usuario }) {
   const [saving, setSaving] = useState(null); // id do servico sendo salvo
   const [pararSvc, setPararSvc] = useState(null); // servico sendo marcado como PARADO
   const [motivoParar, setMotivoParar] = useState("");
+  const [cancelarSvc, setCancelarSvc] = useState(null); // serviço sendo cancelado
+  const [motivoCancelar, setMotivoCancelar] = useState("");
   const [toast, setToast] = useState(null);
   const timerRef = useRef(null);
 
@@ -103,6 +105,11 @@ export default function DistribuicaoServicos({ usuario }) {
     mudarStatus(pararSvc, "PARADO", motivoParar.trim());
   }
 
+  function confirmarCancelar() {
+    if (!motivoCancelar.trim()) { notificar("Informe o motivo do cancelamento.", "erro"); return; }
+    mudarStatus(cancelarSvc, "CANCELADO", motivoCancelar.trim());
+  }
+
   async function distribuirDefeito(d, idArea, idTecnico) {
     if (!idArea) { notificar("Selecione a área.", "erro"); return; }
     setSaving("D" + d.id);
@@ -134,6 +141,8 @@ export default function DistribuicaoServicos({ usuario }) {
 
   const pendentes = filtrados.filter(s => s.status === "PENDENTE").length;
   const emExecucao = filtrados.filter(s => s.status === "EM_EXECUCAO").length;
+  const parados = filtrados.filter(s => s.status === "PARADO").length;
+  const servicosParados = filtrados.filter(s => s.status === "PARADO");
 
   // Seletor de técnico por serviço
   const [tecSel, setTecSel] = useState({});
@@ -153,7 +162,7 @@ export default function DistribuicaoServicos({ usuario }) {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Distribuicao de Servicos</h1>
           <p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>
-            {pendentes} pendentes · {emExecucao} em execucao · atualiza a cada 30s
+            {pendentes} pendentes · {emExecucao} em execucao {parados > 0 && `· ${parados} parados`} · atualiza a cada 30s
           </p>
         </div>
         <button onClick={() => { setLoading(true); carregar(); }} style={btnGhost()}>
@@ -252,6 +261,44 @@ export default function DistribuicaoServicos({ usuario }) {
         </div>
       )}
 
+      {/* Serviços Parados */}
+      {servicosParados.length > 0 && (
+        <div style={{ ...cardStyle(), padding: 0, overflow: "hidden", marginBottom: 16, borderLeft: `4px solid ${C.destructive}` }}>
+          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: `rgba(${C.destructive === '#EF4444' ? '239,68,68' : '255,0,0'}, 0.02)` }}>
+            <Pause size={16} color={C.destructive} /> Serviços Parados
+            <span style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>· retome a execução ou cancele o serviço</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 750 }}>
+              <thead><tr>{["OS", "Cliente", "Serviço", "Motivo", "Técnico", "Ação"].map((h, i) => <th key={i} style={th()}>{h}</th>)}</tr></thead>
+              <tbody>
+                {servicosParados.map(s => (
+                  <tr key={(s.origem || "S") + s.id} style={{ borderBottom: `1px solid ${C.border}`, background: "rgba(239,68,68,0.03)" }}>
+                    <td style={td()}>
+                      <span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{s.numero_os}</span>
+                    </td>
+                    <td style={{ ...td(), fontWeight: 500, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.cliente}</td>
+                    <td style={{ ...td(), maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{s.descricao}</td>
+                    <td style={{ ...td(), maxWidth: 220, color: C.destructive, fontSize: 12, fontWeight: 500 }}>
+                      {s.motivo_parado || "—"}
+                    </td>
+                    <td style={{ ...td(), color: s.id_tecnico ? C.foreground : C.muted }}>{s.tecnico_nome || "—"}</td>
+                    <td style={td()}>
+                      {perms.aprovar && (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => mudarStatus(s, "EM_ANDAMENTO", null)} disabled={saving === (s.origem + s.id)} style={{ ...btnPrimary(), padding: "6px 12px", fontSize: 12, opacity: saving === (s.origem + s.id) ? 0.6 : 1 }}><Play size={13} /> Retomar</button>
+                          <button onClick={() => { setCancelarSvc(s); setMotivoCancelar(""); }} disabled={saving === (s.origem + s.id)} style={{ ...btnGhost(), padding: "6px 12px", fontSize: 12, color: C.destructive, borderColor: C.destructive }}><X size={13} /> Cancelar</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Tabela */}
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
         {loading ? (
@@ -307,6 +354,9 @@ export default function DistribuicaoServicos({ usuario }) {
                       {s.origem !== "PRODUCAO" && s.status === "PARADO" && perms.aprovar && (
                         <button onClick={() => mudarStatus(s, "EM_ANDAMENTO", null)} disabled={saving === (s.origem + s.id)} style={{ ...btnPrimary(), padding: "6px 12px", fontSize: 12, opacity: saving === (s.origem + s.id) ? 0.6 : 1 }}><Play size={13} /> Retomar</button>
                       )}
+                      {s.origem !== "PRODUCAO" && s.status !== "CONCLUIDO" && s.status !== "CANCELADO" && perms.aprovar && (
+                        <button onClick={() => { setCancelarSvc(s); setMotivoCancelar(""); }} disabled={saving === (s.origem + s.id)} style={{ ...btnGhost(), padding: "6px 12px", fontSize: 12, color: C.destructive, borderColor: C.destructive }}><X size={13} /> Cancelar</button>
+                      )}
                       {s.origem === "PRODUCAO" && emAndamento(s.status) && (
                         <span style={{ fontSize: 11, color: C.primary, fontWeight: 600 }}>Em andamento</span>
                       )}
@@ -331,6 +381,23 @@ export default function DistribuicaoServicos({ usuario }) {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
               <button onClick={() => setPararSvc(null)} style={btnGhost()}>Cancelar</button>
               <button onClick={confirmarParar} disabled={saving === (pararSvc.origem + pararSvc.id)} style={{ ...btnPrimary(), background: C.destructive }}><Pause size={13} /> Confirmar parada</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelarSvc && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setCancelarSvc(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle(), width: 440, maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <b style={{ fontSize: 15, color: C.destructive }}>Cancelar serviço</b>
+              <button onClick={() => setCancelarSvc(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+            </div>
+            <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12 }}>{cancelarSvc.numero_os} · {cancelarSvc.descricao}. Informe o motivo do cancelamento.</div>
+            <textarea autoFocus value={motivoCancelar} onChange={(e) => setMotivoCancelar(e.target.value)} rows={3} placeholder="Ex.: cliente desistiu, obra pausada, serviço desnecessário..." style={{ ...inp(), width: "100%", height: "auto", resize: "vertical" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <button onClick={() => setCancelarSvc(null)} style={btnGhost()}>Fechar</button>
+              <button onClick={confirmarCancelar} disabled={saving === (cancelarSvc.origem + cancelarSvc.id)} style={{ ...btnPrimary(), background: C.destructive }}><X size={13} /> Cancelar serviço</button>
             </div>
           </div>
         </div>
