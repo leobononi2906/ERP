@@ -62,7 +62,9 @@ Isso também derruba parte da quarentena "sem_documento_cliente" quando o doc vi
   - `public.erp_bling_pedido_validar(payload jsonb)` → classifica: **INGERIR** (ok), **REBUSCAR** (sem itens — Bling manda antes dos itens), **QUARENTENA** (sem doc cliente / SKU não mapeado / total inválido), com motivos.
   - Tabela `public.bling_pedidos_quarentena` (id_pedido_bling, numero, acao, motivos, resolvido).
   - **Rodado nos 303:** 43 INGERIR · 205 REBUSCAR · 55 QUARENTENA → 260 barrados foram pra quarentena. **Nada zuado entra automático.**
-- **Falta (próxima peça):** o materializador (INGERIR → cria venda/título/estoque idempotente por id_pedido_bling), o job de RE-BUSCA (chama bling-proxy), cron, e a tela de quarentena.
+- **Materializador — CONSTRUÍDO E TESTADO:** `public.erp_bling_pedido_materializar(id_pedido_bling, ator)` → valida (só INGERIR), **cria o cliente** se não existe (marketplace: categoria MARKETPLACE, origem BLING, limite 0, sem prazo, ativo), cria venda à vista, lança itens (SKU→produto por `referencia`), fatura (título PAGO + receita no DRE + baixa estoque). **Idempotente** por `(origem_integracao='BLING', id_externo)`; grava proveniência em `vendas.origem_integracao/id_externo` e marca `exp_bling_pedidos_raw.importado`. Colunas novas: `vendas.origem_integracao/id_externo`, `clientes.origem_integracao/categoria`.
+  - **Rodado nos 43 INGERIR:** 43 vendas criadas, **R$54.646,07** de receita, ticket médio R$1.270,84 — todas faturadas no DRE. Idempotência confirmada (re-rodar não duplica).
+- **Falta (última peça):** job de **RE-BUSCA** (os 205 sem-itens chamam `bling-proxy` e revalidam), **cron** que roda validar+materializar periodicamente, **tela de quarentena** (revisar/resolver), e o **mapa loja/unidadeNegocio → empresa** (hoje fixo em empresa 1 no teste).
 
 ## Próximos passos (quando for construir)
 1. **Ler o `exp-sync-erp`** e o schema de `exp_bling_pedidos_raw` — ver o que já faz.
