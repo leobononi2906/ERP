@@ -948,6 +948,19 @@ export default function OrdensServico({ usuario }) {
                   </div>
                 )}
 
+                {osServicos.filter(s => s.finalizado_em).length > 0 && (
+                  <div style={{ ...cardStyle(), padding: 12, marginTop: 14, background: C.successBg, border: `2px solid ${C.success}` }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.success, marginBottom: 8 }}>✅ Finalizados aguardando precificação</div>
+                    <div style={{ fontSize: 12, color: C.foreground }}>
+                      {osServicos.filter(s => s.finalizado_em).map((sv, i) => (
+                        <div key={i} style={{ marginBottom: 4 }}>
+                          {sv.descricao} · Finalizado por {sv.finalizado_por_nome || "?"} em {new Date(sv.finalizado_em).toLocaleString("pt-BR")}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {osServicos.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "36px 0", color: C.textMuted }}>
                     <Wrench size={28} style={{ opacity: 0.3 }} />

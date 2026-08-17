@@ -331,13 +331,14 @@ export default function DistribuicaoServicos({ usuario }) {
                     <td style={td()}>
                       <Badge texto={STATUS_LABEL[s.status] || s.status} cor={STATUS_MAP[s.status]} />
                       {s.status === "PARADO" && s.motivo_parado && <div style={{ fontSize: 11, color: C.destructive, marginTop: 3, maxWidth: 160 }} title={s.motivo_parado}>⛔ {s.motivo_parado}</div>}
+                      {s.finalizado_em && <div style={{ fontSize: 11, color: C.success, marginTop: 3 }}>✅ Finalizado por {s.finalizado_por_nome || "?"}</div>}
                     </td>
                     <td style={{ ...td(), color: s.id_tecnico ? C.foreground : C.muted, fontWeight: s.id_tecnico ? 500 : 400 }}>
                       {s.tecnico_nome || "Nao atribuido"}
                     </td>
                     <td style={{ ...td(), fontFamily: mono, fontSize: 12 }}>{tempoAberto(s.data_inicio)}</td>
                     <td style={td()}>
-                      {perms.aprovar && s.status === "PENDENTE" && (
+                      {perms.aprovar && s.status === "PENDENTE" && !s.finalizado_em && (
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <select value={tecSel[(s.origem || "S") + s.id] || ""} onChange={e => setTecSel(t => ({ ...t, [(s.origem || "S") + s.id]: e.target.value }))} style={{ ...sel(), minWidth: 120, fontSize: 12 }}>
                             <option value="">Tecnico...</option>

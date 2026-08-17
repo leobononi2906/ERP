@@ -42,6 +42,8 @@ export default function Apontamento() {
   const [modal, setModal] = useState(null); // { tipo:'peca'|'consumo', id_produto, qtd, obs }
   const [produtos, setProdutos] = useState([]);
   const [soMinhaArea, setSoMinhaArea] = useState(true); // técnico vê só os defeitos da sua área/pool
+  const [selecionados, setSelecionados] = useState(new Set()); // IDs de defeitos selecionados
+  const [finalizandoMulti, setFinalizandoMulti] = useState(false);
   const timerRef = useRef(null);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
@@ -136,6 +138,20 @@ export default function Apontamento() {
       await carregarContexto();
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setAcaoLoad(null); }
+  }
+
+  async function finalizarSelecionados() {
+    if (selecionados.size === 0) { notificar("Selecione serviços.", "erro"); return; }
+    setFinalizandoMulti(true);
+    try {
+      const ids = Array.from(selecionados);
+      const r = await rpc("os_servicos_finalizar", { p_ids: ids, p_id_colaborador: sessao?.id_colaborador, p_ator: sessao?.id_colaborador });
+      if (!r?.success) { notificar(r?.erro || "Erro ao finalizar.", "erro"); return; }
+      notificar(`${r.servicos_finalizados} serviço(s) finalizado(s)`);
+      setSelecionados(new Set());
+      await carregarContexto();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setFinalizandoMulti(false); }
   }
 
   // navegação por teclado no painel de trabalho
@@ -289,6 +305,11 @@ export default function Apontamento() {
                       Só a minha área {soMinhaArea && ocultos > 0 ? `(${ocultos} oculto${ocultos > 1 ? "s" : ""})` : ""}
                     </label>
                   </div>
+                  {selecionados.size > 0 && (
+                    <button onClick={finalizarSelecionados} disabled={finalizandoMulti} style={{ ...btnPrimary(), background: C.success, padding: "14px 18px", fontSize: 15, fontWeight: 700, width: "100%" }} onMouseDown={() => resetTimer()}>
+                      <CheckCircle2 size={18} /> Finalizar {selecionados.size} serviço{selecionados.size > 1 ? "s" : ""}
+                    </button>
+                  )}
                   {defsVis.length === 0 ? (
                     <div style={{ ...cardStyle(), textAlign: "center", padding: "28px 0", color: C.textMuted }}>Nenhum defeito da sua área nesta OS.</div>
                   ) : defsVis.map((d, i) => {
@@ -308,7 +329,8 @@ export default function Apontamento() {
                           </div>
                           <div style={{ fontWeight: 600 }}>{d.descricao}</div>
                         </div>
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <input type="checkbox" checked={selecionados.has(d.id)} onChange={(e) => { const s = new Set(selecionados); if (e.target.checked) s.add(d.id); else s.delete(d.id); setSelecionados(s); }} style={{ width: 16, height: 16, cursor: "pointer" }} />
                           {!d.meu_aberto ? (
                             <button onClick={(e) => { e.stopPropagation(); acao(d, d.status === "PAUSADO" ? "RETOMAR" : "ENTRADA"); }} disabled={acaoLoad === d.id + (d.status === "PAUSADO" ? "RETOMAR" : "ENTRADA")} style={{ ...btnPrimary(), padding: "8px 14px" }}>
                               {d.status === "PAUSADO" ? <><RotateCcw size={14} /> Retomar</> : <><Play size={14} /> Entrada</>}
