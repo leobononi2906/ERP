@@ -1,6 +1,24 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite — 8 commits PUSHED)
+
+**✅ SESSÃO 18/08 COMPLETA (8 commits, todos PUSHED):**
+1. efe378d — Permissão estoque/transferências
+2. 9a546dd — Distribuição (parados + cancelamento)
+3. 0e67d5b — Follow-up histórico (OS + cliente)
+4. 3bef782 — Finalização multi-serviço (Pátio)
+5. 5d888f7 — Buscador de placa (Edge Function)
+6. 9d78171 — Não-sobreposição horários (crítico precificação)
+7. 541cc00, 60ea1b1 — Docs
+
+**🔜 PRÓXIMA LEVA (5 itens, backend 100% pronto, falta UI):**
+1. **Localização múltipla** — backend: `erp_produto_localizacoes` / `_salvar` / `_excluir`. Falta: aba em Produtos.jsx (rua/prateleira/nível/centro, marcar principal)
+2. Orçamento GANHO×PERDIDO (botão "Perder" + relatório conversão)
+3. Consulta rápida (modal F-key preço/cliente)
+4. Editor perfis/condições pagamento (tela CRUD)
+5. OP no pátio (lançar produto produção)
+
+## 🧭 ONDE PARAMOS — fila pra sessão nova (base histórica)
 
 > Leia este bloco primeiro. Contexto: o Leo testou o sistema e apontou coisas de cadastro/OS. Descobrimos que **o front dessas coisas JÁ ESTAVA construído** (Clientes/Veiculos/OrdensServico) — o que faltava era backend + o deploy estar atrás.
 
