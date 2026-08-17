@@ -1218,7 +1218,7 @@ export default function OrdensServico({ usuario }) {
                 ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
-                      {["Data", "Colaborador", "Serviço", "Início", "Término", "Horas", ""].map((h, i) => (
+                      {["Data", "Colaborador", "Serviço", "Início", "Término", "Horas"].map((h, i) => (
                         <th key={i} style={th(i === 5)}>{h}</th>
                       ))}
                     </tr></thead>
@@ -1237,17 +1237,6 @@ export default function OrdensServico({ usuario }) {
                             </td>
                             <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>
                               {emAberto ? "—" : `${apt.horas_trabalhadas}h`}
-                            </td>
-                            <td style={td()}>
-                              {emAberto ? (
-                                <button onClick={() => finalizarApontamento(apt)} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30` }} title="Finalizar">
-                                  <Square size={14} />
-                                </button>
-                              ) : (
-                                <button onClick={() => excluirApontamento(apt.id)} style={{ ...btnIcon(), color: C.muted }} title="Excluir">
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
                             </td>
                           </tr>
                         );
