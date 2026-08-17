@@ -40,3 +40,41 @@
 - Busca de produto: `erp_produtos_buscar(p_campo, p_termo, p_limit)`.
 
 **Status: tudo implementado e no ar.** Tela em `src/pages/OrdensServico.jsx` (aba "Peças" + modal "Solicitar Peça").
+
+---
+
+# Produtos de PRODUÇÃO (OP) — produto fabricado internamente
+
+> "Produtos de OP" = produto que a oficina **fabrica**, não compra. Ele tem uma **composição (BOM)**: as peças e a mão de obra que o formam. NÃO existe um módulo "Ordem de Produção" separado — a produção acontece **dentro da OS**, como um tipo de peça.
+
+## São dois passos, em dois lugares:
+
+### 1) Cadastrar o produto de produção e sua composição — em **Cadastro de Produtos**
+1. **Cadastros → Produtos** → abra/crie o produto.
+2. Marque o checkbox **"Produto produzido internamente"**.
+3. **Salve** o produto (a composição só abre depois de salvo).
+4. Na seção **"Composição de custo + Mão de obra"**, adicione:
+   - **Peças/componentes** (outros produtos que entram no fabricado) com quantidade.
+   - **Mão de obra** (serviços) que compõem o custo.
+   - O sistema calcula o **custo de composição** automaticamente (soma qtd × custo dos componentes).
+
+> É aqui que você "adiciona os produtos DE uma OP": os componentes que formam o produto fabricado.
+
+### 2) Lançar a produção numa OS — em **Ordens de Serviço → aba "Peças"**
+1. Abra a OS → aba **"Peças"** → botão **"Lançar Produção"**.
+2. Escolha o **produto produzido** (só aparece se estiver marcado "produzido" no cadastro), a **quantidade** e a **área**.
+3. A produção entra como peça com etiqueta **PRODUÇÃO · PENDENTE**.
+4. **Distribua para o técnico** (tela de Distribuição) → o técnico **aponta** (botão ▶ inicia / ■ finaliza) → **conclui** (✓, quem tem aprovação).
+
+## Regras já implementadas
+- Só lança produção de produto marcado **"produzido"** (o banco bloqueia o resto, com mensagem clara).
+- Custo do fabricado = soma da **composição** (peças + mão de obra) × quantidade.
+- Peça de produção entra travando faturamento até concluir/apontar (mesma regra da oficina).
+
+## RPCs por trás
+- `produto_composicao_listar / produto_composicao_salvar / produto_composicao_excluir` — monta o BOM (peças + serviços) no cadastro do produto.
+- `os_lancar_producao(p jsonb)` — lança a produção na OS.
+- `os_distribuir_producao(p_id_os_peca, p_id_tecnico, p_id_usuario)` — distribui para o técnico.
+- `os_producao_concluir(p_id_os_peca, p_id_usuario)` — conclui a produção.
+
+**Status: tudo implementado.** Só não há dado de composição montado ainda no ambiente de teste (tabela `produtos_composicao` vazia) — é cadastro a fazer, não funcionalidade faltando.
