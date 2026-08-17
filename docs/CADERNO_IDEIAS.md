@@ -21,6 +21,14 @@
 
 ---
 
+## 2026-08-17 (noite) — Notificações: serviço parado (FEITO) + follow-up + card parados (a construir)
+
+**✅ FEITO e testado (backend):** marcar serviço como PARADO (com motivo) → gera **notificação no sino** via `erp_notificar`. `erp_os_servico_status` cria a notificação (origem `OS_SERVICO_PARADO`, link → distribuição, prioridade 1). **"Avisa todo mundo":** `papel_destino='TODOS'` + `erp_notificacoes_listar` passou a incluir broadcast → testado: OPERADOR que não é o destinatário vê no sino. Destinatário direto = vendedor da OS (agora obrigatório). Perfis reais hoje = só OPERADOR/ADMIN (papel fino não existe ainda).
+
+**🔜 A construir (pedidos novos do Leo):**
+1. **Histórico de follow-up da OS** — timeline de eventos da OS (parada+motivo+quem+quando+origem, e depois outros). **Ancorar também no cliente** ("armazenado no cliente, indicando de onde veio a informação") → dá pra ver, pelo cliente, o histórico das interações/OS dele. Modelar tabela `os_followup` (ou reusar log) + view por cliente.
+2. **Distribuição — card "Serviços parados"** — um bloco próprio listando os parados (com motivo visível), permitindo **retomar ou CANCELAR**. E **todo serviço pode ser cancelado** (status CANCELADO já é aceito na RPC; falta o botão + confirmação + talvez motivo do cancelamento). Cancelar deve entrar no follow-up também.
+
 ## 2026-08-17 (noite) — Pátio/OS: fluxo de finalização multi-serviço + status (DESIGN, a construir)
 
 **Conceito do Leo:** "concluir MEU serviço" (o apontamento do colaborador) ≠ "serviço FINALIZADO" (a linha de serviço pronta pra precificar). Hoje o banco **conflaciona**: `os_servicos` tem 1 status (PENDENTE/EM_EXECUCAO≈EM_ANDAMENTO/PARADO/CONCLUIDO) e **1 só** `id_tecnico`; os `apontamentos` guardam o tempo por defeito. Não existe separação "minha parte pronta" vs "serviço pronto".
