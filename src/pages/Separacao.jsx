@@ -204,7 +204,7 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
       {/* Itens */}
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 760 }}>
-          <thead><tr>{["Produto", "Ref.", "Disponível", "Pedida", "Separada", "Motivo da falta", "Observação"].map((h, i) => <th key={i} style={th([2,3,4].includes(i))}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Produto", "Ref.", "Disponível", "Pedida", "Separada", "Pendente", "Motivo da falta", "Observação"].map((h, i) => <th key={i} style={th([2,3,4,5].includes(i))}>{h}</th>)}</tr></thead>
           <tbody>{itens.map((it, idx) => {
             const falta = Number(it.qtd_input) < Number(it.quantidade_pedida);
             return (
@@ -216,6 +216,9 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
                 <td style={{ ...td(), textAlign: "right" }}>
                   {editavel ? <input type="number" min="0" max={it.quantidade_pedida} value={it.qtd_input} onChange={e => setItem(idx, { qtd_input: e.target.value })} style={{ ...inp(), width: 80, textAlign: "right" }} />
                     : <span style={{ fontFamily: mono }}>{num(it.quantidade_separada)}</span>}
+                </td>
+                <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 700, color: (Number(editavel ? it.qtd_input : it.quantidade_separada) < Number(it.quantidade_pedida)) ? C.warning : C.textMuted }}>
+                  {Math.max(0, Number(it.quantidade_pedida) - Number(editavel ? (it.qtd_input || 0) : it.quantidade_separada))}
                 </td>
                 <td style={td()}>
                   {editavel && falta ? <select value={it.motivo_input} onChange={e => setItem(idx, { motivo_input: e.target.value })} style={{ ...sel(), borderColor: !it.motivo_input ? C.destructive : C.border, minWidth: 160 }}>
@@ -230,6 +233,22 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
           })}</tbody>
         </table></div>
       </div>
+
+      {/* Resumo separado x pendente (ao vivo) */}
+      {(() => {
+        const val = (it) => Number(editavel ? (it.qtd_input || 0) : it.quantidade_separada);
+        const ped = itens.reduce((s, it) => s + Number(it.quantidade_pedida || 0), 0);
+        const sep = itens.reduce((s, it) => s + val(it), 0);
+        const pend = Math.max(0, ped - sep);
+        return (
+          <div style={{ display: "flex", gap: 18, justifyContent: "flex-end", alignItems: "center", marginBottom: 12, fontSize: 13 }}>
+            <span style={{ color: C.muted }}>Pedido <b style={{ fontFamily: mono, color: C.foreground }}>{ped}</b></span>
+            <span style={{ color: C.muted }}>Separado <b style={{ fontFamily: mono, color: C.success }}>{sep}</b></span>
+            <span style={{ color: C.muted }}>Pendente <b style={{ fontFamily: mono, color: pend > 0 ? C.warning : C.textMuted }}>{pend}</b></span>
+            {pend > 0 && editavel && <span style={{ fontSize: 11.5, color: C.warning }}>⚠ {pend} item(ns) ficam pendentes de separação</span>}
+          </div>
+        );
+      })()}
 
       {/* Acoes */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
