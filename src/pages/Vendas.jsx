@@ -59,6 +59,7 @@ export default function Vendas({ usuario }) {
   const [vendaAtual, setVendaAtual] = useState(null);
   const [itens, setItens] = useState([]);
   const [expedicoes, setExpedicoes] = useState([]);
+  const [pendenciasVenda, setPendenciasVenda] = useState(null);
   const [credito, setCredito] = useState(null);
   const [travaCredito, setTravaCredito] = useState(null);
   const [novoClienteAberto, setNovoClienteAberto] = useState(false);
@@ -232,7 +233,9 @@ export default function Vendas({ usuario }) {
     setExpedicoes(d.expedicoes ?? []);
     setTitulos(d.titulos ?? []);
     setRateio(d.rateio ?? []);
+    setPendenciasVenda(null);
     setLista((l) => l.map((x) => x.id === d.venda.id ? d.venda : x));
+    rpc("erp_venda_pendencias", { p_id_venda: id }).then((p) => setPendenciasVenda(p)).catch(() => {});
   }
 
   /* ─── salvar venda (dados) ─────────────────────────────────── */
@@ -362,12 +365,22 @@ export default function Vendas({ usuario }) {
 
   /* ─── faturar: preview de movimentação financeira ─────────────── */
   async function abrirFaturar() {
-    const f = vendaAtual.id_forma_pagamento || "";
-    const c = vendaAtual.id_condicao_pagamento || "";
-    setFatForma(f); setFatCond(c);
-    setFatNsu(""); setFatBandeira(""); setFatNumTransacao("");
-    setFatOpen(true);
-    await carregarPreview(f || null, c || null);
+    try {
+      const pend = await rpc("erp_venda_pendencias", { p_id_venda: vendaAtual.id });
+      setPendenciasVenda(pend);
+      if (pend && pend.ok === false) {
+        notificar("Não é possível faturar — resolva os pendências antes.", "aviso");
+        return;
+      }
+      const f = vendaAtual.id_forma_pagamento || "";
+      const c = vendaAtual.id_condicao_pagamento || "";
+      setFatForma(f); setFatCond(c);
+      setFatNsu(""); setFatBandeira(""); setFatNumTransacao("");
+      setFatOpen(true);
+      await carregarPreview(f || null, c || null);
+    } catch (e) {
+      notificar("Erro ao validar pendências: " + e.message, "erro");
+    }
   }
 
   async function carregarPreview(forma, cond) {
@@ -551,6 +564,26 @@ export default function Vendas({ usuario }) {
           )}
         </div>
 
+        {/* Aviso de pendências para faturar */}
+        {pendenciasVenda && pendenciasVenda.ok === false && pendenciasVenda.pendencias && pendenciasVenda.pendencias.length > 0 && (
+          <div style={{ background: C.warningBg, color: C.warning, padding: "12px 16px", borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 500 }}>
+            <div style={{ marginBottom: 8 }}>⚠️ <strong>Não é possível faturar.</strong> Resolva os pendências:</div>
+            <ul style={{ margin: "0 0 0 20px", paddingLeft: 0 }}>
+              {pendenciasVenda.pendencias.map((p, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {p.tipo === "SEPARACAO" && "📦 "}
+                  <strong>{p.qtd}</strong> {p.msg}
+                  {p.tipo === "SEPARACAO" && (
+                    <button onClick={() => irPara("separacao")} style={{ marginLeft: 8, background: "none", border: "none", color: C.warning, textDecoration: "underline", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                      ir para Separação →
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* ─── Barra de ações ───────────────────────────────── */}
         {!isNew && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -560,7 +593,7 @@ export default function Vendas({ usuario }) {
             {!isCancelada && <button onClick={() => irPara("devolucoes", { origem: "VENDA", id: vendaAtual.id, numero: vendaAtual.numero })} style={btnGhost()}><Undo2 size={14} /> Devolver</button>}
             {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
-              <button onClick={abrirFaturar} style={{ ...btnPrimary(), marginLeft: "auto" }}>
+              <button onClick={abrirFaturar} disabled={pendenciasVenda && pendenciasVenda.ok === false} style={{ ...btnPrimary(), marginLeft: "auto", background: pendenciasVenda && pendenciasVenda.ok === false ? C.muted : C.primary, opacity: pendenciasVenda && pendenciasVenda.ok === false ? 0.6 : 1, cursor: pendenciasVenda && pendenciasVenda.ok === false ? "not-allowed" : "pointer" }} title={pendenciasVenda && pendenciasVenda.ok === false ? "Resolva os pendências antes de faturar" : ""}>
                 <DollarSign size={14} /> Faturar
               </button>
             )}
