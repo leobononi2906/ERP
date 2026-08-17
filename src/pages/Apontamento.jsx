@@ -44,6 +44,7 @@ export default function Apontamento() {
   const [soMinhaArea, setSoMinhaArea] = useState(true); // técnico vê só os defeitos da sua área/pool
   const [selecionados, setSelecionados] = useState(new Set()); // IDs de defeitos selecionados
   const [finalizandoMulti, setFinalizandoMulti] = useState(false);
+  const [avisoPause, setAvisoPause] = useState(null); // { defeito_pausado, defeito_novo }
   const timerRef = useRef(null);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
@@ -131,9 +132,16 @@ export default function Apontamento() {
     setAcaoLoad(def.id + tipo);
     try {
       const r = await rpc("os_patio_defeito_acao", { p_id_defeito: def.id, p_id_colaborador: sessao.id_colaborador, p_acao: tipo });
-      if (!r?.ok) { notificar(r?.erro || "Não foi possível.", "erro"); return; }
+      if (!r?.success === false) { notificar(r?.erro || "Não foi possível.", "erro"); return; }
       const nomes = { ENTRADA: "Entrada registrada", RETOMAR: "Retomado", PAUSA: "Pausado", FINALIZAR: "Defeito finalizado" };
       notificar(nomes[tipo] || "OK");
+
+      // Se auto-pausou outro serviço, mostrar aviso
+      if (r?.auto_pausou_outro) {
+        setAvisoPause({ defeito_novo: def.descricao });
+        setTimeout(() => setAvisoPause(null), 4000);
+      }
+
       resetTimer();
       await carregarContexto();
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
@@ -208,6 +216,12 @@ export default function Apontamento() {
       {toast && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999, padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500, color: "#fff", background: toast.tipo === "erro" ? C.destructive : C.success, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
           {toast.msg}
+        </div>
+      )}
+
+      {avisoPause && (
+        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 998, background: C.warning, color: "#000", padding: "12px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500, maxWidth: 320, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
+          ⏸️ Horário pausado — agora corre no "{avisoPause.defeito_novo}"
         </div>
       )}
 
