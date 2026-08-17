@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Boxes, Search, X, KeyRound, Clock } from "lucide-react";
+import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Boxes, Search, X, KeyRound, Clock, Plus } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, btnPrimary, btnGhost, Skeleton, SelectBusca } from "../ui";
 
@@ -33,6 +33,8 @@ export default function Apontamento() {
   const [entrando, setEntrando] = useState(false);
 
   const [ctx, setCtx] = useState(null); // { os, defeitos }
+  const [defModal, setDefModal] = useState(null); // { descricao } — novo defeito no pátio
+  const [salvandoDef, setSalvandoDef] = useState(false);
   const [carregandoCtx, setCarregandoCtx] = useState(false);
   const [sel, setSel] = useState(0);
   const [acaoLoad, setAcaoLoad] = useState(null);
@@ -97,6 +99,20 @@ export default function Apontamento() {
       await carregarContexto(prisma, r.id_colaborador);
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
     finally { setEntrando(false); }
+  }
+
+  async function salvarNovoDefeito() {
+    const desc = (defModal?.descricao || "").trim();
+    if (!desc) { notificar("Descreva o defeito.", "erro"); return; }
+    setSalvandoDef(true);
+    try {
+      const r = await rpc("os_defeito_salvar", { p_id_os: ctx.os.id, p_descricao: desc, p_id: null, p_id_area: null });
+      if (r && r.ok === false) { notificar(r.erro || "Falha ao salvar.", "erro"); return; }
+      notificar("Defeito adicionado — já pode apontar.");
+      setDefModal(null);
+      await carregarContexto();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSalvandoDef(false); }
   }
 
   async function acao(def, tipo) {
@@ -239,7 +255,8 @@ export default function Apontamento() {
                 <div style={{ flex: 1, minWidth: 180 }}><div style={miniLbl}>Cliente</div><div style={{ fontWeight: 600 }}>{ctx.os.cliente}</div></div>
                 <div><div style={miniLbl}>Prisma</div><div style={{ fontFamily: mono, fontWeight: 700 }}>{ctx.os.prisma}</div></div>
                 <div><div style={miniLbl}>Vendedor</div><div>{ctx.os.vendedor || "—"}</div></div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => setDefModal({ descricao: "" })} style={btnGhost()}><Plus size={14} /> Novo defeito</button>
                   <button onClick={() => abrirModal("peca")} style={btnGhost()}><PackagePlus size={14} /> Solicitar peça</button>
                   <button onClick={() => abrirModal("consumo")} style={btnGhost()}><Boxes size={14} /> Consumo</button>
                 </div>
@@ -306,6 +323,23 @@ export default function Apontamento() {
       )}
 
       {/* modal peça / consumo */}
+      {defModal && (
+        <div onMouseDown={() => resetTimer()} style={{ position: "fixed", inset: 0, background: "rgba(15,29,53,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ ...cardStyle(), width: 440, maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <b style={{ fontSize: 15 }}>Novo defeito (pedido na hora)</b>
+              <button onClick={() => setDefModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>O cliente pediu algo agora. Descreva o defeito/serviço — depois é só apontar (E).</div>
+            <textarea autoFocus value={defModal.descricao} onChange={(e) => setDefModal({ descricao: e.target.value })} onFocus={() => resetTimer()} rows={3} placeholder="Ex.: trocar lâmpada do farol direito" style={{ ...inp(), width: "100%", height: "auto", resize: "vertical" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <button onClick={() => setDefModal(null)} style={btnGhost()}>Cancelar</button>
+              <button onClick={salvarNovoDefeito} disabled={salvandoDef} style={{ ...btnPrimary(), opacity: salvandoDef ? 0.6 : 1 }}><Plus size={14} /> {salvandoDef ? "Salvando..." : "Adicionar defeito"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal && (
         <div onMouseDown={() => resetTimer()} style={{ position: "fixed", inset: 0, background: "rgba(15,29,53,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ ...cardStyle(), width: 440, maxWidth: "100%" }}>
