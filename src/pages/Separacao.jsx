@@ -58,7 +58,7 @@ export default function Separacao({ usuario }) {
   };
 
   // === DETALHE ===
-  if (detalheId) return <SeparacaoDetalhe id={detalheId} perms={perms} onVoltar={() => { setDetalheId(null); carregar(true); }} />;
+  if (detalheId) return <SeparacaoDetalhe id={detalheId} usuario={usuario} perms={perms} onVoltar={() => { setDetalheId(null); carregar(true); }} />;
 
   // === FILA ===
   return (
@@ -114,7 +114,7 @@ export default function Separacao({ usuario }) {
 // ============================================================================
 // DETALHE / VALIDACAO
 // ============================================================================
-function SeparacaoDetalhe({ id, perms, onVoltar }) {
+function SeparacaoDetalhe({ id, usuario, perms, onVoltar }) {
   const [cab, setCab] = useState(null);
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -204,12 +204,13 @@ function SeparacaoDetalhe({ id, perms, onVoltar }) {
       {/* Itens */}
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 760 }}>
-          <thead><tr>{["Produto", "Ref.", "Disponível", "Pedida", "Separada", "Pendente", "Motivo da falta", "Observação"].map((h, i) => <th key={i} style={th([2,3,4,5].includes(i))}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Produto", "Código", "Ref.", "Disponível", "Pedida", "Separada", "Pendente", "Motivo da falta", "Observação"].map((h, i) => <th key={i} style={th([3,4,5,6].includes(i))}>{h}</th>)}</tr></thead>
           <tbody>{itens.map((it, idx) => {
             const falta = Number(it.qtd_input) < Number(it.quantidade_pedida);
             return (
               <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                 <td style={{ ...td(), fontWeight: 600, maxWidth: 240 }}>{it.produto}{it.consumo && <span style={{ marginLeft: 8, background: C.warningBg, color: C.warning, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>CONSUMO</span>}</td>
+                <td style={{ ...td(), fontFamily: mono, fontSize: 12, fontWeight: 700, color: C.primary }}>{it.codigo || "—"}</td>
                 <td style={{ ...td(), fontFamily: mono, fontSize: 12 }}>{it.referencia || "—"}</td>
                 <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{num(it.estoque_disponivel)}</td>
                 <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{num(it.quantidade_pedida)}</td>
@@ -296,7 +297,7 @@ async function imprimirPicking(idExpedicao) {
     if (!data?.cabecalho) return;
     const c = data.cabecalho;
     const itens = Array.isArray(data.itens) ? data.itens : [];
-    const linhas = itens.map(i => `<tr><td style="padding:3px 0;border-bottom:1px dashed #999;font-size:11px;">${i.produto || ""}<br><span style="font-size:10px;color:#555;">Ref: ${i.referencia || "—"}</span></td><td style="padding:3px 0;border-bottom:1px dashed #999;text-align:right;font-size:14px;font-weight:bold;vertical-align:middle;">${Number(i.quantidade_pedida || 0).toLocaleString("pt-BR")}</td><td style="padding:3px 0 3px 6px;border-bottom:1px dashed #999;text-align:right;font-size:12px;vertical-align:middle;">[&nbsp;&nbsp;&nbsp;]</td></tr>`).join("");
+    const linhas = itens.map(i => `<tr><td style="padding:3px 0;border-bottom:1px dashed #999;font-size:11px;">${i.produto || ""}<br><span style="font-size:10px;color:#555;">Cód: ${i.codigo || "—"} · Ref: ${i.referencia || "—"}</span></td><td style="padding:3px 0;border-bottom:1px dashed #999;text-align:right;font-size:14px;font-weight:bold;vertical-align:middle;">${Number(i.quantidade_pedida || 0).toLocaleString("pt-BR")}</td><td style="padding:3px 0 3px 6px;border-bottom:1px dashed #999;text-align:right;font-size:12px;vertical-align:middle;">[&nbsp;&nbsp;&nbsp;]</td></tr>`).join("");
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:78mm auto;margin:2mm;}body{margin:0;font-family:Arial,sans-serif;}</style></head><body><div style="width:74mm;"><div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;"><div style="font-size:15px;font-weight:bold;">SEPARAÇÃO ${c.numero || ""}</div><div style="font-size:11px;">${c.empresa || ""}</div></div><div style="font-size:11px;padding:4px 0;"><b>Origem:</b> ${c.numero_venda ? "Venda " + c.numero_venda : c.numero_os ? "OS " + c.numero_os : "—"}<br><b>Cliente:</b> ${c.cliente || "—"}<br><b>Solicitante:</b> ${c.solicitante || "—"}<br><b>Data:</b> ${c.data_solicitacao ? new Date(c.data_solicitacao).toLocaleString("pt-BR") : "—"}</div><table style="width:100%;border-collapse:collapse;border-top:1px solid #000;"><tr><th style="text-align:left;font-size:10px;padding:3px 0;">PRODUTO</th><th style="text-align:right;font-size:10px;padding:3px 0;">QTD</th><th style="text-align:right;font-size:10px;padding:3px 0;">OK</th></tr>${linhas}</table><div style="margin-top:14px;font-size:11px;">Separador: ______________________<br><br>Conferido: ______________________</div></div></body></html>`;
     const iframe = document.createElement("iframe");
     iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
