@@ -1,5 +1,8 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
+## 💡 A ANOTAR (aguardando fotos do Leo) — Distribuição como PAINEL
+Melhorar a VISUALIZAÇÃO da tela de Distribuição de Serviços. O Leo vai mandar **fotos do quadro físico** que usam hoje na oficina — espelhar aquilo. Pode servir como **PAINEL** (ex.: TV na oficina, modo kiosk/board): colunas por área/status, cards grandes, cores, tempo aberto. **Aguardando as fotos pra desenhar — NÃO construir ainda.**
+
 ## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite+ — 19 commits PUSHED)
 
 **✅ SESSÃO 18/08 CONTINUAÇÃO — Trava de Qualidade (2 commits):**
