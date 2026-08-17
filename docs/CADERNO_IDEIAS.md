@@ -21,6 +21,11 @@
 
 ---
 
+## 2026-08-17 (noite) — Veículo (modelo/placa) + Fotos no servidor interno
+
+- **Modelo de veículo = LIVRE** (texto). Decisão do Leo: não vira domínio. Mas planejar **buscador de placa** (API de placa → preenche marca/modelo/ano/cor automático) — "agiliza demais". Próximo acelerador do cadastro de veículo.
+- **Fotos de produto no SERVIDOR INTERNO** (não Bling). ✅ base pronta: `produtos.foto_url` + tabela `produtos_imagens` + `os_produtos_dados` devolve `foto`. Plano completo em **docs/FOTOS_PRODUTO.md** (URL no banco / arquivo no servidor, nome = código imutável, servir por HTTP, fonte plugável = Storage agora → interno depois). Falta: endpoint de upload + UI no cadastro + RPCs de imagem.
+
 ## 2026-08-17 (noite) — Notificações: serviço parado (FEITO) + follow-up + card parados (a construir)
 
 **✅ FEITO e testado (backend):** marcar serviço como PARADO (com motivo) → gera **notificação no sino** via `erp_notificar`. `erp_os_servico_status` cria a notificação (origem `OS_SERVICO_PARADO`, link → distribuição, prioridade 1). **"Avisa todo mundo":** `papel_destino='TODOS'` + `erp_notificacoes_listar` passou a incluir broadcast → testado: OPERADOR que não é o destinatário vê no sino. Destinatário direto = vendedor da OS (agora obrigatório). Perfis reais hoje = só OPERADOR/ADMIN (papel fino não existe ainda).
