@@ -188,6 +188,109 @@ function EmpresasProduto({ idProduto, ator, podeEditar }) {
   );
 }
 
+// Localizações do produto: N por produto/centro (rua/prateleira/nível ou endereço livre); uma principal.
+function LocalizacoesProduto({ idProduto, podeEditar }) {
+  const [linhas, setLinhas] = useState([]);
+  const [centros, setCentros] = useState([]);
+  const [empMap, setEmpMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState(null);
+  const [nova, setNova] = useState({ id_centro_estoque: "", rua: "", prateleira: "", nivel: "", endereco_livre: "", principal: false });
+
+  const carregar = () => {
+    setLoading(true);
+    Promise.all([
+      rpc("erp_produto_localizacoes", { p_id_produto: idProduto }),
+      rpc("erp_list", { p_tabela: "centros_estoque", p_limit: 9999 }),
+      rpc("erp_list", { p_tabela: "empresas", p_limit: 9999 }),
+    ]).then(([l, c, e]) => {
+      setLinhas(Array.isArray(l) ? l : []);
+      setCentros((Array.isArray(c) ? c : []).filter((x) => x.ativo !== false));
+      setEmpMap(Object.fromEntries((Array.isArray(e) ? e : []).map((x) => [x.id, x.nome_fantasia || x.nome])));
+    }).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [idProduto]);
+
+  const centroLabel = (c) => `${c.descricao}${empMap[c.id_empresa] ? " — " + empMap[c.id_empresa] : ""}${c.gondola ? " (gôndola)" : ""}`;
+  const centroNome = (id) => { const c = centros.find((x) => String(x.id) === String(id)); return c ? centroLabel(c) : "—"; };
+
+  async function salvarLinha(l) {
+    setMsg(null);
+    try {
+      const r = await rpc("erp_produto_localizacao_salvar", { p: {
+        id: l.id || null, id_produto: idProduto, id_centro_estoque: Number(l.id_centro_estoque),
+        rua: l.rua || null, prateleira: l.prateleira || null, nivel: l.nivel || null,
+        endereco_livre: l.endereco_livre || null, principal: !!l.principal,
+      }});
+      if (r && r.ok === false) { setMsg({ t: "erro", x: r.msg || r.erro || "Falha ao salvar." }); return false; }
+      setMsg({ t: "ok", x: "Localização salva." });
+      return true;
+    } catch (e) { setMsg({ t: "erro", x: e.message }); return false; }
+  }
+  async function adicionar() {
+    if (!nova.id_centro_estoque) { setMsg({ t: "erro", x: "Selecione o centro de estoque." }); return; }
+    const ok = await salvarLinha(nova);
+    if (ok) { setNova({ id_centro_estoque: "", rua: "", prateleira: "", nivel: "", endereco_livre: "", principal: false }); carregar(); }
+  }
+  async function excluir(id) {
+    if (!window.confirm("Remover esta localização?")) return;
+    try { await rpc("erp_produto_localizacao_excluir", { p_id: id }); carregar(); }
+    catch (e) { setMsg({ t: "erro", x: e.message }); }
+  }
+  const setLinha = (i, k, v) => setLinhas((ls) => ls.map((l, idx) => (idx === i ? { ...l, [k]: v } : l)));
+
+  if (loading) return <div style={{ gridColumn: "1 / -1" }}><Skeleton h={100} /></div>;
+  return (
+    <div style={{ gridColumn: "1 / -1" }}>
+      <div style={{ fontSize: 11.5, color: C.textMuted, marginBottom: 10 }}>
+        Onde o produto fica em cada centro (rua/prateleira/nível ou endereço livre). Pode ter <b>mais de uma</b>. A marcada como <b>principal</b> é a que a separação/picking mostra primeiro.
+      </div>
+      {msg && <div style={{ fontSize: 12, color: msg.t === "erro" ? C.destructive : C.success, marginBottom: 8 }}>{msg.x}</div>}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
+          <thead><tr>{["Centro", "Rua", "Prateleira", "Nível", "Endereço livre", "Principal", ""].map((h, i) => <th key={i} style={{ ...th(false), padding: "8px 8px" }}>{h}</th>)}</tr></thead>
+          <tbody>
+            {linhas.length === 0 && <tr><td colSpan={7} style={{ padding: "16px 8px", color: C.textMuted, textAlign: "center" }}>Nenhuma localização cadastrada.</td></tr>}
+            {linhas.map((l, i) => (
+              <tr key={l.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                <td style={{ padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{l.centro || centroNome(l.id_centro_estoque)}</td>
+                <td style={{ padding: "6px 8px" }}><input value={l.rua ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "rua", e.target.value)} style={{ ...inp(true, !podeEditar), width: 90, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.prateleira ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "prateleira", e.target.value)} style={{ ...inp(true, !podeEditar), width: 90, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.nivel ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "nivel", e.target.value)} style={{ ...inp(true, !podeEditar), width: 70, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px" }}><input value={l.endereco_livre ?? ""} disabled={!podeEditar} onChange={(e) => setLinha(i, "endereco_livre", e.target.value)} style={{ ...inp(true, !podeEditar), width: 160, padding: "5px 8px" }} /></td>
+                <td style={{ padding: "6px 8px", textAlign: "center" }}><input type="checkbox" checked={!!l.principal} disabled={!podeEditar} onChange={(e) => setLinha(i, "principal", e.target.checked)} /></td>
+                <td style={{ padding: "6px 8px", whiteSpace: "nowrap", textAlign: "right" }}>
+                  {podeEditar && <>
+                    <button onClick={async () => { if (await salvarLinha(l)) carregar(); }} style={{ ...btnGhost(), padding: "4px 8px" }}><Save size={14} /></button>
+                    <button onClick={() => excluir(l.id)} style={{ ...btnGhost(), padding: "4px 8px", color: C.destructive, marginLeft: 6 }}><Trash2 size={14} /></button>
+                  </>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {podeEditar && (
+        <div style={{ marginTop: 12, padding: 12, background: C.surface2, borderRadius: 8, display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ minWidth: 220 }}>
+            <label style={lblF}>Centro de estoque</label>
+            <select value={nova.id_centro_estoque} onChange={(e) => setNova((n) => ({ ...n, id_centro_estoque: e.target.value }))} style={{ ...sel(true), minWidth: 220 }}>
+              <option value="">Selecione...</option>
+              {centros.map((c) => <option key={c.id} value={c.id}>{centroLabel(c)}</option>)}
+            </select>
+          </div>
+          <div><label style={lblF}>Rua</label><input value={nova.rua} onChange={(e) => setNova((n) => ({ ...n, rua: e.target.value }))} style={{ ...inp(true), width: 90 }} /></div>
+          <div><label style={lblF}>Prateleira</label><input value={nova.prateleira} onChange={(e) => setNova((n) => ({ ...n, prateleira: e.target.value }))} style={{ ...inp(true), width: 90 }} /></div>
+          <div><label style={lblF}>Nível</label><input value={nova.nivel} onChange={(e) => setNova((n) => ({ ...n, nivel: e.target.value }))} style={{ ...inp(true), width: 70 }} /></div>
+          <div><label style={lblF}>Endereço livre</label><input value={nova.endereco_livre} onChange={(e) => setNova((n) => ({ ...n, endereco_livre: e.target.value }))} style={{ ...inp(true), width: 160 }} /></div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, height: 40, cursor: "pointer" }}><input type="checkbox" checked={nova.principal} onChange={(e) => setNova((n) => ({ ...n, principal: e.target.checked }))} /> Principal</label>
+          <button onClick={adicionar} style={btnPrimary()}><Plus size={14} /> Adicionar</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FornecedoresProduto({ idProduto, podeEditar }) {
   const [linhas, setLinhas] = useState([]);
   const [forns, setForns] = useState([]);
@@ -410,6 +513,11 @@ function FormProduto({ form, setF, grupos, marcas, unidades, salvar, saving, vol
       {!novo && (
         <Secao titulo="Fornecedores">
           <FornecedoresProduto idProduto={form.id} podeEditar={cadOk} />
+        </Secao>
+      )}
+      {!novo && (
+        <Secao titulo="Localizações">
+          <LocalizacoesProduto idProduto={form.id} podeEditar={cadOk} />
         </Secao>
       )}
       {novo && <Aviso cor="muted"><Truck size={15} /> Salve o produto para vincular fornecedores (código, custo, prazo).</Aviso>}
