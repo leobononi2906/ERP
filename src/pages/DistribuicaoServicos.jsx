@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Users, Wrench, Clock, Search, RefreshCw, ChevronDown } from "lucide-react";
+import { Users, Wrench, Clock, Search, RefreshCw, ChevronDown, Pause, Play, X } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Badge, Skeleton } from "../ui";
 
-const STATUS_MAP = { PENDENTE: "PENDENTE", EM_EXECUCAO: "ATIVO", CONCLUIDO: "FATURADA" };
+const STATUS_MAP = { PENDENTE: "PENDENTE", EM_EXECUCAO: "ATIVO", EM_ANDAMENTO: "ATIVO", PARADO: "BLOQUEADO", CONCLUIDO: "FATURADA", CANCELADO: "CANCELADA" };
+// EM_EXECUCAO e EM_ANDAMENTO são o mesmo estado visual ("Em andamento")
+const STATUS_LABEL = { PENDENTE: "Pendente", EM_EXECUCAO: "Em andamento", EM_ANDAMENTO: "Em andamento", PARADO: "Parado", CONCLUIDO: "Concluído", CANCELADO: "Cancelado" };
+const emAndamento = (st) => st === "EM_EXECUCAO" || st === "EM_ANDAMENTO";
 
 function tempoAberto(dataInicio) {
   if (!dataInicio) return "—";
@@ -36,6 +39,8 @@ export default function DistribuicaoServicos({ usuario }) {
   const [fStatus, setFStatus] = useState("");
   const [fTecnico, setFTecnico] = useState("");
   const [saving, setSaving] = useState(null); // id do servico sendo salvo
+  const [pararSvc, setPararSvc] = useState(null); // servico sendo marcado como PARADO
+  const [motivoParar, setMotivoParar] = useState("");
   const [toast, setToast] = useState(null);
   const timerRef = useRef(null);
 
@@ -80,6 +85,22 @@ export default function DistribuicaoServicos({ usuario }) {
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(null); }
+  }
+
+  async function mudarStatus(s, status, motivo) {
+    setSaving(s.origem + s.id);
+    try {
+      const r = await rpc("erp_os_servico_status", { p_id: s.id, p_status: status, p_motivo: motivo || null, p_ator: usuario.id });
+      if (r && r.ok === false) { notificar(r.erro || r.msg || "Erro", "erro"); return; }
+      notificar(status === "PARADO" ? "Serviço marcado como parado." : "Serviço retomado.");
+      setPararSvc(null); setMotivoParar("");
+      await carregar();
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(null); }
+  }
+  function confirmarParar() {
+    if (!motivoParar.trim()) { notificar("Informe o motivo da parada.", "erro"); return; }
+    mudarStatus(pararSvc, "PARADO", motivoParar.trim());
   }
 
   async function distribuirDefeito(d, idArea, idTecnico) {
@@ -165,7 +186,9 @@ export default function DistribuicaoServicos({ usuario }) {
         <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={sel()}>
           <option value="">Todos os status</option>
           <option value="PENDENTE">Pendente</option>
-          <option value="EM_EXECUCAO">Em Execucao</option>
+          <option value="EM_EXECUCAO">Em andamento</option>
+          <option value="PARADO">Parado</option>
+          <option value="CONCLUIDO">Concluído</option>
         </select>
         <select value={fArea} onChange={e => setFArea(e.target.value)} style={sel()}>
           <option value="">Todas as areas</option>
@@ -258,7 +281,10 @@ export default function DistribuicaoServicos({ usuario }) {
                     <td style={{ ...td(), fontFamily: mono, fontSize: 11.5, color: C.muted, whiteSpace: "nowrap" }}>{fmtLancado(s.criado_em)}</td>
                     <td style={td()}>{s.area ? <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{s.area_codigo || s.area}</span> : <span style={{ color: C.textMuted }}>—</span>}</td>
                     <td style={{ ...td(), maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: s.origem === "PRODUCAO" ? 600 : 400, color: s.origem === "PRODUCAO" ? "#6B3FA0" : C.foreground }}>{s.descricao}</td>
-                    <td style={td()}><Badge texto={s.status} cor={STATUS_MAP[s.status]} /></td>
+                    <td style={td()}>
+                      <Badge texto={STATUS_LABEL[s.status] || s.status} cor={STATUS_MAP[s.status]} />
+                      {s.status === "PARADO" && s.motivo_parado && <div style={{ fontSize: 11, color: C.destructive, marginTop: 3, maxWidth: 160 }} title={s.motivo_parado}>⛔ {s.motivo_parado}</div>}
+                    </td>
                     <td style={{ ...td(), color: s.id_tecnico ? C.foreground : C.muted, fontWeight: s.id_tecnico ? 500 : 400 }}>
                       {s.tecnico_nome || "Nao atribuido"}
                     </td>
@@ -275,7 +301,13 @@ export default function DistribuicaoServicos({ usuario }) {
                           </button>
                         </div>
                       )}
-                      {s.status === "EM_EXECUCAO" && (
+                      {s.origem !== "PRODUCAO" && emAndamento(s.status) && perms.aprovar && (
+                        <button onClick={() => { setPararSvc(s); setMotivoParar(""); }} disabled={saving === (s.origem + s.id)} style={{ ...btnGhost(), padding: "6px 12px", fontSize: 12, color: C.destructive, borderColor: C.destructive }}><Pause size={13} /> Marcar parado</button>
+                      )}
+                      {s.origem !== "PRODUCAO" && s.status === "PARADO" && perms.aprovar && (
+                        <button onClick={() => mudarStatus(s, "EM_ANDAMENTO", null)} disabled={saving === (s.origem + s.id)} style={{ ...btnPrimary(), padding: "6px 12px", fontSize: 12, opacity: saving === (s.origem + s.id) ? 0.6 : 1 }}><Play size={13} /> Retomar</button>
+                      )}
+                      {s.origem === "PRODUCAO" && emAndamento(s.status) && (
                         <span style={{ fontSize: 11, color: C.primary, fontWeight: 600 }}>Em andamento</span>
                       )}
                     </td>
@@ -286,6 +318,23 @@ export default function DistribuicaoServicos({ usuario }) {
           </div>
         )}
       </div>
+
+      {pararSvc && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setPararSvc(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle(), width: 440, maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <b style={{ fontSize: 15 }}>Marcar serviço como parado</b>
+              <button onClick={() => setPararSvc(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+            </div>
+            <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12 }}>{pararSvc.numero_os} · {pararSvc.descricao}. O motivo fica visível na lista pra todos saberem por que parou.</div>
+            <textarea autoFocus value={motivoParar} onChange={(e) => setMotivoParar(e.target.value)} rows={3} placeholder="Ex.: faltou peça, aguardando aprovação do cliente..." style={{ ...inp(), width: "100%", height: "auto", resize: "vertical" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+              <button onClick={() => setPararSvc(null)} style={btnGhost()}>Cancelar</button>
+              <button onClick={confirmarParar} disabled={saving === (pararSvc.origem + pararSvc.id)} style={{ ...btnPrimary(), background: C.destructive }}><Pause size={13} /> Confirmar parada</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
