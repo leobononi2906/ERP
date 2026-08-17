@@ -178,3 +178,74 @@ export function DrawerHistorico({ tabela, registro, titulo = "Histórico", sub, 
     </div>
   );
 }
+
+/* ═══ DRAWER DE FOLLOW-UP (OS / CLIENTE) ═══ */
+export function DrawerFollowup({ tipo = "os", idRegistro, titulo, sub, onClose }) {
+  const [followup, setFollowup] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let a = true;
+    setLoading(true);
+    const rpcName = tipo === "cliente" ? "erp_cliente_followup_listar" : "erp_os_followup_listar";
+    const param = tipo === "cliente" ? { p_id_cliente: idRegistro } : { p_id_os: idRegistro };
+
+    rpc(rpcName, param)
+      .then((r) => { if (a) { setFollowup(Array.isArray(r) ? r : []); setLoading(false); } })
+      .catch(() => { if (a) { setFollowup([]); setLoading(false); } });
+    return () => { a = false; };
+  }, [idRegistro, tipo]);
+
+  const getTipoCor = (tipo) => {
+    const cores = {
+      "PARADO": { bg: "#FEE2E2", fg: "#DC2626" },
+      "RETOMADO": { bg: "#DBEAFE", fg: "#0284C7" },
+      "CANCELADO": { bg: "#FCA5A5", fg: "#7F1D1D" },
+      "FINALIZADO": { bg: "#DCFCE7", fg: "#16A34A" },
+      "EM_EXECUCAO": { bg: "#FEF08A", fg: "#A16207" },
+      "EM_ANDAMENTO": { bg: "#FEF08A", fg: "#A16207" },
+    };
+    return cores[tipo] || { bg: "#F3F4F6", fg: "#6B7280" };
+  };
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={painel} onClick={(e) => e.stopPropagation()}>
+        <Header icon={History} titulo={titulo || "Follow-up"} sub={sub} onClose={onClose} />
+
+        {loading ? (
+          <div style={{ padding: 30, textAlign: "center", color: C.textMuted }}>Carregando...</div>
+        ) : followup.length === 0 ? (
+          <div style={{ padding: 30, textAlign: "center", color: C.textMuted }}>Nenhum evento registrado.</div>
+        ) : (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+            {followup.map((item, i) => {
+              const cor = getTipoCor(item.tipo);
+              return (
+                <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, borderLeft: `4px solid ${cor.fg}` }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ background: cor.bg, color: cor.fg, padding: "4px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      {item.tipo}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {tipo === "cliente" && item.numero_os && (
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.primary, marginBottom: 2 }}>OS {item.numero_os}</div>
+                      )}
+                      {item.descricao && <div style={{ fontSize: 13, marginBottom: 4 }}>{item.descricao}</div>}
+                      {item.motivo && <div style={{ fontSize: 12, color: C.destructive, fontStyle: "italic", marginBottom: 4 }}>Motivo: {item.motivo}</div>}
+                      <div style={{ fontSize: 11, color: C.textMuted, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {item.usuario_nome && <span>{item.usuario_nome}</span>}
+                        {item.origem && <span>·  {item.origem}</span>}
+                        <span>· {fmtDT(item.criado_em)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

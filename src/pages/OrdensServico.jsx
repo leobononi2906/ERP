@@ -7,7 +7,7 @@ import {
 import { C, mono, fmtBRL, num, rpc, ATALHOS } from "../config";
 import { getEmpresaAtiva, useEmpresaAtiva } from "../empresa";
 import { NovoClienteModal, NovoVeiculoModal } from "../CadastroRapido";
-import { DrawerHistorico, DrawerEstoque } from "../drawers";
+import { DrawerHistorico, DrawerEstoque, DrawerFollowup } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor, ModalAprovacao } from "../ui";
@@ -352,6 +352,7 @@ export default function OrdensServico({ usuario }) {
   /* ─── Faturar OS ────────────────────────────────────────── */
   const [modalFaturar, setModalFaturar] = useState(false);
   const [histOs, setHistOs] = useState(false);
+  const [followupOs, setFollowupOs] = useState(false);
   const [drawerProdOs, setDrawerProdOs] = useState(null);
   const [formasPag, setFormasPag] = useState([]);
   const [condicoesPag, setCondicoesPag] = useState([]);
@@ -699,6 +700,9 @@ export default function OrdensServico({ usuario }) {
             </button>
             <button onClick={() => setHistOs(true)} style={btnGhost()}>
               <History size={14} /> Histórico
+            </button>
+            <button onClick={() => setFollowupOs(true)} style={btnGhost()}>
+              <History size={14} /> Follow-up
             </button>
             {osAtual.status !== "CANCELADA" && (osPecas || []).length > 0 && (
               <button onClick={() => irPara("devolucoes", { origem: "OS", id: osAtual.id, numero: osAtual.numero })} style={btnGhost()}>
@@ -1307,6 +1311,7 @@ export default function OrdensServico({ usuario }) {
 
         {/* ─── MODAL FATURAR OS ──────────────────────────────── */}
         {histOs && <DrawerHistorico tabela="ordens_servico" registro={osAtual.id} titulo="Histórico da OS" sub={`OS ${osAtual.numero}`} onClose={() => setHistOs(false)} />}
+        {followupOs && <DrawerFollowup tipo="os" idRegistro={osAtual.id} titulo="Follow-up da OS" sub={`OS ${osAtual.numero}`} onClose={() => setFollowupOs(false)} />}
         {drawerProdOs && <DrawerEstoque idProduto={drawerProdOs} idEmpresa={osAtual.id_empresa || null} onClose={() => setDrawerProdOs(null)} />}
 
         {modalFaturar && (

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Users, History } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
-import { DrawerHistorico } from "../drawers";
+import { DrawerHistorico, DrawerFollowup } from "../drawers";
 const TIPOS = ["CLIENTE", "FORNECEDOR", "AMBOS", "FUNCIONARIO", "TRANSPORTADORA"];
 const SITUACOES = ["ATIVO", "INATIVO", "BLOQUEADO"];
 const IND_IE = [{ v: 1, t: "Contribuinte ICMS (tem IE)" }, { v: 2, t: "Isento de IE" }, { v: 9, t: "Não contribuinte (consumidor final)" }];
@@ -156,6 +156,7 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
   const fiscOk = novo ? perms.incluir : (fisc && perms.aprovar);
   const podeSalvar = cadOk || fiscOk;
   const [hist, setHist] = useState(false);
+  const [followupCliente, setFollowupCliente] = useState(false);
   return (
     <>
       {toast && <Toast toast={toast} />}
@@ -164,10 +165,12 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
         <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{novo ? "Novo cliente" : "Editar cliente"}</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{novo ? "Preencha os dados" : form.nome}</p></div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {!novo && <button onClick={() => setHist(true)} style={btnGhost()}><History size={16} /> Histórico</button>}
+          {!novo && <button onClick={() => setFollowupCliente(true)} style={btnGhost()}><History size={16} /> Follow-up</button>}
           <button onClick={voltar} style={btnGhost()}><X size={16} /> {podeSalvar ? "Cancelar" : "Voltar"}</button>{podeSalvar && <button onClick={salvar} disabled={saving} style={btnPrimary()}><Save size={16} /> {saving ? "Salvando..." : "Salvar"}</button>}
         </div>
       </div>
       {hist && <DrawerHistorico tabela="clientes" registro={form.id} titulo="Histórico do cliente" sub={form.nome} onClose={() => setHist(false)} />}
+      {followupCliente && <DrawerFollowup tipo="cliente" idRegistro={form.id} titulo="Follow-up do cliente" sub={form.nome} onClose={() => setFollowupCliente(false)} />}
       {erro && <Aviso cor="destructive">{erro}</Aviso>}
       {!novo && !cadOk && !fiscOk && <Aviso cor="muted"><Eye size={15} /> Modo leitura. Seu grupo não tem permissão para alterar este cliente.</Aviso>}
 
