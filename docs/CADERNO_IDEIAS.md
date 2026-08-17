@@ -1,5 +1,26 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 17/08 noite)
+
+> Leia este bloco primeiro. Contexto: o Leo testou o sistema e apontou coisas de cadastro/OS. Descobrimos que **o front dessas coisas JÁ ESTAVA construído** (Clientes/Veiculos/OrdensServico) — o que faltava era backend + o deploy estar atrás.
+
+**✅ Já resolvido nesta rodada (NÃO refazer):**
+- **Marca / Cor / Formato** — tabelas `marcas`/`cores`/`formatos` + RPCs `erp_marcas_listar`/`erp_marca_salvar`, `erp_cores_listar`/`erp_cor_salvar`, `erp_formatos_listar`/`erp_formato_salvar` (+ wrappers public). Find-or-create (não duplica), rejeita vazio. **Testado.** O front do Veículo já consome (DominioSelect com "＋").
+- Confirmado que **já existe no código** (só precisa estar deployado): cliente com CEP/endereço/perfil tributário obrigatórios + ViaCEP + busca CNPJ; perfil tributário = `indicador_ie` com rótulos claros; erro de salvar com mensagem específica; **adicionar serviço na OS keyboard-first** (Enter adiciona e reabre, Esc fecha, área por código).
+
+**🔜 Próximos passos (fila):**
+1. **Confirmar/forçar o deploy do Vercel** (o `main` tem tudo; o Leo estava vendo versão antiga). Se não for automático, investigar. Depois: Leo dá hard refresh (Ctrl+Shift+R) e testa.
+2. **Permissão "gestão de estoque/transferências"** (módulo novo — backend). ⚠️ Inserir em **AMBAS** `modulos` (chave minúscula) **e** `modulos_sistema` (código MAIÚSCULO) com o mesmo id, senão o menu some; + matriz `grupos_permissoes`.
+3. **Modelo de veículo:** decidir se vira domínio (tabela `modelos` ligada à marca) — hoje é texto livre.
+
+**🟡 Esperando decisão do Leo:**
+- **"Formato"**: backend pronto (igual marca/cor), mas falta saber **onde amarra na tela e o que é** (tipo de veículo? carroceria?).
+- Editor de etiqueta (layout) vs só qtd/formato; Battogo (extinção este mês) real vs deletar; contador validar as 4 planilhas fiscais (trava o carimbar 38k produtos).
+
+**💤 Deferido (não urgente):** unificar as 2 lógicas de geração de título — sem bug ativo após os fixes da noite; é refactor, fazer com calma em branch.
+
+---
+
 ## 🔨 Aplicado 17/08 (tarde) — backend construído + testado (eu)
 - ✅ **Localização múltipla:** tabela `produtos_localizacao` + RPCs `erp_produto_localizacoes/_salvar/_excluir`. Testado (N localizações rua/prateleira/nível/centro, marca principal). Falta UI (aba no produto) → sessão ERP.
 - ✅ **Orçamento GANHO×PERDIDO:** status `PERDIDO` (add ao constraint) + `erp_orcamento_perder(id,motivo,ator)` + relatório `erp_orcamento_conversao(empresa,ini,fim)` (taxa de conversão + por vendedor). Testado (taxa 66,7%). Falta UI (botão "Perder" no orçamento + tela do relatório) → sessão ERP.
