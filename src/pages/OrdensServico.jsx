@@ -1236,14 +1236,30 @@ export default function OrdensServico({ usuario }) {
                         placeholder="Buscar produto (código ou nome)..."
                         onSelect={(p) => { setProdutos((prev) => prev.some((x) => x.id === p.id) ? prev : [...prev, p]); setFormPeca(f => ({ ...f, id_produto: String(p.id) })); }}
                         selecionadoLabel={formPeca.id_produto ? (produtos.find((x) => x.id === Number(formPeca.id_produto))?.nome || "") : ""}
-                        placeholder="Buscar produto (nome, referência ou cód. barras)..."
                         full
                       />
-                      {formPeca.id_produto && (
-                        <button type="button" onClick={() => setDrawerProdOs(Number(formPeca.id_produto))} style={{ ...btnGhost(), marginTop: 6, padding: "6px 10px", fontSize: 12 }}>
-                          <Boxes size={13} /> Ver estoque do produto
-                        </button>
-                      )}
+                      {formPeca.id_produto && (() => {
+                        const prod = produtos.find((x) => x.id === Number(formPeca.id_produto));
+                        return prod ? (
+                          <div style={{ marginTop: 10, padding: 12, background: C.surface2, borderRadius: 8, display: "flex", gap: 12, alignItems: "center" }}>
+                            {prod.foto_url && <img src={prod.foto_url} alt={prod.nome} style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover" }} />}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 13 }}>{prod.nome}</div>
+                              <div style={{ fontSize: 11, color: C.muted, margin: "2px 0" }}>
+                                {prod.codigo ? `#${prod.codigo}` : ""} {prod.referencia && `· ${prod.referencia}`}
+                              </div>
+                              <div style={{ fontSize: 12, fontWeight: 500, fontFamily: mono, color: C.foreground }}>
+                                {fmtBRL(prod.preco_venda || 0)}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: prod.estoque_atual > 0 ? C.success : C.destructive }}>
+                                {prod.estoque_atual > 0 ? `${Math.floor(prod.estoque_atual)} em estoque` : "sem estoque"}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null;
+                      })()}
                     </Campo>
                     <Campo label="Quantidade">
                       <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') solicitarPeca(); else if (e.key === 'Escape') setModalPeca(false); }} inputMode="numeric" style={inp(true)} />
