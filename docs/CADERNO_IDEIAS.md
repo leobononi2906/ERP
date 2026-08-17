@@ -1,8 +1,8 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite — 12 commits PUSHED)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite — 13 commits PUSHED)
 
-**✅ SESSÃO 18/08 COMPLETA (12 commits, todos PUSHED):**
+**✅ SESSÃO 18/08 COMPLETA (13 commits, todos PUSHED):**
 1. efe378d — Permissão estoque/transferências
 2. 9a546dd — Distribuição (parados + cancelamento)
 3. 0e67d5b — Follow-up histórico (OS + cliente)
@@ -15,6 +15,7 @@
 10. b8dae96 — Estoque inline + foto na modal Solicitar Peça
 11. daa9837 — Marca como FEITO estoque inline
 12. ae7bbd9 — Lançamento direto de peça na OS (autorizado)
+13. 2adc417 — Carrinho de múltiplas peças no pátio (Apontamento)
 
 **🔜 PRÓXIMA LEVA (5 itens, backend 100% pronto, falta UI):**
 1. **Localização múltipla** — backend: `erp_produto_localizacoes` / `_salvar` / `_excluir`. Falta: aba em Produtos.jsx (rua/prateleira/nível/centro, marcar principal)
