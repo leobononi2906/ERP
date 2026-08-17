@@ -188,7 +188,7 @@ export default function App() {
   // Atalho global da consulta rápida (F2): abre por cima sem fechar o que está aberto.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === ATALHOS.consultaRapida) { e.preventDefault(); setConsultaAberta((v) => !v); }
+      if (e.key === ATALHOS.buscar) { e.preventDefault(); setConsultaAberta((v) => !v); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -313,7 +313,7 @@ export default function App() {
           {!empAtiva && <span style={{ fontSize: 11.5, color: C.textMuted }}>Consultando todas — escolha uma empresa para lançar documentos nela.</span>}
           <div style={{ flex: 1 }} />
           <button onClick={() => setConsultaAberta(true)} title="Consulta rápida (F2)" style={{ display: "flex", alignItems: "center", gap: 6, height: 38, padding: "0 12px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface2, cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.muted, marginRight: 8 }}>
-            <Search size={15} /> Consulta <kbd style={{ fontSize: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontFamily: mono }}>F2</kbd>
+            <Search size={15} /> Consulta <kbd style={{ fontSize: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 5px", fontFamily: mono }}>F3</kbd>
           </button>
           <SinoAutorizacoes usuario={usuario} />
         </div>

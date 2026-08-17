@@ -62,8 +62,14 @@ export const C = {
 };
 export const mono = "'DM Mono', ui-monospace, monospace";
 
-// Atalhos de teclado globais (tecla → ação). Consulta rápida abre por cima sem fechar o que está aberto.
-export const ATALHOS = { consultaRapida: "F2" };
+// Mapa único de atalhos de teclado (tecla → ação). Modais abrem por cima sem fechar o que está aberto; Esc volta ao ponto.
+export const ATALHOS = {
+  novo: "F2",       // novo cadastro no contexto (cliente/veículo)
+  buscar: "F3",     // consulta rápida (produto/cliente)
+  addItem: "F6",    // adicionar item
+  faturar: "F9",    // faturar
+  salvar: "F10",    // salvar
+};
 export const num = (v) => Number(String(v).replace(",", ".")) || 0;
 export const fmtBRL = (v) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 // ATOR removido — usar usuario.id do login

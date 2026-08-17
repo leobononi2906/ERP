@@ -4,7 +4,7 @@ import {
   ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban, Printer, Tag, Undo2,
   ChevronDown, ChevronRight, History, Boxes,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc } from "../config";
+import { C, mono, fmtBRL, num, rpc, ATALHOS } from "../config";
 import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
 import { irPara } from "../nav";
 import {
@@ -12,6 +12,7 @@ import {
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca, BuscaServidor,
 } from "../ui";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
+import { NovoClienteModal } from "../CadastroRapido";
 import { useEmpresaAtiva, getEmpresaAtiva } from "../empresa";
 
 
@@ -59,6 +60,17 @@ export default function Vendas({ usuario }) {
   const [itens, setItens] = useState([]);
   const [credito, setCredito] = useState(null);
   const [travaCredito, setTravaCredito] = useState(null);
+  const [novoClienteAberto, setNovoClienteAberto] = useState(false);
+  function onClienteCriado(c) {
+    setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]);
+    if (c.id) aplicarDefaultsCliente(String(c.id));
+  }
+  useEffect(() => {
+    if (view !== "venda") return;
+    const onKey = (e) => { if (e.key === ATALHOS.novo) { e.preventDefault(); setNovoClienteAberto(true); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
   async function carregarCredito(idCliente, idEmpresa) {
     if (!idCliente) { setCredito(null); setTravaCredito(null); return; }
     try { const r = await rpc("erp_cliente_credito", { p_id_cliente: Number(idCliente), p_id_empresa: idEmpresa ? Number(idEmpresa) : null }); setCredito(r); }
@@ -533,16 +545,21 @@ export default function Vendas({ usuario }) {
                     </select>
                   </Campo>
                   <Campo label="Cliente *" span={2}>
-                    <BuscaServidor
-                      campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
-                      buscar={(campo, termo) => rpc("erp_clientes_buscar", { p_campo: campo, p_termo: termo, p_id_empresa: form.id_empresa ? Number(form.id_empresa) : null, p_limit: 30 })}
-                      render={(c) => ({ label: c.nome, sub: [c.codigo ? "#" + c.codigo : "", c.cpf_cnpj, c.cidade].filter(Boolean).join(" · ") })}
-                      onSelect={(c) => { setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]); aplicarDefaultsCliente(String(c.id)); }}
-                      selecionadoLabel={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""}
-                      placeholder="Buscar cliente (nome, CNPJ ou código)..."
-                      disabled={!podeEditarDados}
-                      full
-                    />
+                    <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <BuscaServidor
+                          campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
+                          buscar={(campo, termo) => rpc("erp_clientes_buscar", { p_campo: campo, p_termo: termo, p_id_empresa: form.id_empresa ? Number(form.id_empresa) : null, p_limit: 30 })}
+                          render={(c) => ({ label: c.nome, sub: [c.codigo ? "#" + c.codigo : "", c.cpf_cnpj, c.cidade].filter(Boolean).join(" · ") })}
+                          onSelect={(c) => { setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]); aplicarDefaultsCliente(String(c.id)); }}
+                          selecionadoLabel={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""}
+                          placeholder="Buscar cliente (nome, CNPJ ou código)..."
+                          disabled={!podeEditarDados}
+                          full
+                        />
+                      </div>
+                      {podeEditarDados && <button type="button" onClick={() => setNovoClienteAberto(true)} title="Novo cliente (F2)" style={{ ...btnGhost(), whiteSpace: "nowrap", flex: "0 0 auto" }}><Plus size={14} /> Novo <kbd style={{ fontSize: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, padding: "0 4px", fontFamily: mono }}>F2</kbd></button>}
+                    </div>
                   </Campo>
                   <Campo label="Vendedor">
                     <SelectBusca
@@ -949,6 +966,7 @@ export default function Vendas({ usuario }) {
 
         {histVenda && !isNew && <DrawerHistorico tabela="vendas" registro={vendaAtual.id} titulo="Histórico da venda" sub={`Venda ${vendaAtual.numero}`} onClose={() => setHistVenda(false)} />}
         {drawerProdV && <DrawerEstoque idProduto={drawerProdV} idEmpresa={vendaAtual?.id_empresa || null} onClose={() => setDrawerProdV(null)} />}
+        <NovoClienteModal aberto={novoClienteAberto} onClose={() => setNovoClienteAberto(false)} onCreated={onClienteCriado} idEmpresa={form.id_empresa || fEmpresa} usuario={usuario} empresas={empresas} />
       </div>
     );
   }
