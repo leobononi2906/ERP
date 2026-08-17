@@ -1,8 +1,8 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite — 10 commits PUSHED)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite — 12 commits PUSHED)
 
-**✅ SESSÃO 18/08 COMPLETA (10 commits, todos PUSHED):**
+**✅ SESSÃO 18/08 COMPLETA (12 commits, todos PUSHED):**
 1. efe378d — Permissão estoque/transferências
 2. 9a546dd — Distribuição (parados + cancelamento)
 3. 0e67d5b — Follow-up histórico (OS + cliente)
@@ -13,6 +13,8 @@
 8. ec7b8a5 — Checkpoint
 9. 9461dd3 — Remover consumo modal Solicitar Peça + keyboard-first
 10. b8dae96 — Estoque inline + foto na modal Solicitar Peça
+11. daa9837 — Marca como FEITO estoque inline
+12. ae7bbd9 — Lançamento direto de peça na OS (autorizado)
 
 **🔜 PRÓXIMA LEVA (5 itens, backend 100% pronto, falta UI):**
 1. **Localização múltipla** — backend: `erp_produto_localizacoes` / `_salvar` / `_excluir`. Falta: aba em Produtos.jsx (rua/prateleira/nível/centro, marcar principal)
@@ -83,7 +85,7 @@
 - ✅ **BUG confirmar RESOLVIDO** (commit ff6cd52): `SeparacaoDetalhe` não recebia a prop `usuario` → `confirmar`/`cancelar`/`entregar` estouravam com "usuario is not defined". Passei `usuario` do pai.
 - ✅ **Código sequencial na Separação**: `erp_separacao_detalhe` agora retorna `codigo`; coluna Código na tabela de itens + no picking impresso.
 - ✅ **Regras já garantidas no backend** (`erp_separacao_confirmar`): não separa MAIS que o pedido; falta a menos **exige motivo predefinido** (ERRO_LANCAMENTO / VENDA_PERDIDA) e gera venda perdida; **não aceita item não solicitado** (só processa itens da expedição). Front já tem o dropdown de motivo.
-- 🔜 **A DECIDIR/CONSTRUIR — lançamento direto na OS (só autorizado):** o Leo quer um modo em que **pessoa autorizada** lança/entrega a peça **direto na OS**, sem passar pela fila de separação. Gatear por permissão; registrar no log; ainda assim baixar estoque corretamente e não permitir item fora do que foi pedido/autorizado. Definir a UI (botão na OS aba Peças "entregar direto") e a RPC.
+- ✅ **Lançamento direto na OS (só autorizado) — FEITO (commit ae7bbd9):** modal Solicitar Peça agora tem toggle "🎯 Lançamento direto" (visível só pra autorizado = perms.aprovar). Chama RPC `os_peca_lancar_direto` → baixa estoque na hora, recusa se falta saldo. Card inline mostra estoque/preço. Log registra PECA_LANCADA_DIRETO.
 
 ## 2026-08-17 (noite) — Veículo (modelo/placa) + Fotos no servidor interno
 
