@@ -272,6 +272,7 @@ export default function OrdensServico({ usuario }) {
 
   /* ─── Solicitar peça (envia para Separação) ─────────────── */
   const [modalPeca, setModalPeca] = useState(false);
+  const [modoDireto, setModoDireto] = useState(false);
   const [formPeca, setFormPeca] = useState({ id_produto: "", quantidade: 1, consumo: false, id_producao: "" });
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
@@ -301,18 +302,32 @@ export default function OrdensServico({ usuario }) {
     setSaving(true);
     try {
       const prod = produtos.find(p => p.id === num(formPeca.id_produto));
-      const res = await rpc("os_solicitar_peca", {
-        p_id_os: osAtual.id,
-        p_id_produto: num(formPeca.id_produto),
-        p_quantidade: num(formPeca.quantidade) || 1,
-        p_valor_unitario: prod ? prod.preco_venda : 0,
-        p_id_usuario: usuario.id,
-        p_consumo: false,  // OS/Vendas: sempre é cobrado (consumo só no pátio)
-      });
+      let res;
+      if (modoDireto) {
+        // Lançamento direto (só autorizado): baixa estoque na hora
+        res = await rpc("os_peca_lancar_direto", {
+          p_id_os: osAtual.id,
+          p_id_produto: num(formPeca.id_produto),
+          p_quantidade: num(formPeca.quantidade) || 1,
+          p_valor_unitario: prod ? prod.preco_venda : 0,
+          p_ator: usuario.id,
+        });
+        notificar(`Peça entregue direto (${res.id_os_peca}) — estoque baixado`);
+      } else {
+        // Solicitação normal: vai pra separação
+        res = await rpc("os_solicitar_peca", {
+          p_id_os: osAtual.id,
+          p_id_produto: num(formPeca.id_produto),
+          p_quantidade: num(formPeca.quantidade) || 1,
+          p_valor_unitario: prod ? prod.preco_venda : 0,
+          p_id_usuario: usuario.id,
+          p_consumo: false,  // OS/Vendas: sempre é cobrado (consumo só no pátio)
+        });
+        notificar(`Peça solicitada → Separação ${res.numero}`);
+      }
       // Limpar form e reabrir modal pra próxima peça (keyboard-first: adiciona e já abre a próxima)
       setFormPeca({ id_produto: "", quantidade: 1 });
       await recarregarDetalheOs(osAtual.id);
-      notificar(`Peça solicitada → Separação ${res.numero}`);
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
@@ -1219,11 +1234,11 @@ export default function OrdensServico({ usuario }) {
 
         {/* ─── MODAL SOLICITAR PEÇA ──────────────────────────── */}
         {modalPeca && (
-          <div onClick={() => setModalPeca(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+          <div onClick={() => { setModalPeca(false); setModoDireto(false); }} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>Solicitar Peça para Separação</span>
-                <button onClick={() => setModalPeca(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+                <button onClick={() => { setModalPeca(false); setModoDireto(false); }} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
               </div>
               <div style={{ padding: 20 }}>
                 {loadingProdutos ? <div style={{ textAlign: "center", padding: 20, color: C.textMuted }}>Carregando produtos...</div> : (
@@ -1264,8 +1279,15 @@ export default function OrdensServico({ usuario }) {
                     <Campo label="Quantidade">
                       <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') solicitarPeca(); else if (e.key === 'Escape') setModalPeca(false); }} inputMode="numeric" style={inp(true)} />
                     </Campo>
+                    {perms.aprovar && (
+                      <div style={{ marginTop: 12, marginBottom: 8 }}>
+                        <button onClick={() => setModoDireto(!modoDireto)} style={{ padding: "6px 12px", borderRadius: 6, border: modoDireto ? `2px solid ${C.primary}` : `1px solid ${C.border}`, background: modoDireto ? C.bluePale : "transparent", cursor: "pointer", fontSize: 12, fontWeight: 500, color: modoDireto ? C.primary : C.textMuted }}>
+                          {modoDireto ? "🎯 Lançamento direto (estoque baixado)" : "⬜ Solicitar para separação (padrão)"}
+                        </button>
+                      </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-                      <button onClick={() => setModalPeca(false)} style={btnGhost()}>Cancelar</button>
+                      <button onClick={() => { setModalPeca(false); setModoDireto(false); }} style={btnGhost()}>Cancelar</button>
                       <button onClick={solicitarPeca} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
                         <Send size={14} /> {saving ? "Enviando..." : "Solicitar"}
                       </button>
