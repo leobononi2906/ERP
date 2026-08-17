@@ -130,6 +130,7 @@ export default function OrdensServico({ usuario }) {
     setAbaDetalhe("defeitos");
     setLoadingDetalhe(true);
     setView("detalhe");
+    setPendenciasOs(null);
     try {
       const d = await rpc("os_detalhe_dados", { p_id_os: os.id });
       setOsServicos(d.servicos ?? []);
@@ -140,6 +141,7 @@ export default function OrdensServico({ usuario }) {
       rpc("os_defeitos_listar", { p_id_os: os.id }).then((dd) => setOsDefeitos(Array.isArray(dd) ? dd : (d.defeitos ?? []))).catch(() => {});
       rpc("erp_os_orcamentos", { p_id_os: os.id }).then((oo) => setOsOrcamentos(Array.isArray(oo) ? oo : [])).catch(() => setOsOrcamentos([]));
       rpc("os_prismas_dados", { p_id_vendedor: os.id_vendedor || null }).then((pd) => setPrismasOs(pd?.prismas || [])).catch(() => {});
+      rpc("erp_os_pendencias", { p_id_os: os.id }).then((p) => setPendenciasOs(p)).catch(() => {});
     } catch (e) {
       notificar("Erro ao carregar detalhe: " + e.message, "erro");
     } finally {
@@ -277,6 +279,7 @@ export default function OrdensServico({ usuario }) {
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [expedicoesOs, setExpedicoesOs] = useState([]);
+  const [pendenciasOs, setPendenciasOs] = useState(null);
   const [modalVendaPerdida, setModalVendaPerdida] = useState(null); // { id_produto, nome_produto, quantidade, motivo, concorrente, observacao }
   const [salvandoVendaPerdida, setSalvandoVendaPerdida] = useState(false);
 
@@ -409,6 +412,12 @@ export default function OrdensServico({ usuario }) {
 
   async function abrirFaturamento() {
     try {
+      const pend = await rpc("erp_os_pendencias", { p_id_os: osAtual.id });
+      setPendenciasOs(pend);
+      if (pend && pend.ok === false) {
+        notificar("Não é possível faturar — resolva os pendências antes.", "aviso");
+        return;
+      }
       const d = await rpc("os_faturamento_dados");
       setFormasPag(d.formas_pagamento ?? []);
       setCondicoesPag(d.condicoes_pagamento ?? []);
@@ -735,6 +744,39 @@ export default function OrdensServico({ usuario }) {
               })()}
             </div>
           </div>
+
+          {/* Aviso de pendências para faturar */}
+          {pendenciasOs && pendenciasOs.ok === false && pendenciasOs.pendencias && pendenciasOs.pendencias.length > 0 && (
+            <div style={{ background: C.warningBg, color: C.warning, padding: "12px 16px", borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 500 }}>
+              <div style={{ marginBottom: 8 }}>⚠️ <strong>Não é possível faturar.</strong> Resolva os pendências:</div>
+              <ul style={{ margin: "0 0 0 20px", paddingLeft: 0 }}>
+                {pendenciasOs.pendencias.map((p, i) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    {p.tipo === "SERVICO" && "🔧 "}
+                    {p.tipo === "SEPARACAO" && "📦 "}
+                    {p.tipo === "APONTAMENTO" && "⏱️ "}
+                    <strong>{p.qtd}</strong> {p.msg}
+                    {p.tipo === "SEPARACAO" && (
+                      <button onClick={() => irPara("separacao")} style={{ marginLeft: 8, background: "none", border: "none", color: C.warning, textDecoration: "underline", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                        ir para Separação →
+                      </button>
+                    )}
+                    {p.tipo === "SERVICO" && (
+                      <button onClick={() => irPara("distribuicao_os")} style={{ marginLeft: 8, background: "none", border: "none", color: C.warning, textDecoration: "underline", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                        ir para Distribuição →
+                      </button>
+                    )}
+                    {p.tipo === "APONTAMENTO" && (
+                      <button onClick={() => setAbaDetalhe("apontamentos")} style={{ marginLeft: 8, background: "none", border: "none", color: C.warning, textDecoration: "underline", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                        ver apontamentos →
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 8 }}>
             {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && osServicos.length > 0 && (
               <button onClick={abrirAvaliacao} style={btnGhost()}>
@@ -742,7 +784,7 @@ export default function OrdensServico({ usuario }) {
               </button>
             )}
             {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
-              <button onClick={abrirFaturamento} style={{ ...btnPrimary(), background: C.success }}>
+              <button onClick={abrirFaturamento} disabled={pendenciasOs && pendenciasOs.ok === false} style={{ ...btnPrimary(), background: pendenciasOs && pendenciasOs.ok === false ? C.muted : C.success, opacity: pendenciasOs && pendenciasOs.ok === false ? 0.6 : 1, cursor: pendenciasOs && pendenciasOs.ok === false ? "not-allowed" : "pointer" }} title={pendenciasOs && pendenciasOs.ok === false ? "Resolva os pendências antes de faturar" : ""}>
                 <DollarSign size={14} /> Faturar OS
               </button>
             )}
