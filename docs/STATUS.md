@@ -3,7 +3,8 @@
 > Documento de contexto para **iniciar uma nova conversa** já orientado. Resume o que
 > está pronto, o que falta, as regras de negócio e as armadilhas conhecidas.
 >
-> **▶ Última sessão (12/08/2026):** tabela de preço segue o cliente + validade automática; distribuição c/ horário de lançamento; fix menu RH; **colaborador = mestre da pessoa** (login/CC/empresa na folha); vários orçamentos → mesma OS; **módulo Remessa/Retorno**; guard de permissão nas RPCs novas. **Detalhes, estado da segurança e plano do guard em [`docs/HANDOFF_2026-08-12.md`](HANDOFF_2026-08-12.md).**
+> **▶ Última sessão (15–16/08/2026):** fix crash faturar (React #62 th/td) + ErrorBoundary + logs unificados; provisão RH automática; migração fiscal (NCM/CNPJs/regimes/planilhas contador); busca produto Código+Nome + código sequencial imutável; **sino unificado de notificações**; **perfis de pagamento + trava de re-consulta de crédito** (autonomia do vendedor). Detalhes e PORQUÊS em [`docs/HANDOFF_2026-08-16.md`](HANDOFF_2026-08-16.md).
+> **▶ Sessão (12/08/2026):** tabela de preço segue o cliente + validade automática; distribuição c/ horário de lançamento; fix menu RH; **colaborador = mestre da pessoa** (login/CC/empresa na folha); vários orçamentos → mesma OS; **módulo Remessa/Retorno**; guard de permissão nas RPCs novas. **Detalhes, estado da segurança e plano do guard em [`docs/HANDOFF_2026-08-12.md`](HANDOFF_2026-08-12.md).**
 > **▶ Sessão anterior (11/08/2026):** segurança (Furo #1 e #2-camada1), autorização remota (sino), cotação + produto×fornecedor — [`docs/HANDOFF_2026-08-11.md`](HANDOFF_2026-08-11.md).
 
 ## Repositórios e infra (não confundir)
