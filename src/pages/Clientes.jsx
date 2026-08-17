@@ -5,7 +5,7 @@ import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Camp
 import { DrawerHistorico } from "../drawers";
 const TIPOS = ["CLIENTE", "FORNECEDOR", "AMBOS", "FUNCIONARIO", "TRANSPORTADORA"];
 const SITUACOES = ["ATIVO", "INATIVO", "BLOQUEADO"];
-const IND_IE = [{ v: 1, t: "1 - Contribuinte ICMS" }, { v: 2, t: "2 - Contribuinte isento" }, { v: 9, t: "9 - Não contribuinte" }];
+const IND_IE = [{ v: 1, t: "Contribuinte ICMS (tem IE)" }, { v: 2, t: "Isento de IE" }, { v: 9, t: "Não contribuinte (consumidor final)" }];
 
 function mascaraDoc(v, pessoa) {
   const d = (v || "").replace(/\D/g, "");
@@ -87,8 +87,13 @@ export default function Clientes({ usuario }) {
     } catch (e) { notificar("Não foi possível buscar o CNPJ (verifique o número).", "warn"); }
   }
   async function salvar() {
+    const doc = form.tipo_pessoa === "F" ? "CPF" : "CNPJ";
     if (!form.nome.trim()) { setErroForm("O nome / razão social é obrigatório."); return; }
-    if (form.cpf_cnpj && !docValido(form.cpf_cnpj, form.tipo_pessoa)) { setErroForm((form.tipo_pessoa === "F" ? "CPF" : "CNPJ") + " inválido — confira os dígitos."); return; }
+    if (!(form.cpf_cnpj || "").trim()) { setErroForm(`O ${doc} é obrigatório.`); return; }
+    if (!docValido(form.cpf_cnpj, form.tipo_pessoa)) { setErroForm(`${doc} inválido — confira os dígitos.`); return; }
+    if (soDigitos(form.cep).length !== 8) { setErroForm("O CEP é obrigatório (8 dígitos)."); return; }
+    if (!(form.endereco || "").trim()) { setErroForm("O endereço é obrigatório."); return; }
+    if (!form.indicador_ie) { setErroForm("Selecione o perfil tributário do cliente."); return; }
     setErroForm(""); setSaving(true);
     const empNome = empresas.find((e) => String(e.id) === String(form.id_empresa))?.nome_fantasia || null;
     const salvo = { ...form, empresa_nome: empNome };
@@ -172,8 +177,8 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
         <Campo label="Telefone"><input value={form.telefone} onChange={(e) => setF("telefone", mascaraTel(e.target.value))} disabled={!cadOk} placeholder="(00) 0000-0000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="Celular"><input value={form.celular} onChange={(e) => setF("celular", mascaraTel(e.target.value))} disabled={!cadOk} placeholder="(00) 00000-0000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
         <Campo label="WhatsApp"><input value={form.whatsapp} onChange={(e) => setF("whatsapp", mascaraTel(e.target.value))} disabled={!cadOk} placeholder="(00) 00000-0000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
-        <Campo label="CEP"><input value={form.cep} onChange={(e) => setF("cep", e.target.value)} onBlur={buscarCep} disabled={!cadOk} placeholder="00000-000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
-        <Campo label="Endereço" span={2}><input value={form.endereco} onChange={(e) => setF("endereco", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
+        <Campo label="CEP *"><input value={form.cep} onChange={(e) => setF("cep", e.target.value)} onBlur={buscarCep} disabled={!cadOk} placeholder="00000-000" style={{ ...inp(true, !cadOk), fontFamily: mono }} /></Campo>
+        <Campo label="Endereço *" span={2}><input value={form.endereco} onChange={(e) => setF("endereco", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
         <Campo label="Número"><input value={form.numero} onChange={(e) => setF("numero", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
         <Campo label="Bairro"><input value={form.bairro} onChange={(e) => setF("bairro", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
         <Campo label="Cidade"><input value={form.cidade} onChange={(e) => setF("cidade", e.target.value)} disabled={!cadOk} style={inp(true, !cadOk)} /></Campo>
@@ -200,7 +205,7 @@ function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, busca
           </Campo>
           <Campo label={pf ? "RG" : "Inscrição estadual"}><input value={form.rg_ie} onChange={(e) => setF("rg_ie", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
           <Campo label="Inscrição municipal"><input value={form.inscricao_municipal} onChange={(e) => setF("inscricao_municipal", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
-          <Campo label="Indicador de IE" span={2}><select value={form.indicador_ie} onChange={(e) => setF("indicador_ie", Number(e.target.value))} disabled={!fiscOk} style={sel(true, !fiscOk)}>{IND_IE.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}</select></Campo>
+          <Campo label="Perfil tributário *" span={2}><select value={form.indicador_ie} onChange={(e) => setF("indicador_ie", Number(e.target.value))} disabled={!fiscOk} style={sel(true, !fiscOk)}>{IND_IE.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}</select></Campo>
           <Campo label="Inscrição SUFRAMA"><input value={form.inscricao_suframa} onChange={(e) => setF("inscricao_suframa", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
           <Campo label="E-mail para NF-e"><input value={form.email_nfe} onChange={(e) => setF("email_nfe", e.target.value)} disabled={!fiscOk} style={inp(true, !fiscOk)} /></Campo>
           <Campo label="ISS retido"><label style={{ display: "flex", alignItems: "center", gap: 8, height: 40, opacity: fiscOk ? 1 : 0.6 }}><input type="checkbox" checked={!!form.iss_retido} onChange={(e) => setF("iss_retido", e.target.checked)} disabled={!fiscOk} style={{ width: 16, height: 16, accentColor: C.primary }} /><span style={{ fontSize: 13, color: C.muted }}>Retém ISS</span></label></Campo>
