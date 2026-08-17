@@ -331,11 +331,11 @@ function FormEntrada({ form, setF, erroForm, saving, salvar, voltar, empresas, f
       {erroForm && <Aviso cor="destructive"><AlertCircle size={15} /> {erroForm}</Aviso>}
 
       <Secao titulo="Operação">
-        <Campo label="Empresa *"><select value={form.id_empresa} onChange={(e) => setF("id_empresa", e.target.value)} style={sel(true)}><option value="">Selecione...</option>{empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>)}</select></Campo>
+        <Campo label="Empresa *"><select value={form.id_empresa} onChange={(e) => { setF("id_empresa", e.target.value); setF("id_centro_estoque", ""); }} style={sel(true)}><option value="">Selecione...</option>{empresas.map((e) => <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>)}</select></Campo>
         <Campo label="Tipo de operação *"><select value={form.id_tipo_entrada} onChange={(e) => setF("id_tipo_entrada", e.target.value)} style={sel(true)}><option value="">Selecione...</option>{tiposEntrada.map((t) => <option key={t.id} value={t.id}>{t.descricao}</option>)}</select></Campo>
         <Campo label="Fornecedor"><SelectBusca full opcoes={fornecedores.map((f) => ({ id: f.id, label: f.nome, sub: f.cpf_cnpj || "" }))} value={form.id_fornecedor} onChange={(v) => setF("id_fornecedor", v)} placeholder="Selecione..." /></Campo>
         <Campo label="Vincular pedido de compra"><select value={form.id_pedido} onChange={(e) => vincularPedido(e.target.value)} style={sel(true)}><option value="">— sem pedido —</option>{pedidosAbertos.map((p) => <option key={p.id} value={p.id}>{p.numero} · {p.fornecedor_nome}</option>)}</select></Campo>
-        <Campo label="Centro de estoque"><select value={form.id_centro_estoque} onChange={(e) => setF("id_centro_estoque", e.target.value)} style={sel(true)}><option value="">Selecione...</option>{centrosEstoque.map((c) => <option key={c.id} value={c.id}>{c.descricao || c.nome}</option>)}</select></Campo>
+        <Campo label="Centro de estoque"><select value={form.id_centro_estoque} onChange={(e) => setF("id_centro_estoque", e.target.value)} disabled={!form.id_empresa} style={sel(true, !form.id_empresa)}><option value="">{form.id_empresa ? "Selecione..." : "Escolha a empresa primeiro"}</option>{centrosEstoque.filter((c) => !form.id_empresa || String(c.id_empresa) === String(form.id_empresa)).map((c) => <option key={c.id} value={c.id}>{c.descricao || c.nome}</option>)}</select></Campo>
         <Campo label="Condição de pagamento"><select value={form.id_condicao_pagamento} onChange={(e) => setF("id_condicao_pagamento", e.target.value)} style={sel(true)}><option value="">—</option>{condPag.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}</select></Campo>
       </Secao>
 

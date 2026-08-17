@@ -145,7 +145,7 @@ export default function Devolucoes({ usuario }) {
             onChange={(v) => { if (v) novaDe(form.origem, v); else setForm((f) => ({ ...f, id_origem: "", itens: [] })); }} placeholder="Buscar venda/OS por número ou cliente..." />
         </Campo>
         <Campo label="Cliente"><input value={(docs.find((d) => String(d.id) === String(form.id_origem)) || {}).cliente_nome || (form.id_cliente ? "Cliente #" + form.id_cliente : "—")} disabled style={inp(true, true)} /></Campo>
-        <Campo label="Centro de estoque (retorno)"><select value={form.id_centro_estoque} onChange={(e) => setF("id_centro_estoque", e.target.value)} style={sel(true)}><option value="">Padrão da empresa</option>{centros.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}</select></Campo>
+        <Campo label="Centro de estoque (retorno)"><select value={form.id_centro_estoque} onChange={(e) => setF("id_centro_estoque", e.target.value)} style={sel(true)}><option value="">Padrão da empresa</option>{centros.filter((c) => !form.id_empresa || String(c.id_empresa) === String(form.id_empresa)).map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}</select></Campo>
         <Campo label="Motivo"><input value={form.motivo} onChange={(e) => setF("motivo", e.target.value)} placeholder="Ex.: produto com defeito" style={inp(true)} /></Campo>
       </Secao>
 

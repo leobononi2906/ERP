@@ -119,7 +119,7 @@ export default function ContasPagar({ usuario }) {
 function ModalBaixaForm({titulo,contas,onSubmit,onClose}){
   const[f,sF]=useState({id_titulo:titulo.id,id_conta:"",valor_pago:titulo.valor_saldo||0,desconto:0,juros:0,multa:0,data_baixa:new Date().toISOString().substring(0,10),obs:""});
   const s=(k,v)=>sF(p=>({...p,[k]:v}));
-  return<><F label="Conta" req><select value={f.id_conta} onChange={e=>s("id_conta",e.target.value)} style={inp}><option value="">Selecione...</option>{contas.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.descricao} ({fmtBRL(c.saldo_atual)})</option>)}</select></F>
+  return<><F label="Conta" req><select value={f.id_conta} onChange={e=>s("id_conta",e.target.value)} style={inp}><option value="">Selecione...</option>{contas.filter(c=>c.ativo && (!titulo.id_empresa || String(c.id_empresa)===String(titulo.id_empresa))).map(c=><option key={c.id} value={c.id}>{c.descricao} ({fmtBRL(c.saldo_atual)})</option>)}</select><span style={{fontSize:11,color:C.textMuted}}>Só contas da empresa do título.</span></F>
   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><F label="Valor" req><input type="number" step="0.01" value={f.valor_pago} onChange={e=>s("valor_pago",e.target.value)} style={inp}/></F><F label="Data"><input type="date" value={f.data_baixa} onChange={e=>s("data_baixa",e.target.value)} style={inp}/></F></div>
   <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}><button onClick={onClose} style={bs}>Cancelar</button><button onClick={()=>onSubmit(f)} style={bp} disabled={!f.id_conta}>Confirmar Pagamento</button></div></>;
 }

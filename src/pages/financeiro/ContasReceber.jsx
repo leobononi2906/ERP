@@ -210,8 +210,9 @@ function ModalBaixaCR({ titulo, contas, onBaixar, onClose }) {
       <div><b>Saldo:</b> <span style={{fontWeight:700,color:C.primary}}>{fmtBRL(titulo.valor_saldo)}</span></div>
     </div>
     <Field label="Conta Financeira" req><select value={f.id_conta} onChange={e=>s("id_conta",e.target.value)} style={inputSt}>
-      <option value="">Selecione...</option>{contas.filter(c=>c.ativo).map(c=><option key={c.id} value={c.id}>{c.descricao} ({fmtBRL(c.saldo_atual)})</option>)}
-    </select></Field>
+      <option value="">Selecione...</option>{contas.filter(c=>c.ativo && (!titulo.id_empresa || String(c.id_empresa)===String(titulo.id_empresa))).map(c=><option key={c.id} value={c.id}>{c.descricao} ({fmtBRL(c.saldo_atual)})</option>)}
+    </select>
+    <span style={{fontSize:11,color:C.textMuted}}>Só contas da empresa que faturou. Transferência entre empresas é feita depois pelo financeiro.</span></Field>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
       <Field label="Valor" req><input type="number" step="0.01" value={f.valor_pago} onChange={e=>s("valor_pago",e.target.value)} style={inputSt}/></Field>
       <Field label="Data"><input type="date" value={f.data_baixa} onChange={e=>s("data_baixa",e.target.value)} style={inputSt}/></Field>
