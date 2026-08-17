@@ -4,8 +4,9 @@ import {
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
   DollarSign, Send, Eye, Printer, Undo2, History, Boxes,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc } from "../config";
+import { C, mono, fmtBRL, num, rpc, ATALHOS } from "../config";
 import { getEmpresaAtiva, useEmpresaAtiva } from "../empresa";
+import { NovoClienteModal, NovoVeiculoModal } from "../CadastroRapido";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
@@ -46,6 +47,22 @@ export default function OrdensServico({ usuario }) {
   // views
   const [view, setView] = useState("lista"); // lista | form | detalhe
   const [form, setForm] = useState(OS_VAZIA());
+  const [novoClienteAberto, setNovoClienteAberto] = useState(false);
+  const [novoVeiculoAberto, setNovoVeiculoAberto] = useState(false);
+  function onClienteCriadoOS(c) {
+    setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]);
+    if (c.id) setForm((f) => ({ ...f, id_cliente: String(c.id) }));
+  }
+  function onVeiculoCriadoOS(v) {
+    setVeiculos((prev) => prev.some((x) => x.id === v.id) ? prev : [...prev, v]);
+    if (v.id) setForm((f) => ({ ...f, id_veiculo: v.id }));
+  }
+  useEffect(() => {
+    if (view !== "form") return;
+    const onKey = (e) => { if (e.key === ATALHOS.novo) { e.preventDefault(); setNovoClienteAberto(true); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
   const [saving, setSaving] = useState(false);
   const [erroForm, setErroForm] = useState("");
   const [toast, setToast] = useState(null);
@@ -519,24 +536,34 @@ export default function OrdensServico({ usuario }) {
             </select>
           </Campo>
           <Campo label="Cliente *" span={2}>
-            <BuscaServidor
-              campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
-              buscar={(campo, termo) => rpc("erp_clientes_buscar", { p_campo: campo, p_termo: termo, p_id_empresa: null, p_limit: 30 })}
-              render={(c) => ({ label: c.nome, sub: [c.codigo ? "#" + c.codigo : "", c.cpf_cnpj, c.cidade].filter(Boolean).join(" · ") })}
-              onSelect={(c) => { setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]); setF("id_cliente", String(c.id)); }}
-              selecionadoLabel={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""}
-              placeholder="Buscar cliente (nome, CNPJ ou código)..."
-              full
-            />
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <BuscaServidor
+                  campos={[{ key: "nome", label: "Nome" }, { key: "cnpj", label: "CNPJ" }, { key: "codigo", label: "Código" }]}
+                  buscar={(campo, termo) => rpc("erp_clientes_buscar", { p_campo: campo, p_termo: termo, p_id_empresa: null, p_limit: 30 })}
+                  render={(c) => ({ label: c.nome, sub: [c.codigo ? "#" + c.codigo : "", c.cpf_cnpj, c.cidade].filter(Boolean).join(" · ") })}
+                  onSelect={(c) => { setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]); setF("id_cliente", String(c.id)); }}
+                  selecionadoLabel={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""}
+                  placeholder="Buscar cliente (nome, CNPJ ou código)..."
+                  full
+                />
+              </div>
+              <button type="button" onClick={() => setNovoClienteAberto(true)} title="Novo cliente (F2)" style={{ ...btnGhost(), whiteSpace: "nowrap", flex: "0 0 auto" }}><Plus size={14} /> Novo <kbd style={{ fontSize: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, padding: "0 4px", fontFamily: mono }}>F2</kbd></button>
+            </div>
           </Campo>
           <Campo label="Veículo">
-            <SelectBusca
-              opcoes={veicCliente.map((v) => ({ id: v.id, label: v.placa, sub: v.marca ? v.marca + " " + (v.modelo || "") : "" }))}
-              value={form.id_veiculo}
-              onChange={(id) => setF("id_veiculo", id)}
-              placeholder="Nenhum"
-              full={true}
-            />
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <SelectBusca
+                  opcoes={veicCliente.map((v) => ({ id: v.id, label: v.placa, sub: v.marca ? v.marca + " " + (v.modelo || "") : "" }))}
+                  value={form.id_veiculo}
+                  onChange={(id) => setF("id_veiculo", id)}
+                  placeholder="Nenhum"
+                  full={true}
+                />
+              </div>
+              <button type="button" onClick={() => { if (!form.id_cliente) { setErroForm("Selecione o cliente antes de cadastrar o veículo."); return; } setNovoVeiculoAberto(true); }} title="Novo veículo" style={{ ...btnGhost(), whiteSpace: "nowrap", flex: "0 0 auto" }}><Plus size={14} /> Novo</button>
+            </div>
           </Campo>
           <Campo label="Responsável">
             <SelectBusca
@@ -572,6 +599,8 @@ export default function OrdensServico({ usuario }) {
             <Save size={16} /> {saving ? "Salvando..." : form.id ? "Salvar" : "Abrir OS"}
           </button>
         </div>
+        <NovoClienteModal aberto={novoClienteAberto} onClose={() => setNovoClienteAberto(false)} onCreated={onClienteCriadoOS} idEmpresa={form.id_empresa} usuario={usuario} empresas={empresasOs} />
+        <NovoVeiculoModal aberto={novoVeiculoAberto} onClose={() => setNovoVeiculoAberto(false)} onCreated={onVeiculoCriadoOS} idCliente={form.id_cliente ? Number(form.id_cliente) : null} clienteNome={form.id_cliente ? nomeCliente(Number(form.id_cliente)) : ""} usuario={usuario} />
       </div>
     );
   }
