@@ -277,6 +277,8 @@ export default function OrdensServico({ usuario }) {
   const [produtos, setProdutos] = useState([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [expedicoesOs, setExpedicoesOs] = useState([]);
+  const [modalVendaPerdida, setModalVendaPerdida] = useState(null); // { id_produto, nome_produto, quantidade, motivo, concorrente, observacao }
+  const [salvandoVendaPerdida, setSalvandoVendaPerdida] = useState(false);
 
   async function carregarProdutos() {
     if (produtos.length > 0) return;
@@ -286,6 +288,37 @@ export default function OrdensServico({ usuario }) {
       setProdutos(d.produtos ?? []);
     } catch (e) { /* ignore */ }
     finally { setLoadingProdutos(false); }
+  }
+
+  function abrirModalVendaPerdida(idProduto, nomeProduto) {
+    setModalVendaPerdida({ id_produto: idProduto, nome_produto: nomeProduto, quantidade: "", motivo: "", concorrente: "", observacao: "" });
+  }
+
+  async function registrarVendaPerdida() {
+    const m = modalVendaPerdida; if (!m) return;
+    const qtd = num(m.quantidade);
+    if (!(qtd > 0)) { notificar("Informe a quantidade.", "erro"); return; }
+    if (!m.motivo) { notificar("Selecione o motivo.", "erro"); return; }
+    setSalvandoVendaPerdida(true);
+    try {
+      const prod = produtos.find((p) => p.id === num(m.id_produto));
+      const r = await rpc("erp_venda_perdida_registrar", {
+        p_id_produto: num(m.id_produto),
+        p_quantidade: qtd,
+        p_motivo: m.motivo,
+        p_id_empresa: usuario.id_empresa || getEmpresaAtiva(),
+        p_id_vendedor: osAtual?.id_vendedor || usuario.id,
+        p_id_cliente: osAtual?.id_cliente || null,
+        p_valor_unitario: prod?.preco_venda || 0,
+        p_concorrente: m.concorrente || null,
+        p_observacao: m.observacao || null,
+        p_ator: usuario.id,
+      });
+      if (!r?.ok) { notificar(r?.erro || "Erro ao registrar venda perdida.", "erro"); return; }
+      notificar(`Venda perdida registrada (R$ ${fmtBRL(r.valor_perdido || 0)})`);
+      setModalVendaPerdida(null);
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSalvandoVendaPerdida(false); }
   }
 
   async function recarregarDetalheOs(idOs) {
@@ -1484,6 +1517,54 @@ export default function OrdensServico({ usuario }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* ─── MODAL REGISTRAR VENDA PERDIDA ────────────────────── */}
+        {modalVendaPerdida && (
+          <div onClick={() => setModalVendaPerdida(null)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>Registrar venda perdida</span>
+                <button onClick={() => setModalVendaPerdida(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
+              </div>
+              <div style={{ padding: 20 }}>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Produto</div>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{modalVendaPerdida.nome_produto}</div>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Quantidade *</label>
+                  <input value={modalVendaPerdida.quantidade} onChange={e => setModalVendaPerdida(m => ({ ...m, quantidade: e.target.value }))} inputMode="decimal" placeholder="Ex: 2" style={{ ...inp(), width: "100%", fontFamily: mono }} />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Motivo *</label>
+                  <select value={modalVendaPerdida.motivo} onChange={e => setModalVendaPerdida(m => ({ ...m, motivo: e.target.value }))} style={{ ...sel(), width: "100%" }}>
+                    <option value="">Selecione...</option>
+                    <option value="SEM_ESTOQUE">Sem estoque</option>
+                    <option value="PRECO_ALTO">Preço alto</option>
+                    <option value="PRAZO_ENTREGA">Prazo de entrega</option>
+                    <option value="CONCORRENTE">Concorrente</option>
+                    <option value="CLIENTE_DESISTIU">Cliente desistiu</option>
+                    <option value="OUTRO">Outro</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Concorrente (opcional)</label>
+                  <input value={modalVendaPerdida.concorrente} onChange={e => setModalVendaPerdida(m => ({ ...m, concorrente: e.target.value }))} placeholder="Ex: Concorrente X" style={{ ...inp(), width: "100%" }} />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 6 }}>Observação (opcional)</label>
+                  <textarea value={modalVendaPerdida.observacao} onChange={e => setModalVendaPerdida(m => ({ ...m, observacao: e.target.value }))} placeholder="Detalhes..." style={{ ...inp(), width: "100%", minHeight: 60, fontFamily: "inherit" }} />
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                  <button onClick={() => setModalVendaPerdida(null)} style={btnGhost()}>Cancelar</button>
+                  <button onClick={registrarVendaPerdida} disabled={salvandoVendaPerdida} style={{ ...btnPrimary(), opacity: salvandoVendaPerdida ? 0.6 : 1 }}>
+                    {salvandoVendaPerdida ? "Registrando..." : "Registrar"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
