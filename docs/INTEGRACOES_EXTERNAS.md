@@ -39,6 +39,22 @@ Problema do Leo: "qualquer erro no Bling vem tudo zuado pro ERP". Rodei um diagn
 
 Mapa payload Bling → ERP: `contato{nome,numeroDocumento,tipoPessoa}`→cliente; `itens[].codigo`(SKU)→`bling_produtos_sync`→produto; `itens[]{quantidade,valor}`→itens da venda; `total`→título; `loja.unidadeNegocio`→empresa; `notaFiscal`→referência (Bling emite); `parcelas`→condição/títulos; `situacao`→gate.
 
+## 🧱 PADRÃO REUSÁVEL de integração (decisão do Leo: serve pra qualquer API futura)
+A camada NÃO é "do Bling" — é um **framework de ingestão**. Nova API = trocar só o conector, mantendo as etapas:
+1. **Landing raw** por fonte: payload cru + `id_externo` + flag `importado` (Bling: `exp_bling_pedidos_raw`).
+2. **Validador por fonte** — função `<fonte>_pedido_validar(payload)` com o MESMO contrato de saída: `{ok, acao: INGERIR|REBUSCAR|QUARENTENA, motivos[]}`.
+3. **Quarentena ÚNICA e genérica:** `public.bling_pedidos_quarentena` agora tem coluna **`fonte`** (BLING e futuras). Uma tela de revisão só, filtrando por fonte.
+4. **Materializador por fonte:** mapeia payload → venda/cliente/estoque/financeiro do ERP. **Idempotente por (fonte, id_externo).**
+5. **Re-busca por fonte:** chama a API da fonte (Bling: `bling-proxy`) pros incompletos.
+> Ao integrar outra API (ex.: site próprio, ERP de parceiro), reaproveita 2–5 e escreve só o validador + o mapeamento daquela fonte.
+
+## 👤 Regra do cliente (marketplace) — decisão do Leo
+Ao materializar, se o cliente do pedido não existe no ERP, **CRIA automaticamente** a partir do `contato` do payload (nome + `numeroDocumento`):
+- **Confirmado** (situação ATIVO — não precisa validar cadastro; veio do marketplace).
+- **Categoria = MARKETPLACE** (marcar o canal de origem).
+- **SEM limite de crédito** (`limite_credito=0`, `permite_prazo=false`) — o marketplace já recebeu, não há risco de crédito.
+Isso também derruba parte da quarentena "sem_documento_cliente" quando o doc vier no contato.
+
 ## ✅ CONSTRUÍDO E TESTADO 18/08 (ambiente de teste com dados do Bling)
 - **Catálogo de teste:** 29 produtos do Bling criados no ERP (`erp_produto_salvar`; código sequencial próprio, `referencia`=SKU Bling, nome+preço do payload). + estoque/custo de teste (50 un, custo 55%) no centro principal da empresa 1.
 - **Faturamento → DRE provado ponta a ponta:** venda de teste 473 (nº 000223) com 2 produtos do Bling, faturada à vista. Resultado: **Receita** "Venda Produtos Nacional" R$4.166,26 (rateio → plano de contas), **Título** 1/1 PAGO, **CMV** R$2.291,44, **Margem 45%** (R$1.874,82). O ambiente serve pra testar produto+faturamento+DRE.
