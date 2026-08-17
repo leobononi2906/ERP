@@ -448,3 +448,9 @@ Semântica da baixa confirmada: orçamento nunca baixa; **boqueta baixa quando o
 
 ## Capturado — a discutir (sem análise ainda)
 - **#5 — Busca de produtos** (a tela do print): a sessão ERP anotou como item #11 dela. Trazer o print/critério (buscar por código + nome + referência + cód. barras, padrão "Nome") pra eu detalhar. Liga com Spec 3 (código) e com backlog 1.2.
+
+## Regra multi-empresa (17/08) — centro de estoque e conta financeira sempre da empresa
+- **Centro de estoque:** ao selecionar a empresa, o select de centro só mostra centros daquela empresa (`centros_estoque.id_empresa`). Aplicado em Entradas (limpa o centro ao trocar empresa) e Devoluções. Uso Interno/Solicitações já vêm filtrados pelo backend; Estoque.jsx é o cadastro; Produtos (endereçamento) não tem empresa no mini-form.
+- **Conta financeira na baixa:** a baixa de um título só cai em conta financeira da MESMA empresa que faturou. Se o dinheiro precisar ir para outra empresa, o financeiro faz uma TRANSFERÊNCIA depois (movimento próprio).
+  - **Front:** ContasReceber/ContasPagar filtram o select de conta por `titulo.id_empresa`.
+  - **Backend (trava dura, testada):** `public.erp_baixar_titulo` rejeita conta de outra empresa com mensagem clara (título emp 5 × conta emp 1 = bloqueado). Vale mesmo que o front mude — integridade garantida no banco.
