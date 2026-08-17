@@ -111,7 +111,7 @@ export default function Clientes({ usuario }) {
 
   const filtrados = clientes.filter((c) => { const q = busca.trim().toLowerCase(); const okB = !q || (c.nome || "").toLowerCase().includes(q) || (c.nome_fantasia || "").toLowerCase().includes(q) || (c.cpf_cnpj || "").includes(q) || String(c.codigo || "").includes(q); return okB && (!fEmpresa || String(c.id_empresa) === fEmpresa); });
 
-  if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} buscarCep={buscarCep} buscarCnpj={buscarCnpj} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} />;
+  if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} buscarCep={buscarCep} buscarCnpj={buscarCnpj} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} perfisPag={perfisPag} />;
 
   return (
     <>
@@ -149,7 +149,7 @@ function Toast({ toast }) {
   return <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: toast.tipo === "warn" ? C.warningBg : C.successBg, color: toast.tipo === "warn" ? C.warning : C.success }}>{toast.tipo === "warn" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}{toast.msg}</div>;
 }
 
-function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, buscarCep, buscarCnpj, perms, fisc, destravar, toast }) {
+function FormCliente({ form, setF, empresas, salvar, saving, voltar, erro, buscarCep, buscarCnpj, perms, fisc, destravar, toast, perfisPag = [] }) {
   const pf = form.tipo_pessoa === "F"; const novo = !form.id;
   const docOk = docValido(form.cpf_cnpj, form.tipo_pessoa);
   const cadOk = novo ? perms.incluir : perms.editar;
