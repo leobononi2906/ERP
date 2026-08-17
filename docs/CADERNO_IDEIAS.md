@@ -1,6 +1,9 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite+ — 16 commits PUSHED)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite+ — 17 commits PUSHED)
+
+**✅ SESSÃO 18/08 CONTINUAÇÃO — Travar Picking (1 commit):**
+1. 1323c60 — Travar picking: bloquear edição/remoção quando em separação (ícone 🔒 + botões desabilitados)
 
 **✅ SESSÃO 18/08 CONTINUAÇÃO — Venda Perdida (3 commits):**
 1. 90417e8 — Modal registrar venda perdida em OrdensServico
