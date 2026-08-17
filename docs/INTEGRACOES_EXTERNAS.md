@@ -39,6 +39,15 @@ Problema do Leo: "qualquer erro no Bling vem tudo zuado pro ERP". Rodei um diagn
 
 Mapa payload Bling → ERP: `contato{nome,numeroDocumento,tipoPessoa}`→cliente; `itens[].codigo`(SKU)→`bling_produtos_sync`→produto; `itens[]{quantidade,valor}`→itens da venda; `total`→título; `loja.unidadeNegocio`→empresa; `notaFiscal`→referência (Bling emite); `parcelas`→condição/títulos; `situacao`→gate.
 
+## ✅ CONSTRUÍDO E TESTADO 18/08 (ambiente de teste com dados do Bling)
+- **Catálogo de teste:** 29 produtos do Bling criados no ERP (`erp_produto_salvar`; código sequencial próprio, `referencia`=SKU Bling, nome+preço do payload). + estoque/custo de teste (50 un, custo 55%) no centro principal da empresa 1.
+- **Faturamento → DRE provado ponta a ponta:** venda de teste 473 (nº 000223) com 2 produtos do Bling, faturada à vista. Resultado: **Receita** "Venda Produtos Nacional" R$4.166,26 (rateio → plano de contas), **Título** 1/1 PAGO, **CMV** R$2.291,44, **Margem 45%** (R$1.874,82). O ambiente serve pra testar produto+faturamento+DRE.
+- **Camada de tratamento (validação + quarentena) — CONSTRUÍDA:**
+  - `public.erp_bling_pedido_validar(payload jsonb)` → classifica: **INGERIR** (ok), **REBUSCAR** (sem itens — Bling manda antes dos itens), **QUARENTENA** (sem doc cliente / SKU não mapeado / total inválido), com motivos.
+  - Tabela `public.bling_pedidos_quarentena` (id_pedido_bling, numero, acao, motivos, resolvido).
+  - **Rodado nos 303:** 43 INGERIR · 205 REBUSCAR · 55 QUARENTENA → 260 barrados foram pra quarentena. **Nada zuado entra automático.**
+- **Falta (próxima peça):** o materializador (INGERIR → cria venda/título/estoque idempotente por id_pedido_bling), o job de RE-BUSCA (chama bling-proxy), cron, e a tela de quarentena.
+
 ## Próximos passos (quando for construir)
 1. **Ler o `exp-sync-erp`** e o schema de `exp_bling_pedidos_raw` — ver o que já faz.
 2. Definir com o Leo as 4 decisões acima (principalmente estoque).
