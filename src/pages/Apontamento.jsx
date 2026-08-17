@@ -45,6 +45,8 @@ export default function Apontamento() {
   const [selecionados, setSelecionados] = useState(new Set()); // IDs de defeitos selecionados
   const [finalizandoMulti, setFinalizandoMulti] = useState(false);
   const [avisoPause, setAvisoPause] = useState(null); // { defeito_pausado, defeito_novo }
+  const [carrinho, setCarrinho] = useState([]); // array de { id_produto, qtd, obs } para modal
+  const [enviandoCarrinho, setEnviandoCarrinho] = useState(false);
   const timerRef = useRef(null);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
@@ -189,25 +191,45 @@ export default function Apontamento() {
     }
     const defAtivo = (ctx?.defeitos || []).find((d) => d.meu_aberto) || (ctx?.defeitos || [])[sel];
     setModal({ tipo, id_produto: "", qtd: "", obs: "", id_defeito: defAtivo?.id || null });
+    setCarrinho([]);
     resetTimer();
   }
 
-  async function enviarModal() {
+  function adicionarAoCarrinho() {
     const m = modal; if (!m) return;
     if (!m.id_produto) { notificar("Selecione o produto.", "erro"); return; }
     const qtd = num(m.qtd);
     if (!(qtd > 0)) { notificar("Informe a quantidade.", "erro"); return; }
+    setCarrinho((c) => [...c, { id_produto: m.id_produto, qtd, obs: m.obs || "" }]);
+    setModal((m) => ({ ...m, id_produto: "", qtd: "", obs: "" }));
+    notificar("Peça adicionada ao carrinho");
+    resetTimer();
+  }
+
+  async function removerDoCarrinho(idx) {
+    setCarrinho((c) => c.filter((_, i) => i !== idx));
+  }
+
+  async function enviarCarrinho() {
+    if (carrinho.length === 0) { notificar("Adicione peças ao carrinho.", "erro"); return; }
+    const m = modal; if (!m) return;
+    setEnviandoCarrinho(true);
     try {
-      const fn = m.tipo === "peca" ? "os_patio_solicitar_peca" : "os_patio_consumo";
-      const body = { p_id_colaborador: sessao.id_colaborador, p_id_os: ctx.os.id, p_id_produto: parseInt(m.id_produto), p_qtd: qtd, p_id_defeito: m.id_defeito };
-      if (m.tipo === "peca") body.p_observacao = m.obs || null;
-      const r = await rpc(fn, body);
-      if (!r?.ok) { notificar(r?.erro || "Não foi possível.", "erro"); return; }
-      notificar(m.tipo === "peca" ? "Peça solicitada!" : "Consumo lançado!");
-      const prod = produtos.find((p) => p.id === parseInt(m.id_produto));
-      imprimirSolicitacao({ tipo: m.tipo, os: ctx?.os?.numero, prisma: ctx?.os?.prisma, colaborador: sessao?.nome, produto: prod?.nome, referencia: prod?.referencia, qtd, obs: m.obs });
-      setModal(null); resetTimer();
+      let enviadas = 0;
+      for (const item of carrinho) {
+        const fn = m.tipo === "peca" ? "os_patio_solicitar_peca" : "os_patio_consumo";
+        const body = { p_id_colaborador: sessao.id_colaborador, p_id_os: ctx.os.id, p_id_produto: parseInt(item.id_produto), p_qtd: item.qtd, p_id_defeito: m.id_defeito };
+        if (m.tipo === "peca") body.p_observacao = item.obs || null;
+        const r = await rpc(fn, body);
+        if (!r?.ok) { notificar(`Erro no item: ${r?.erro || "Não foi possível."}`, "erro"); continue; }
+        const prod = produtos.find((p) => p.id === parseInt(item.id_produto));
+        imprimirSolicitacao({ tipo: m.tipo, os: ctx?.os?.numero, prisma: ctx?.os?.prisma, colaborador: sessao?.nome, produto: prod?.nome, referencia: prod?.referencia, qtd: item.qtd, obs: item.obs });
+        enviadas++;
+      }
+      notificar(`${enviadas}/${carrinho.length} ${m.tipo === "peca" ? "peças solicitadas" : "consumos lançados"}!`);
+      setModal(null); setCarrinho([]); resetTimer();
     } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setEnviandoCarrinho(false); }
   }
 
   /* ─────────── UI ─────────── */
@@ -420,17 +442,44 @@ export default function Apontamento() {
               })()}
               <div>
                 <label style={lbl}>Quantidade</label>
-                <input type="number" step="0.01" min="0" value={modal.qtd} onChange={(e) => setModal((m) => ({ ...m, qtd: e.target.value }))} style={{ ...inp(), width: "100%", fontFamily: mono }} />
+                <input type="number" step="0.01" min="0" value={modal.qtd} onChange={(e) => setModal((m) => ({ ...m, qtd: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") adicionarAoCarrinho(); else if (e.key === "Escape") setModal(null); else if (e.ctrlKey && e.key === "Enter") enviarCarrinho(); }} style={{ ...inp(), width: "100%", fontFamily: mono }} />
               </div>
               {modal.tipo === "peca" && (
                 <div>
                   <label style={lbl}>Observação (opcional)</label>
-                  <input value={modal.obs} onChange={(e) => setModal((m) => ({ ...m, obs: e.target.value }))} style={{ ...inp(), width: "100%" }} />
+                  <input value={modal.obs} onChange={(e) => setModal((m) => ({ ...m, obs: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") adicionarAoCarrinho(); else if (e.key === "Escape") setModal(null); else if (e.ctrlKey && e.key === "Enter") enviarCarrinho(); }} style={{ ...inp(), width: "100%" }} />
                 </div>
               )}
-              <button onClick={enviarModal} style={{ ...btnPrimary(), justifyContent: "center" }}>
-                {modal.tipo === "peca" ? "Solicitar" : "Lançar consumo"}
-              </button>
+              {carrinho.length > 0 && (
+                <div style={{ background: C.surface2, borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: C.textMuted }}>CARRINHO ({carrinho.length})</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 240, overflowY: "auto" }}>
+                    {carrinho.map((item, idx) => {
+                      const prod = produtos.find((p) => String(p.id) === String(item.id_produto));
+                      return (
+                        <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", background: C.card, borderRadius: 6, padding: 8, fontSize: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 500 }}>{prod?.nome || "Produto desconhecido"}</div>
+                            <div style={{ fontSize: 11, color: C.textMuted }}>{prod?.codigo ? "Cód " + prod.codigo + " · " : ""}Qtd: {item.qtd}</div>
+                            {item.obs && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Obs: {item.obs}</div>}
+                          </div>
+                          <button onClick={() => removerDoCarrinho(idx)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: C.destructive }}><X size={16} /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={adicionarAoCarrinho} style={{ ...btnGhost(), flex: 1, justifyContent: "center" }}>
+                  <Plus size={14} /> Adicionar (Enter)
+                </button>
+                {carrinho.length > 0 && (
+                  <button onClick={enviarCarrinho} disabled={enviandoCarrinho} style={{ ...btnPrimary(), flex: 1, justifyContent: "center", opacity: enviandoCarrinho ? 0.6 : 1 }}>
+                    {enviandoCarrinho ? "Enviando..." : `Enviar ${carrinho.length} (Ctrl+Enter)`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
