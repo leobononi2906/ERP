@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
@@ -86,7 +86,8 @@ export default function OrdensServico({ usuario }) {
 
   // servico inline
   const [addServico, setAddServico] = useState(false);
-  const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
+  const [formServ, setFormServ] = useState({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: "" });
+  const refServDesc = useRef(null);
   const [areas, setAreas] = useState([]);
   const [empresasOs, setEmpresasOs] = useState([]);
 
@@ -198,14 +199,15 @@ export default function OrdensServico({ usuario }) {
         p_valor_unitario: num(formServ.valor_unitario) || 0,
         p_valor_total: (num(formServ.quantidade) || 1) * (num(formServ.valor_unitario) || 0),
         p_id_tecnico: num(formServ.id_tecnico) || null,
+        p_id_area: num(formServ.id_area) || null,
       });
       setOsServicos((l) => [...l, res]);
-      setFormServ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "" });
-      setAddServico(false);
-      // Recarregar OS para atualizar totais
+      // cadeia: mantém o form aberto, limpa e refoca a descrição (mantém a área p/ a próxima linha)
+      setFormServ((f) => ({ id_servico: "", descricao: "", quantidade: 1, valor_unitario: "", id_tecnico: "", id_area: f.id_area }));
       const osAtualizada = await rpc("os_recarregar", { p_id_os: osAtual.id });
       if (osAtualizada) setOsAtual(osAtualizada);
-      notificar("Serviço adicionado.");
+      notificar("Serviço adicionado — próximo (Esc fecha).");
+      setTimeout(() => refServDesc.current?.focus(), 30);
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
@@ -855,7 +857,7 @@ export default function OrdensServico({ usuario }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Serviços da OS</span>
                   {perms.editar && (
-                    <button onClick={() => setAddServico(!addServico)} style={btnPrimary()}>
+                    <button onClick={() => { const abrir = !addServico; setAddServico(abrir); if (abrir) setTimeout(() => refServDesc.current?.focus(), 40); }} style={btnPrimary()}>
                       <Plus size={14} /> Adicionar serviço
                     </button>
                   )}
@@ -875,15 +877,21 @@ export default function OrdensServico({ usuario }) {
                       />
                     </Campo>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
-                    <Campo label="Descrição (edite se precisar)">
-                      <input value={formServ.descricao} onChange={(e) => setFormServ((f) => ({ ...f, descricao: e.target.value }))} placeholder="Selecione o serviço acima" style={inp(true)} />
+                  <div onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setAddServico(false); } }} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr 1fr 1.2fr auto", gap: 10, alignItems: "end" }}>
+                    <Campo label="Descrição *">
+                      <input ref={refServDesc} value={formServ.descricao} onChange={(e) => setFormServ((f) => ({ ...f, descricao: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarServico(); } }} placeholder="Descreva ou selecione acima" style={inp(true)} />
+                    </Campo>
+                    <Campo label="Área (código)">
+                      <select value={formServ.id_area} onChange={(e) => setFormServ((f) => ({ ...f, id_area: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarServico(); } }} style={sel(true)}>
+                        <option value="">—</option>
+                        {areas.map((a) => <option key={a.id} value={a.id}>{a.codigo ? a.codigo + " - " : ""}{a.descricao}</option>)}
+                      </select>
                     </Campo>
                     <Campo label="Qtd">
-                      <input value={formServ.quantidade} onChange={(e) => setFormServ((f) => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
+                      <input value={formServ.quantidade} onChange={(e) => setFormServ((f) => ({ ...f, quantidade: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarServico(); } }} inputMode="numeric" style={inp(true)} />
                     </Campo>
                     <Campo label="Valor unit.">
-                      <input value={formServ.valor_unitario} onChange={(e) => setFormServ((f) => ({ ...f, valor_unitario: e.target.value }))} inputMode="decimal" style={inp(true)} />
+                      <input value={formServ.valor_unitario} onChange={(e) => setFormServ((f) => ({ ...f, valor_unitario: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarServico(); } }} inputMode="decimal" style={inp(true)} />
                     </Campo>
                     <Campo label="Técnico">
                       <SelectBusca
@@ -895,10 +903,11 @@ export default function OrdensServico({ usuario }) {
                       />
                     </Campo>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={adicionarServico} disabled={saving} style={{ ...btnPrimary(), padding: "10px 12px" }}><Save size={14} /></button>
-                      <button onClick={() => setAddServico(false)} style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
+                      <button onClick={() => adicionarServico()} disabled={saving} title="Adicionar (Enter)" style={{ ...btnPrimary(), padding: "10px 12px" }}><Plus size={14} /></button>
+                      <button onClick={() => setAddServico(false)} title="Fechar (Esc)" style={{ ...btnGhost(), padding: "10px 12px" }}><X size={14} /></button>
                     </div>
                   </div>
+                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>Descrição → Tab → Área (digite o código) → <b>Enter</b> adiciona e já abre a próxima linha. <b>Esc</b> fecha.</div>
                   </div>
                 )}
 
