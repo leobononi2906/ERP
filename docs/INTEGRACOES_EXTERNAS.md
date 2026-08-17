@@ -24,6 +24,21 @@ Fluxo é **um só sentido: Bling → ERP**. Por pedido de marketplace que chega:
 
 **Consequência p/ a construção:** a camada de reconciliação do ERP consome o pedido cru (`exp_bling_pedidos_raw`) e materializa: (1) baixa estoque, (2) cria venda (canal), (3) gera título. Idempotente por id do pedido Bling. Sem NF.
 
+## 🧪 Diagnóstico real (18/08) + CAMADA DE TRATAMENTO (pedido do Leo)
+Problema do Leo: "qualquer erro no Bling vem tudo zuado pro ERP". Rodei um diagnóstico nos **303 payloads** com conteúdo:
+- **205 (68%) SEM ITENS** — o maior problema. O Bling emite o pedido ANTES dos itens chegarem.
+- **75 (25%) sem documento do cliente.**
+- 0 com total inválido · **1 SKU não mapeado** (o mapa `bling_produtos_sync` cobre bem).
+- **Só 43 (14%) passariam limpos.**
+
+**Camada de tratamento (validar ANTES de virar venda no ERP):**
+1. **Gate de completude/validação** por pedido: exige `itens` não-vazio + `contato.numeroDocumento` + `total>0` + todo SKU mapeado em `bling_produtos_sync` + `situacao` válida (só faturado/atendido) + idempotência por `id_pedido_bling`.
+2. **Incompleto (sem itens) NÃO entra** — vai pra fila de **RE-BUSCA**: busca o pedido completo no Bling via `bling-proxy` e revalida na próxima rodada (não descarta, não ingere zuado).
+3. **Inválido de verdade** (SKU inexistente, sem cliente após re-busca) → **QUARENTENA** (tabela `bling_pedidos_quarentena` com motivo) + tela de revisão. Nunca entra no ERP automático.
+4. **Só o pedido COMPLETO E VÁLIDO** materializa: venda (canal) + título + concilia baixa de estoque.
+
+Mapa payload Bling → ERP: `contato{nome,numeroDocumento,tipoPessoa}`→cliente; `itens[].codigo`(SKU)→`bling_produtos_sync`→produto; `itens[]{quantidade,valor}`→itens da venda; `total`→título; `loja.unidadeNegocio`→empresa; `notaFiscal`→referência (Bling emite); `parcelas`→condição/títulos; `situacao`→gate.
+
 ## Próximos passos (quando for construir)
 1. **Ler o `exp-sync-erp`** e o schema de `exp_bling_pedidos_raw` — ver o que já faz.
 2. Definir com o Leo as 4 decisões acima (principalmente estoque).
