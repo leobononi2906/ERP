@@ -1,6 +1,11 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite — 13 commits PUSHED)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite+ — 16 commits PUSHED)
+
+**✅ SESSÃO 18/08 CONTINUAÇÃO — Venda Perdida (3 commits):**
+1. 90417e8 — Modal registrar venda perdida em OrdensServico
+2. 8343138 — Modal registrar venda perdida em Vendas
+3. a2651e6 — Tela "Vendas Perdidas" no módulo Compras (resumo por_produto + detalhado)
 
 **✅ SESSÃO 18/08 COMPLETA (13 commits, todos PUSHED):**
 1. efe378d — Permissão estoque/transferências
@@ -16,6 +21,13 @@
 11. daa9837 — Marca como FEITO estoque inline
 12. ae7bbd9 — Lançamento direto de peça na OS (autorizado)
 13. 2adc417 — Carrinho de múltiplas peças no pátio (Apontamento)
+
+**✅ Venda Perdida — FEITO (tela Compras + modais):**
+- Aba registro rápido em OrdensServico/Vendas (modal com produto, quantidade, motivo, concorrente, obs)
+- Tela "Vendas Perdidas" no módulo Compras (filtros empresa+período, abas por_produto + detalhado)
+- Backend: RPC `erp_vendas_perdidas_listar` retorna itens + por_produto (resumo agregado)
+- 🔜 PRÓXIMO: Integração com tela Reposição (coluna "venda perdida (período)" na Demanda)
+- 🔜 PRÓXIMO: Botões "Venda perdida" na Consulta Rápida (F-key modal — quando pronta)
 
 **🔜 PRÓXIMA LEVA (5 itens, backend 100% pronto, falta UI):**
 1. **Localização múltipla** — backend: `erp_produto_localizacoes` / `_salvar` / `_excluir`. Falta: aba em Produtos.jsx (rua/prateleira/nível/centro, marcar principal)
