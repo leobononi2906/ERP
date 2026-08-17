@@ -1,6 +1,6 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 17/08 noite)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 manhã)
 
 > Leia este bloco primeiro. Contexto: o Leo testou o sistema e apontou coisas de cadastro/OS. Descobrimos que **o front dessas coisas JÁ ESTAVA construído** (Clientes/Veiculos/OrdensServico) — o que faltava era backend + o deploy estar atrás.
 
@@ -8,13 +8,18 @@
 - **Marca / Cor / Formato** — tabelas `marcas`/`cores`/`formatos` + RPCs `erp_marcas_listar`/`erp_marca_salvar`, `erp_cores_listar`/`erp_cor_salvar`, `erp_formatos_listar`/`erp_formato_salvar` (+ wrappers public). Find-or-create (não duplica), rejeita vazio. **Testado.** O front do Veículo já consome (DominioSelect com "＋").
 - Confirmado que **já existe no código** (só precisa estar deployado): cliente com CEP/endereço/perfil tributário obrigatórios + ViaCEP + busca CNPJ; perfil tributário = `indicador_ie` com rótulos claros; erro de salvar com mensagem específica; **adicionar serviço na OS keyboard-first** (Enter adiciona e reabre, Esc fecha, área por código).
 
-**🔜 Próximos passos (fila):**
-1. **Confirmar/forçar o deploy do Vercel** (o `main` tem tudo; o Leo estava vendo versão antiga). Se não for automático, investigar. Depois: Leo dá hard refresh (Ctrl+Shift+R) e testa.
-2. **Permissão "gestão de estoque/transferências"** (módulo novo — backend). ⚠️ Inserir em **AMBAS** `modulos` (chave minúscula) **e** `modulos_sistema` (código MAIÚSCULO) com o mesmo id, senão o menu some; + matriz `grupos_permissoes`.
-3. **Modelo de veículo:** decidir se vira domínio (tabela `modelos` ligada à marca) — hoje é texto livre.
+**FEITO 18/08:**
+1. ✅ **Permissão "gestão de estoque/transferências"** — módulo id=22 criado em `modulos` + `modulos_sistema` + matriz `grupos_permissoes` (grupos 1 e 2 com acesso; Leo atribui aos outros).
+2. ✅ **Distribuição — Serviços parados + Cancelamento** (commit 9a546dd) — backend completo, UI com card parados e modal cancelar.
+3. ✅ **Modelo de veículo = LIVRE** (decisão Leo) — sem domínio. Buscador de placa é acelerador futuro.
 
-**🟡 Esperando decisão do Leo:**
-- **"Formato"**: backend pronto (igual marca/cor), mas falta saber **onde amarra na tela e o que é** (tipo de veículo? carroceria?).
+**🔜 Próximos passos (fila — sugerida pela cross-session):**
+1. **Follow-up histórico (OS + cliente)** — tabela `os_followup`, timeline de eventos, ancor também no cliente.
+2. **Finalização multi-serviço** (Pátio) — colaborador finaliza N serviços da área de uma vez, RPC valida.
+3. **Buscador de placa** (Edge Function, auto-preenchimento marca/modelo/ano/cor — deixar wiring pronta, provedor a definir).
+
+**🟡 Ainda aguardando decisão do Leo:**
+- **"Formato"** (na tela Veículo): backend pronto (igual marca/cor), mas falta saber **onde amarra na tela e o que é** (tipo de veículo? carroceria?).
 - Editor de etiqueta (layout) vs só qtd/formato; Battogo (extinção este mês) real vs deletar; contador validar as 4 planilhas fiscais (trava o carimbar 38k produtos).
 
 **💤 Deferido (não urgente):** unificar as 2 lógicas de geração de título — sem bug ativo após os fixes da noite; é refactor, fazer com calma em branch.
@@ -26,13 +31,16 @@
 - **Modelo de veículo = LIVRE** (texto). Decisão do Leo: não vira domínio. Mas planejar **buscador de placa** (API de placa → preenche marca/modelo/ano/cor automático) — "agiliza demais". Próximo acelerador do cadastro de veículo.
 - **Fotos de produto no SERVIDOR INTERNO** (não Bling). ✅ base pronta: `produtos.foto_url` + tabela `produtos_imagens` + `os_produtos_dados` devolve `foto`. Plano completo em **docs/FOTOS_PRODUTO.md** (URL no banco / arquivo no servidor, nome = código imutável, servir por HTTP, fonte plugável = Storage agora → interno depois). Falta: endpoint de upload + UI no cadastro + RPCs de imagem.
 
-## 2026-08-17 (noite) — Notificações: serviço parado (FEITO) + follow-up + card parados (a construir)
+## 2026-08-17 (noite) — Notificações: serviço parado (FEITO) + follow-up + card parados (FEITO 18/08)
 
-**✅ FEITO e testado (backend):** marcar serviço como PARADO (com motivo) → gera **notificação no sino** via `erp_notificar`. `erp_os_servico_status` cria a notificação (origem `OS_SERVICO_PARADO`, link → distribuição, prioridade 1). **"Avisa todo mundo":** `papel_destino='TODOS'` + `erp_notificacoes_listar` passou a incluir broadcast → testado: OPERADOR que não é o destinatário vê no sino. Destinatário direto = vendedor da OS (agora obrigatório). Perfis reais hoje = só OPERADOR/ADMIN (papel fino não existe ainda).
+**✅ FEITO e testado (backend 17/08):** marcar serviço como PARADO (com motivo) → gera **notificação no sino** via `erp_notificar`. `erp_os_servico_status` cria a notificação (origem `OS_SERVICO_PARADO`, link → distribuição, prioridade 1). **"Avisa todo mundo":** `papel_destino='TODOS'` + `erp_notificacoes_listar` passou a incluir broadcast → testado: OPERADOR que não é o destinatário vê no sino. Destinatário direto = vendedor da OS (agora obrigatório). Perfis reais hoje = só OPERADOR/ADMIN (papel fino não existe ainda).
 
-**🔜 A construir (pedidos novos do Leo):**
-1. **Histórico de follow-up da OS** — timeline de eventos da OS (parada+motivo+quem+quando+origem, e depois outros). **Ancorar também no cliente** ("armazenado no cliente, indicando de onde veio a informação") → dá pra ver, pelo cliente, o histórico das interações/OS dele. Modelar tabela `os_followup` (ou reusar log) + view por cliente.
-2. **Distribuição — card "Serviços parados"** — um bloco próprio listando os parados (com motivo visível), permitindo **retomar ou CANCELAR**. E **todo serviço pode ser cancelado** (status CANCELADO já é aceito na RPC; falta o botão + confirmação + talvez motivo do cancelamento). Cancelar deve entrar no follow-up também.
+**✅ FEITO 18/08 (backend + frontend):**
+1. **Coluna `motivo_cancelado`** em os_servicos + RPC `erp_os_servico_status` com validação completa (rejeita status inválido, exige motivo em PARADO/CANCELADO, impede cancelar OS faturada).
+2. **Distribuição — card "Serviços Parados"** — bloco próprio listando os parados (com motivo visível), permitindo **Retomar ou CANCELAR**. + **Botão Cancelar em todo serviço** não-finalizado (em qualquer status) com modal (motivo obrigatório). Commit: 9a546dd.
+
+**🔜 A construir (próxima peça):**
+- **Histórico de follow-up da OS** — timeline de eventos da OS (parada+motivo+quem+quando+origem, e depois outros). **Ancorar também no cliente** ("armazenado no cliente, indicando de onde veio a informação") → dá pra ver, pelo cliente, o histórico das interações/OS dele. Modelar tabela `os_followup` (ou reusar log) + view por cliente.
 
 ## 2026-08-17 (noite) — Pátio/OS: fluxo de finalização multi-serviço + status (DESIGN, a construir)
 
