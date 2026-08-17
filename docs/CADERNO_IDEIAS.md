@@ -1,6 +1,6 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 manhã)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite)
 
 > Leia este bloco primeiro. Contexto: o Leo testou o sistema e apontou coisas de cadastro/OS. Descobrimos que **o front dessas coisas JÁ ESTAVA construído** (Clientes/Veiculos/OrdensServico) — o que faltava era backend + o deploy estar atrás.
 
@@ -8,15 +8,33 @@
 - **Marca / Cor / Formato** — tabelas `marcas`/`cores`/`formatos` + RPCs `erp_marcas_listar`/`erp_marca_salvar`, `erp_cores_listar`/`erp_cor_salvar`, `erp_formatos_listar`/`erp_formato_salvar` (+ wrappers public). Find-or-create (não duplica), rejeita vazio. **Testado.** O front do Veículo já consome (DominioSelect com "＋").
 - Confirmado que **já existe no código** (só precisa estar deployado): cliente com CEP/endereço/perfil tributário obrigatórios + ViaCEP + busca CNPJ; perfil tributário = `indicador_ie` com rótulos claros; erro de salvar com mensagem específica; **adicionar serviço na OS keyboard-first** (Enter adiciona e reabre, Esc fecha, área por código).
 
-**FEITO 18/08:**
-1. ✅ **Permissão "gestão de estoque/transferências"** — módulo id=22 criado em `modulos` + `modulos_sistema` + matriz `grupos_permissoes` (grupos 1 e 2 com acesso; Leo atribui aos outros).
-2. ✅ **Distribuição — Serviços parados + Cancelamento** (commit 9a546dd) — backend completo, UI com card parados e modal cancelar.
-3. ✅ **Modelo de veículo = LIVRE** (decisão Leo) — sem domínio. Buscador de placa é acelerador futuro.
+**FEITO 18/08 (morning):**
+1. ✅ **Permissão "gestão de estoque/transferências"** (commit efe378d)
+2. ✅ **Distribuição — Serviços parados + Cancelamento** (commit 9a546dd)
+3. ✅ **Modelo de veículo = LIVRE** (decisão Leo)
 
-**🔜 Próximos passos (fila — sugerida pela cross-session):**
-1. **Follow-up histórico (OS + cliente)** — tabela `os_followup`, timeline de eventos, ancor também no cliente.
-2. **Finalização multi-serviço** (Pátio) — colaborador finaliza N serviços da área de uma vez, RPC valida.
-3. **Buscador de placa** (Edge Function, auto-preenchimento marca/modelo/ano/cor — deixar wiring pronta, provedor a definir).
+**FEITO 18/08 (acelerador noite - 3 itens em sequência):**
+1. ✅ **Follow-up histórico (OS + cliente)** (commit 0e67d5b)
+   - Tabela `os_followup` (id_os, id_cliente, tipo, descricao, motivo, origem, id_usuario, criado_em)
+   - RPCs `erp_os_followup_listar(p_id_os)` + `erp_cliente_followup_listar(p_id_cliente)`
+   - DrawerFollowup em OrdensServico.jsx e Clientes.jsx (timeline com cores)
+   - Hook registra parada/cancelamento/retomada automaticamente
+
+2. ✅ **Finalização multi-serviço (Pátio)** (commit 3bef782)
+   - os_servicos: colunas `finalizado_por` + `finalizado_em`
+   - RPC `os_servicos_finalizar(p_ids, p_id_colaborador, p_ator)`
+   - Apontamento.jsx: checkboxes multiseleção + botão grande "FINALIZAR N"
+   - Distribuição: badge ✅ Finalizado + bloqueia reatribuição
+   - OS: bloco verde "Finalizados aguardando precificação"
+
+3. ✅ **Buscador de placa** (commit 5d888f7)
+   - Edge Function supabase/functions/buscar-placa/index.ts (placeholder)
+   - Botão 🔍 Buscar em Veiculos.jsx
+   - Preenche marca/modelo/ano/cor (validação ABC1234 + Mercosul)
+   - ⚠️ TODO: Definir provedor + configurar PLACA_API_BASE_URL/KEY
+
+**🔜 Próximos (não urgente):**
+- Fotos de produto (parado até servidor interno)
 
 **🟡 Ainda aguardando decisão do Leo:**
 - **"Formato"** (na tela Veículo): backend pronto (igual marca/cor), mas falta saber **onde amarra na tela e o que é** (tipo de veículo? carroceria?).
