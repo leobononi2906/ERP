@@ -5,7 +5,8 @@
 ## O que JÁ existe (inventário)
 Edge Functions ativas + tabelas neste projeto (`vishxwdxqiygbxmtpfoy`), do ecossistema de dashboards:
 - **Bling (hub):** `bling-callback` (OAuth), `bling-proxy` (token c/ cache+lock), `bling-sync`, `exp-sync-bling`, `exp-sync-itens`, `exp-import-bling-historico`, `bling-callback-expedicao`. Landing: **`exp_bling_pedidos_raw`** (pedidos crus), `exp_bling_sync_control`, `bling_produtos_sync`, `bling_sync_log`, `exp_bling_contas`.
-- **`exp-sync-erp`** ⚠️ já existe — provável embrião do consumidor pro ERP. **Examinar antes de construir.**
+- **`exp-sync-erp`** — LIDO (18/08): NÃO é o consumidor do ERP novo. É o sync da **EXPEDIÇÃO/logística** — puxa docs faturados da réplica Firebird (`vw_comercial_docs_faturados`) pro picking (`exp_documentos`/`exp_itens`) e **EXCLUI marketplaces** (`VENDEDORES_MKT` = ML Bononi, ML Battogo, Shopee, ML Full). Não serve de base.
+- **`exp_bling_pedidos_raw`** = a FONTE REAL: **1316 pedidos** com `payload` completo do Bling (`id_pedido_bling`, `numero_pedido`, `payload`, `importado`, `exp_documento_id`, `recebido_em`). Hoje é consumido pela expedição; **o ERP novo ainda NÃO lê daqui**. É deste payload que a reconciliação do ERP deve nascer.
 - **Marketplace/ecom:** `ecom_pedidos`, `vw_ecom_marketplace`, `fin_vendas_canal`, `Ecomm_UMBLER`, `umbler-intake`, `fetch-comercial`.
 
 ## Recomendação de arquitetura
@@ -14,11 +15,14 @@ Edge Functions ativas + tabelas neste projeto (`vishxwdxqiygbxmtpfoy`), do ecoss
 3. **Fluxo:** `exp_bling_pedidos_raw` (cru) → camada de mapeamento → materializa no ERP (venda + baixa estoque + título/financeiro). **Idempotente por id externo** (upsert, nunca duplica pedido). Webhook (`bling-callback`) pra quase-tempo-real + **cron de reconciliação** como rede de segurança.
 4. **Mapeamentos que precisam ser resolvidos:** SKU do Bling ↔ `produtos` do ERP; canal/loja ↔ `empresa`; cliente do marketplace ↔ `clientes` (ou cliente genérico do canal).
 
-## Pontos de atenção / decisões do Leo (ANTES de construir)
-- **Fonte da verdade do ESTOQUE** 🔴 o mais crítico: hoje o Bling controla estoque dos marketplaces. Se o ERP também controlar, os dois brigam / baixa dobrada. Decidir: (a) ERP passa a ser a fonte e empurra saldo pro Bling, ou (b) Bling continua dono do estoque de marketplace e o ERP só espelha. Não dá pra ter dois donos.
-- **O que o pedido de marketplace vira no ERP?** Venda completa (com financeiro + comissão) ou só movimento de estoque + receita por canal? Provável: vira **venda** já FATURADA (o marketplace já recebeu), gerando título conforme repasse.
-- **NF:** quem emite? Se é o Bling, o ERP não emite de novo — só registra.
+## Modelo DEFINIDO pelo Leo (18/08) ✅ — decisões resolvidas
+Fluxo é **um só sentido: Bling → ERP**. Por pedido de marketplace que chega:
+- **Estoque:** o Bling **baixa o estoque no ERP** (o ERP é o estoque; o pedido do Bling dispara a baixa). Sentido único = **sem baixa dobrada**. Não há o problema de "dois donos".
+- **Venda + Financeiro:** pra cá vem **a venda** (registrada como canal marketplace/Bling) **e o financeiro** (título). Provavelmente já como venda faturada/paga conforme o repasse.
+- **NF:** **emitida no Bling** — o ERP **NÃO reemite**, só registra a referência.
 - **Produtos/preços:** sincronizar cadastro Bling↔ERP (SKU, preço, foto) — já há `bling_produtos_sync`.
+
+**Consequência p/ a construção:** a camada de reconciliação do ERP consome o pedido cru (`exp_bling_pedidos_raw`) e materializa: (1) baixa estoque, (2) cria venda (canal), (3) gera título. Idempotente por id do pedido Bling. Sem NF.
 
 ## Próximos passos (quando for construir)
 1. **Ler o `exp-sync-erp`** e o schema de `exp_bling_pedidos_raw` — ver o que já faz.
