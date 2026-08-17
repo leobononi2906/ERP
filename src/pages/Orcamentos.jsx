@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   ShoppingCart, Package, Wrench, FileText, Trash2, Eye, ThumbsUp, ThumbsDown,
-  ArrowRightCircle, Clock, Calendar,
+  ArrowRightCircle, Clock, Calendar, XCircle, BarChart3, TrendingUp,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import {
@@ -18,6 +18,7 @@ const STATUS_BADGE = {
   APROVADO: [C.successBg, C.success],
   REPROVADO: [C.destructiveBg, C.destructive],
   CONVERTIDO: ["#E8E0F8", "#6B3FA0"],
+  PERDIDO: [C.warningBg, C.warning],
   VENCIDO: [C.warningBg, C.warning],
 };
 
@@ -81,6 +82,12 @@ export default function Orcamentos({ usuario }) {
   /* ─── state: modais ────────────────────────────────────────── */
   const [reprovarOpen, setReprovarOpen] = useState(false);
   const [motivoRepr, setMotivoRepr] = useState("");
+  const [perderOpen, setPerderOpen] = useState(false);
+  const [motivoPerder, setMotivoPerder] = useState("");
+  const [relOpen, setRelOpen] = useState(false);
+  const [rel, setRel] = useState(null);
+  const [relIni, setRelIni] = useState("");
+  const [relFim, setRelFim] = useState("");
   const [aprovModal, setAprovModal] = useState({ aberto: false, mensagem: "", contexto: {} });
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3500); };
@@ -274,6 +281,24 @@ export default function Orcamentos({ usuario }) {
     finally { setSaving(false); }
   }
 
+  async function perder() {
+    if (!motivoPerder.trim()) { notificar("Informe o motivo da perda.", "erro"); return; }
+    setSaving(true);
+    try {
+      const res = await rpc("erp_orcamento_perder", { p_id: orcAtual.id, p_motivo: motivoPerder, p_ator: usuario.id });
+      if (res?.ok !== false) { await recarregarDetalhe(orcAtual.id); setPerderOpen(false); setMotivoPerder(""); notificar("Orçamento marcado como perdido."); }
+      else notificar(res?.msg || "Erro", "erro");
+    } catch (e) { notificar("Erro: " + e.message, "erro"); }
+    finally { setSaving(false); }
+  }
+
+  async function carregarRelatorio(ini, fim) {
+    try {
+      const r = await rpc("erp_orcamento_conversao", { p_id_empresa: null, p_data_ini: ini || null, p_data_fim: fim || null });
+      setRel(r);
+    } catch (e) { notificar("Erro no relatório: " + e.message, "erro"); }
+  }
+
   async function converter() {
     setSaving(true);
     try {
@@ -332,6 +357,7 @@ export default function Orcamentos({ usuario }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {podeAprovar && <button onClick={aprovar} disabled={saving} style={{ ...btnPrimary(), background: C.success }}><ThumbsUp size={14} /> Aprovar</button>}
             {podeReprovar && <button onClick={() => { setMotivoRepr(""); setReprovarOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><ThumbsDown size={14} /> Reprovar</button>}
+            {!isNew && ["ABERTO", "APROVADO"].includes(status) && perms.aprovar && <button onClick={() => { setMotivoPerder(""); setPerderOpen(true); }} style={{ ...btnGhost(), color: C.warning, borderColor: C.warning }}><XCircle size={14} /> Marcar Perdido</button>}
             {podeConverter && <button onClick={converter} disabled={saving} style={btnPrimary()}><ArrowRightCircle size={14} /> Converter em Venda</button>}
           </div>
         </div>
@@ -503,6 +529,25 @@ export default function Orcamentos({ usuario }) {
           </div>
         )}
 
+        {/* Modal Marcar Perdido */}
+        {perderOpen && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setPerderOpen(false)}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Marcar como Perdido — {orcAtual.numero}</h2>
+              <p style={{ fontSize: 12.5, color: C.muted, marginBottom: 14 }}>O orçamento não virou venda. O motivo entra no relatório de conversão (ganho × perdido).</p>
+              <Campo label="Motivo da perda *">
+                <textarea value={motivoPerder} onChange={(e) => setMotivoPerder(e.target.value)} rows={3} placeholder="Ex.: preço, prazo, comprou do concorrente..." style={{ ...inp(true), height: "auto", resize: "vertical" }} />
+              </Campo>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+                <button onClick={() => setPerderOpen(false)} style={btnGhost()}>Cancelar</button>
+                <button onClick={perder} disabled={saving} style={{ ...btnPrimary(), background: C.warning, opacity: saving ? 0.6 : 1 }}>
+                  <XCircle size={14} /> {saving ? "Salvando..." : "Confirmar Perda"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <ModalAprovacao
           aberto={aprovModal.aberto}
           titulo="Liberar desconto acima do permitido"
@@ -533,7 +578,10 @@ export default function Orcamentos({ usuario }) {
     <>{ToastEl}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
         <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Orçamentos</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{filtrados.length} de {lista.length}</p></div>
-        {perms.incluir && <button onClick={novoOrcamento} style={btnPrimary()}><Plus size={16} /> Novo Orçamento</button>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => { setRelOpen(true); carregarRelatorio(relIni, relFim); }} style={btnGhost()}><BarChart3 size={16} /> Conversão</button>
+          {perms.incluir && <button onClick={novoOrcamento} style={btnPrimary()}><Plus size={16} /> Novo Orçamento</button>}
+        </div>
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
@@ -542,7 +590,7 @@ export default function Orcamentos({ usuario }) {
         </div>
         <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} style={sel()}>
           <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="APROVADO">Aprovado</option>
-          <option value="REPROVADO">Reprovado</option><option value="CONVERTIDO">Convertido</option>
+          <option value="REPROVADO">Reprovado</option><option value="CONVERTIDO">Convertido</option><option value="PERDIDO">Perdido</option>
         </select>
       </div>
       <div style={{ ...cardStyle(), padding: 0, overflow: "hidden" }}>
@@ -564,6 +612,57 @@ export default function Orcamentos({ usuario }) {
               ))}</tbody>
             </table></div>}
       </div>
+
+      {/* Relatório de conversão (ganho × perdido) */}
+      {relOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "6vh", overflowY: "auto" }} onClick={() => setRelOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 720, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <TrendingUp size={18} style={{ color: C.primary }} />
+              <h2 style={{ fontSize: 16, fontWeight: 800 }}>Conversão de orçamentos</h2>
+              <button onClick={() => setRelOpen(false)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: C.textMuted }}><X size={18} /></button>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap" }}>
+              <Campo label="De"><input type="date" value={relIni} onChange={(e) => setRelIni(e.target.value)} style={inp(true)} /></Campo>
+              <Campo label="Até"><input type="date" value={relFim} onChange={(e) => setRelFim(e.target.value)} style={inp(true)} /></Campo>
+              <button onClick={() => carregarRelatorio(relIni, relFim)} style={btnPrimary()}><Search size={14} /> Aplicar</button>
+            </div>
+            {!rel ? <div style={{ padding: 20, textAlign: "center", color: C.textMuted }}>Carregando...</div> : (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+                  {[
+                    { l: "Taxa de conversão", v: (num(rel.taxa_conversao)).toLocaleString("pt-BR") + "%", c: C.primary, big: true },
+                    { l: "Convertidos", v: rel.convertidos, sub: fmtBRL(rel.valor_convertido), c: C.success },
+                    { l: "Perdidos", v: rel.perdidos, sub: fmtBRL(rel.valor_perdido), c: C.warning },
+                    { l: "Abertos", v: rel.abertos, c: C.muted },
+                  ].map((k, i) => (
+                    <div key={i} style={{ ...cardStyle(), padding: 14 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted }}>{k.l}</div>
+                      <div style={{ fontSize: k.big ? 26 : 22, fontWeight: 800, color: k.c, fontFamily: mono }}>{k.v}</div>
+                      {k.sub && <div style={{ fontSize: 11.5, color: C.muted, fontFamily: mono }}>{k.sub}</div>}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>Por vendedor</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead><tr>{["Vendedor", "Ganhos", "Perdidos", "Valor ganho"].map((h, i) => <th key={i} style={th(i >= 1)}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {(rel.por_vendedor || []).length === 0 ? <tr><td colSpan={4} style={{ ...td(), textAlign: "center", color: C.textMuted }}>Sem dados no período.</td></tr>
+                    : (rel.por_vendedor || []).map((v, i) => (
+                      <tr key={i} style={{ borderTop: `1px solid ${C.border}` }}>
+                        <td style={{ ...td(), fontWeight: 500 }}>{v.vendedor || "—"}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.success }}>{v.ganhos}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono, color: C.warning }}>{v.perdidos}</td>
+                        <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(v.valor_ganho)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
