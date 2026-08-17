@@ -1,9 +1,10 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
-## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite+ — 18 commits PUSHED)
+## 🧭 ONDE PARAMOS — fila pra sessão nova (atualizado 18/08 noite+ — 19 commits PUSHED)
 
-**✅ SESSÃO 18/08 CONTINUAÇÃO — Trava de Qualidade (1 commit):**
+**✅ SESSÃO 18/08 CONTINUAÇÃO — Trava de Qualidade (2 commits):**
 1. 62cff0f — Trava de qualidade da OS: valida antes de faturar (RPC erp_os_pendencias + aviso didático)
+2. de35ee0 — Trava de qualidade da Venda: padrão igual OS (erp_venda_pendencias)
 
 **✅ SESSÃO 18/08 CONTINUAÇÃO — Travar Picking (1 commit):**
 1. 1323c60 — Travar picking: bloquear edição/remoção quando em separação (ícone 🔒 + botões desabilitados)
