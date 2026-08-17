@@ -33,22 +33,18 @@
    - Preenche marca/modelo/ano/cor (validação ABC1234 + Mercosul)
    - ⚠️ TODO: Definir provedor + configurar PLACA_API_BASE_URL/KEY
 
-**🔴 CRÍTICO P/ PRECIFICAÇÃO (18/08 noite — novo pedido Leo):**
+**✅ CRÍTICO P/ PRECIFICAÇÃO (18/08 noite — FEITO commit 9d78171):**
 
-1. **Não-sobreposição de horários (colaborador → 1 relógio por vez)**
-   - Ao dar ENTRADA/RETOMAR num defeito B, **feche automaticamente** qualquer apontamento ABERTO de OUTRO defeito/OS do mesmo colaborador
-   - Implementar em `os_patio_defeito_acao` (ações ENTRADA/RETOMAR)
-   - Validação: evitar tempo dobrado (base de precificação errada)
-   - UI: avisa ao pausar ("Horário do serviço X pausado — agora corre no Y")
-   - Colunas `os_apontamentos`: hora_inicio, hora_fim (confirmar schema)
+1. ✅ **Não-sobreposição de horários (colaborador → 1 relógio por vez)**
+   - `os_patio_defeito_acao` ao dar ENTRADA/RETOMAR fecha automaticamente outro apontamento aberto
+   - UI Apontamento.jsx: exibe aviso (⏸️ pausado — agora corre em Y)
+   - Garante tempo_realizado sem dobrados (base de precificação correta)
 
-2. **Gerenciamento de apontamentos (editar/incluir/excluir)**
-   - RPCs públicas: `erp_apontamento_editar(p_id, p_hora_inicio, p_hora_fim, p_ator)`, `erp_apontamento_incluir(p_id_defeito/os, p_id_colaborador, p_hora_inicio, p_hora_fim, p_ator)`, `erp_apontamento_excluir(p_id, p_ator)`
-   - Permissão: `perms.aprovar` (OS) — rejeitar se não autorizado
-   - **LOG obrigatório:** cada ação registra antes/depois em `erp_log` (quem, quando, mudou o quê)
-   - Respeitar não-sobreposição ao editar/incluir
-   - Recalcular tempo_realizado após edição
-   - Front (OS): aba/drawer "Apontamentos" lista editável (add/editar/excluir) — só autorizado; mostra autor/carimbo
+2. ✅ **Gerenciamento de apontamentos (backend pronto)**
+   - RPCs: `erp_apontamento_editar/incluir/excluir` (todas com LOG)
+   - Validação: não permite sobreposição mesmo colaborador
+   - Recalcula horas_trabalhadas após edição
+   - TODO (próx): Front (OS) aba/drawer "Apontamentos" lista editável — só perms.aprovar; mostra autor/carimbo
 
 **🔜 Próximos (não urgente):**
 - Fotos de produto (parado até servidor interno)
