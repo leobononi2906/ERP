@@ -21,6 +21,22 @@
 
 ---
 
+## 2026-08-17 (noite) — Pátio/OS: fluxo de finalização multi-serviço + status (DESIGN, a construir)
+
+**Conceito do Leo:** "concluir MEU serviço" (o apontamento do colaborador) ≠ "serviço FINALIZADO" (a linha de serviço pronta pra precificar). Hoje o banco **conflaciona**: `os_servicos` tem 1 status (PENDENTE/EM_EXECUCAO≈EM_ANDAMENTO/PARADO/CONCLUIDO) e **1 só** `id_tecnico`; os `apontamentos` guardam o tempo por defeito. Não existe separação "minha parte pronta" vs "serviço pronto".
+
+**Regras do Leo:**
+- 1 colaborador pega **N serviços da mesma área** (ex.: 3 de elétrica), **entra em todos** (mesmo que só 1 tenha apontamento detalhado) e **FINALIZA os N de uma vez**.
+- Ao finalizar → `os_servicos.status = CONCLUIDO` + **registra QUEM finalizou e quando** (é a validação que quem distribui enxerga).
+- **Trava:** serviço finalizado **não pode ser reatribuído** a outro colaborador (evita refação / duplo repasse).
+- **Boca (vendedor)** tem um **bloco só** "serviços finalizados aguardando precificação" → precifica em lote antes de faturar.
+
+**A construir (próxima peça focada):**
+- Backend: `os_servicos` + `finalizado_por int` + `finalizado_em timestamptz`; RPC `os_servicos_finalizar(p_ids int[], p_id_colaborador, p_ator)` (seta status/finalizado_*, recusa já-finalizado); `os_distribuir_servico` recusa se finalizado; consolidar EM_ANDAMENTO≈EM_EXECUCAO.
+- Front Pátio: multiseleção + botão GRANDE "Finalizar serviço(s)".
+- Front Distribuição: **botão bem visível + didático** + badge "✅ Finalizado por Fulano"; reatribuir bloqueado.
+- Front OS (boca): bloco "Finalizados p/ precificar" em lote.
+
 ## 🔨 Aplicado 17/08 (tarde) — backend construído + testado (eu)
 - ✅ **Localização múltipla:** tabela `produtos_localizacao` + RPCs `erp_produto_localizacoes/_salvar/_excluir`. Testado (N localizações rua/prateleira/nível/centro, marca principal). Falta UI (aba no produto) → sessão ERP.
 - ✅ **Orçamento GANHO×PERDIDO:** status `PERDIDO` (add ao constraint) + `erp_orcamento_perder(id,motivo,ator)` + relatório `erp_orcamento_conversao(empresa,ini,fim)` (taxa de conversão + por vendedor). Testado (taxa 66,7%). Falta UI (botão "Perder" no orçamento + tela do relatório) → sessão ERP.
