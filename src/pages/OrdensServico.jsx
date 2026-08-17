@@ -27,7 +27,7 @@ const STATUS_CORES = {
 
 const OS_VAZIA = () => ({
   id: null, numero: "", id_empresa: "", id_cliente: "", id_veiculo: "", id_tipo_os: "",
-  id_usuario_abertura: "", id_usuario_responsavel: "", status: "ABERTA",
+  id_usuario_abertura: "", id_usuario_responsavel: "", id_vendedor: "", id_prisma: "", status: "ABERTA",
   data_prevista: "", km_entrada: "", defeito_relatado: "", observacao_interna: "",
 });
 
@@ -81,6 +81,7 @@ export default function OrdensServico({ usuario }) {
   // defeitos
   const [osDefeitos, setOsDefeitos] = useState([]);
   const [prismasOs, setPrismasOs] = useState([]);
+  const [prismasForm, setPrismasForm] = useState([]); // prismas livres do vendedor, na criação/edição da OS
   const [addDefeito, setAddDefeito] = useState(false);
   const [formDefeito, setFormDefeito] = useState({ descricao: "", id_area: "" });
 
@@ -153,10 +154,22 @@ export default function OrdensServico({ usuario }) {
     return String(max + 1);
   }
 
+  // Carrega os prismas do vendedor escolhido, na tela de abrir/editar OS
+  useEffect(() => {
+    if (view !== "form" || !form.id_vendedor) { setPrismasForm([]); return; }
+    let ok = true;
+    rpc("os_prismas_dados", { p_id_vendedor: num(form.id_vendedor) || null })
+      .then((pd) => { if (ok) setPrismasForm(pd?.prismas || []); })
+      .catch(() => { if (ok) setPrismasForm([]); });
+    return () => { ok = false; };
+  }, [form.id_vendedor, view]);
+
   /* ─── Salvar OS (criar / editar) ─────────────────────────────── */
   async function salvarOS() {
     if (!form.id_empresa) { setErroForm("Selecione a empresa (escolha a empresa ativa no topo ou no cabeçalho da OS)."); return; }
     if (!form.id_cliente) { setErroForm("Selecione o cliente."); return; }
+    if (!form.id_vendedor && !form.id_usuario_responsavel) { setErroForm("Informe o vendedor ou o responsável pela OS."); return; }
+    if (!form.id && !form.id_prisma) { setErroForm("Selecione o prisma da OS (escolha o vendedor para listar os prismas livres)."); return; }
     setErroForm(""); setSaving(true);
     try {
       const saved = await rpc("os_salvar", {
@@ -168,6 +181,7 @@ export default function OrdensServico({ usuario }) {
         p_id_tipo_os: num(form.id_tipo_os) || null,
         p_id_usuario_abertura: num(form.id_usuario_abertura) || null,
         p_id_usuario_responsavel: num(form.id_usuario_responsavel) || null,
+        p_id_vendedor: num(form.id_vendedor) || null,
         p_status: form.status || "ABERTA",
         p_data_prevista: form.data_prevista || null,
         p_km_entrada: num(form.km_entrada) || null,
@@ -175,6 +189,10 @@ export default function OrdensServico({ usuario }) {
         p_observacao_interna: form.observacao_interna || null,
         p_ator: usuario.id,
       });
+      if (form.id_prisma && saved.id) {
+        try { await rpc("os_prisma_atribuir", { p_id_os: saved.id, p_id_prisma: num(form.id_prisma), p_id_usuario: usuario.id }); }
+        catch (e) { notificar("OS salva, mas o prisma não pôde ser atribuído: " + e.message, "erro"); }
+      }
       setLista((l) => {
         const sem = l.filter((o) => o.id !== saved.id);
         return [saved, ...sem];
@@ -567,6 +585,15 @@ export default function OrdensServico({ usuario }) {
               <button type="button" onClick={() => { if (!form.id_cliente) { setErroForm("Selecione o cliente antes de cadastrar o veículo."); return; } setNovoVeiculoAberto(true); }} title="Novo veículo" style={{ ...btnGhost(), whiteSpace: "nowrap", flex: "0 0 auto" }}><Plus size={14} /> Novo</button>
             </div>
           </Campo>
+          <Campo label="Vendedor *">
+            <SelectBusca
+              opcoes={usuarios.map((u) => ({ id: u.id, label: u.nome }))}
+              value={form.id_vendedor}
+              onChange={(id) => setForm((f) => ({ ...f, id_vendedor: id, id_prisma: "" }))}
+              placeholder="Selecione o vendedor..."
+              full={true}
+            />
+          </Campo>
           <Campo label="Responsável">
             <SelectBusca
               opcoes={usuarios.map((u) => ({ id: u.id, label: u.nome }))}
@@ -575,6 +602,12 @@ export default function OrdensServico({ usuario }) {
               placeholder="Selecione..."
               full={true}
             />
+          </Campo>
+          <Campo label={form.id ? "Prisma" : "Prisma *"}>
+            <select value={form.id_prisma} onChange={(e) => setF("id_prisma", e.target.value)} disabled={!form.id_vendedor} style={sel(true)}>
+              <option value="">{form.id_vendedor ? "Selecione o prisma..." : "Escolha o vendedor primeiro"}</option>
+              {prismasForm.filter((p) => p.ativo && (!p.em_uso || String(p.os_numero) === String(form.numero))).map((p) => <option key={p.id} value={p.id}>{p.numero}</option>)}
+            </select>
           </Campo>
           <Campo label="Data prevista">
             <input type="date" value={form.data_prevista} onChange={(e) => setF("data_prevista", e.target.value)} style={inp(true)} />

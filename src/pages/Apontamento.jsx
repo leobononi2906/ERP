@@ -3,7 +3,7 @@ import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Box
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, btnPrimary, btnGhost, Skeleton, SelectBusca } from "../ui";
 
-const SESSAO_MS = 10 * 1000; // PC coletivo: volta ao login após 10s de inatividade
+const SESSAO_MS = 60 * 1000; // PC coletivo: volta ao login após 60s parado (era 10s — curto demais ao preencher a solicitação de peça)
 
 const DEFEITO_COR = {
   ABERTO:       { bg: C.bluePale,      fg: C.blueMid,   label: "Aberto" },
@@ -73,6 +73,15 @@ export default function Apontamento() {
     window.addEventListener("mousedown", onAtividade);
     return () => { window.removeEventListener("keydown", onAtividade); window.removeEventListener("mousedown", onAtividade); };
   }, [sessao, resetTimer]);
+
+  // F4 abre a Solicitar peça (atalho do balcão)
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "F4" && sessao && !modal && !defModal) { e.preventDefault(); abrirModal("peca"); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   async function carregarContexto(pr, idColab) {
     const numeroPrisma = (pr ?? prisma).trim();
@@ -257,7 +266,7 @@ export default function Apontamento() {
                 <div><div style={miniLbl}>Vendedor</div><div>{ctx.os.vendedor || "—"}</div></div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button onClick={() => setDefModal({ descricao: "" })} style={btnGhost()}><Plus size={14} /> Novo defeito</button>
-                  <button onClick={() => abrirModal("peca")} style={btnGhost()}><PackagePlus size={14} /> Solicitar peça</button>
+                  <button onClick={() => abrirModal("peca")} style={btnGhost()}><PackagePlus size={14} /> Solicitar peça <kbd style={{ fontSize: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, padding: "0 4px", fontFamily: mono }}>F4</kbd></button>
                   <button onClick={() => abrirModal("consumo")} style={btnGhost()}><Boxes size={14} /> Consumo</button>
                 </div>
               </div>
@@ -342,20 +351,37 @@ export default function Apontamento() {
 
       {modal && (
         <div onMouseDown={() => resetTimer()} style={{ position: "fixed", inset: 0, background: "rgba(15,29,53,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ ...cardStyle(), width: 440, maxWidth: "100%" }}>
+          <div style={{ ...cardStyle(), width: 640, maxWidth: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <b style={{ fontSize: 15 }}>{modal.tipo === "peca" ? "Solicitar peça" : "Lançar consumo"}</b>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
-                <label style={lbl}>Produto</label>
+                <label style={lbl}>Produto (busque por nome ou código)</label>
                 <SelectBusca
-                  opcoes={produtos.map((p) => ({ id: p.id, label: p.nome, sub: (p.codigo ? p.codigo + " · " : "") + fmtBRL(p.preco_venda) }))}
-                  value={modal.id_produto} onChange={(id) => setModal((m) => ({ ...m, id_produto: id }))}
+                  opcoes={produtos.map((p) => ({ id: p.id, label: p.nome, sub: (p.codigo ? "Cód " + p.codigo + " · " : "") + fmtBRL(p.preco_venda) + " · " + (Number(p.estoque) || 0) + " em estoque" }))}
+                  value={modal.id_produto} onChange={(id) => { setModal((m) => ({ ...m, id_produto: id })); resetTimer(); }}
                   placeholder="Buscar produto..." full
                 />
               </div>
+              {(() => {
+                const prod = produtos.find((p) => String(p.id) === String(modal.id_produto));
+                if (!prod) return null;
+                const est = Number(prod.estoque) || 0;
+                return (
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", background: C.surface2, borderRadius: 10, padding: 12 }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 8, background: C.card, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", overflow: "hidden" }}>
+                      {prod.foto ? <img src={prod.foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10, color: C.textMuted }}>sem foto</span>}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{prod.nome}</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{prod.codigo ? "Cód " + prod.codigo + " · " : ""}{fmtBRL(prod.preco_venda)}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4, color: est > 0 ? C.success : C.destructive }}>{est > 0 ? est + " em estoque" : "Sem estoque"}</div>
+                    </div>
+                  </div>
+                );
+              })()}
               <div>
                 <label style={lbl}>Quantidade</label>
                 <input type="number" step="0.01" min="0" value={modal.qtd} onChange={(e) => setModal((m) => ({ ...m, qtd: e.target.value }))} style={{ ...inp(), width: "100%", fontFamily: mono }} />
