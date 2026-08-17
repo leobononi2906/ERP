@@ -1,5 +1,24 @@
 # Caderno de Ideias — Gestão / Implantação ERP
 
+## 🆕 FILA (18/08 fim de tarde) — Liberar Faturamento + organização do menu
+
+### 🔴 LIBERAR FATURAMENTO (feature nova — gate antes de faturar) — A CONSTRUIR
+Hoje Venda/OS faturam direto. O Leo quer um **gate**: um botão **"Liberar Faturamento"** no lugar do faturar direto.
+- **Pré-condição pra liberar:** preços, prazos e descontos JÁ definidos (validar).
+- Ao liberar → novo status **LIBERADO_FATURAMENTO** + entra numa **FILA DE FATURAMENTO** (tela nova onde o time de faturamento trabalha).
+- **Trava:** liberada, a OS/Venda **NÃO pode mais ser alterada** — a não ser que o **faturamento REVERTA** a ação (volta pra edição).
+- O **faturar de verdade** (os_faturar/venda_faturar atuais) só roda a partir da fila, pelo time de faturamento.
+- Backend: status novo em ordens_servico/vendas; `erp_os_liberar_faturamento`/`erp_venda_liberar_faturamento` (valida preços/prazos/descontos + pendências da oficina já existentes); `erp_*_reverter_liberacao` (só faturamento); guard nas RPCs de edição (os_salvar/venda_salvar/lancar_item recusam se LIBERADO); `erp_faturamento_fila_dados`. Permissões: liberar=vendedor/operador; faturar+reverter=grupo FATURAMENTO. Tela nova "Faturamento" (fila).
+
+### 🟡 Reorganização do menu Estoque (revisar)
+Hoje em Estoque: Separação, Solicitações de Peça, Remessas/Retornos. Ajuste correto:
+- **Separação** → é logística/expedição (avaliar grupo "Expedição").
+- **Solicitação de peça** → começa no comercial/OS (é o pedido que vira picking).
+- **Ajustes de estoque** → hoje é ação DENTRO da tela Estoque (Estoque.jsx).
+- **Remessas/Retornos** → é **FISCAL** (NF/CFOP), não saída de estoque comum → mover pro módulo Fiscal quando existir.
+
+
+
 ## 💡 A ANOTAR (aguardando fotos do Leo) — Distribuição como PAINEL
 Melhorar a VISUALIZAÇÃO da tela de Distribuição de Serviços. O Leo vai mandar **fotos do quadro físico** que usam hoje na oficina — espelhar aquilo. Pode servir como **PAINEL** (ex.: TV na oficina, modo kiosk/board): colunas por área/status, cards grandes, cores, tempo aberto. **Aguardando as fotos pra desenhar — NÃO construir ainda.**
 
