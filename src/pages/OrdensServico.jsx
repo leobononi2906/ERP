@@ -307,13 +307,12 @@ export default function OrdensServico({ usuario }) {
         p_quantidade: num(formPeca.quantidade) || 1,
         p_valor_unitario: prod ? prod.preco_venda : 0,
         p_id_usuario: usuario.id,
-        p_consumo: !!formPeca.consumo,
-        p_id_producao: num(formPeca.id_producao) || null,
+        p_consumo: false,  // OS/Vendas: sempre é cobrado (consumo só no pátio)
       });
-      setFormPeca({ id_produto: "", quantidade: 1, consumo: false, id_producao: "" });
-      setModalPeca(false);
+      // Limpar form e reabrir modal pra próxima peça (keyboard-first: adiciona e já abre a próxima)
+      setFormPeca({ id_produto: "", quantidade: 1 });
       await recarregarDetalheOs(osAtual.id);
-      notificar(formPeca.consumo ? `Consumo solicitado → Separação ${res.numero}` : `Peça solicitada → Separação ${res.numero}`);
+      notificar(`Peça solicitada → Separação ${res.numero}`);
     } catch (e) {
       notificar("Erro: " + e.message, "erro");
     } finally { setSaving(false); }
@@ -1247,20 +1246,8 @@ export default function OrdensServico({ usuario }) {
                       )}
                     </Campo>
                     <Campo label="Quantidade">
-                      <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} inputMode="numeric" style={inp(true)} />
+                      <input value={formPeca.quantidade} onChange={e => setFormPeca(f => ({ ...f, quantidade: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') solicitarPeca(); else if (e.key === 'Escape') setModalPeca(false); }} inputMode="numeric" style={inp(true)} />
                     </Campo>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 13, cursor: "pointer" }}>
-                      <input type="checkbox" checked={!!formPeca.consumo} onChange={e => setFormPeca(f => ({ ...f, consumo: e.target.checked }))} />
-                      <span><b>Item de consumo</b> — entra no custo da OS, não é cobrado do cliente</span>
-                    </label>
-                    {formPeca.consumo && osPecas.filter(x => x.produzido && x.status !== "CONCLUIDO").length > 0 && (
-                      <Campo label="Vincular à produção (opcional)">
-                        <select value={formPeca.id_producao} onChange={e => setFormPeca(f => ({ ...f, id_producao: e.target.value }))} style={sel(true)}>
-                          <option value="">— consumo geral da OS —</option>
-                          {osPecas.filter(x => x.produzido && x.status !== "CONCLUIDO").map(x => <option key={x.id} value={x.id}>{x.descricao}</option>)}
-                        </select>
-                      </Campo>
-                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
                       <button onClick={() => setModalPeca(false)} style={btnGhost()}>Cancelar</button>
                       <button onClick={solicitarPeca} disabled={saving} style={{ ...btnPrimary(), opacity: saving ? 0.6 : 1 }}>
