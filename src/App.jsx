@@ -69,6 +69,7 @@ import VerbasTrabalhistas from "./pages/VerbasTrabalhistas";
 import PedidosCompra from "./pages/PedidosCompra";
 import EstoqueParado from "./pages/EstoqueParado";
 import EstoqueUsoInterno from "./pages/EstoqueUsoInterno";
+import VendasPerdidas from "./pages/VendasPerdidas";
 import CaixaLoja from "./pages/financeiro/Caixa";
 import Cobranca from "./pages/Cobranca";
 import Remessas from "./pages/Remessas";
@@ -124,6 +125,7 @@ const MENU_GROUPS = [
       { key: "pedidos_compra", label: "Pedidos de Compra", icon: ShoppingCart, ok: true, permKey: "compras" },
       { key: "entradas", label: "Entradas (NF)", icon: PackageOpen, ok: true, permKey: "compras" },
       { key: "estoque_parado", label: "Estoque Parado", icon: PackageX, ok: true, permKey: "compras" },
+      { key: "vendas_perdidas", label: "Vendas Perdidas", icon: TrendingUp, ok: true, permKey: "compras" },
     ],
   },
   {
@@ -363,7 +365,8 @@ export default function App() {
         {pagina === "verbas" && <VerbasTrabalhistas usuario={usuario} />}
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "remessas", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "config_fiscal", "fiscal", "folha_sim", "colaboradores", "folha", "verbas"].includes(pagina) && (
+        {pagina === "vendas_perdidas" && <VendasPerdidas usuario={usuario} />}
+        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "remessas", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "vendas_perdidas", "config_fiscal", "fiscal", "folha_sim", "colaboradores", "folha", "verbas"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>
