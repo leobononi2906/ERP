@@ -22,11 +22,57 @@ export default function Veiculos({ usuario }) {
   const [busca, setBusca] = useState("");
   const [marcas, setMarcas] = useState([]);
   const [cores, setCores] = useState([]);
+  const [buscandoPlaca, setBuscandoPlaca] = useState(false);
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
 
   const carregarDominios = () => Promise.all([rpc("erp_marcas_listar"), rpc("erp_cores_listar")])
     .then(([m, c]) => { setMarcas(Array.isArray(m) ? m : []); setCores(Array.isArray(c) ? c : []); }).catch(() => {});
+
+  const buscarPlaca = async () => {
+    const placaLimpa = (form.placa || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+    if (!placaLimpa || placaLimpa.length !== 7) {
+      notificar("Placa inválida. Use ABC1234 ou ABC1D23.", "erro");
+      return;
+    }
+
+    setBuscandoPlaca(true);
+    try {
+      // Chamar Edge Function para buscar placa
+      const supabaseUrl = "https://vishxwdxqiygbxmtpfoy.supabase.co";
+      const response = await fetch(`${supabaseUrl}/functions/v1/buscar-placa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placa: placaLimpa }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.codigo === "PLACA_API_NOT_CONFIGURED") {
+          notificar("⚠️ Provedor de placa não configurado. Preencha manualmente.", "erro");
+          return;
+        }
+        notificar("Placa não encontrada: " + (data.error || "tente novamente"), "erro");
+        return;
+      }
+
+      // Preencher os campos com os dados retornados
+      setForm((f) => ({
+        ...f,
+        marca: data.marca || f.marca,
+        modelo: data.modelo || f.modelo,
+        ano_fabricacao: data.ano || f.ano_fabricacao,
+        cor: data.cor || f.cor,
+      }));
+
+      notificar("✓ Placa encontrada! Preencha os demais dados.");
+    } catch (e) {
+      notificar("Erro ao buscar placa: " + e.message, "erro");
+    } finally {
+      setBuscandoPlaca(false);
+    }
+  };
 
   useEffect(() => {
     let ok = true;
@@ -84,7 +130,12 @@ export default function Veiculos({ usuario }) {
       {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
       <Secao titulo="Dados do Veículo">
         <Campo label="Placa *">
-          <input value={form.placa} onChange={(e) => setF("placa", mascaraPlaca(e.target.value))} maxLength={7} placeholder="ABC1D23" style={{ ...inp(true), fontFamily: mono, fontWeight: 700, borderColor: form.placa && !placaValida(form.placa) ? C.destructive : undefined }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={form.placa} onChange={(e) => setF("placa", mascaraPlaca(e.target.value))} maxLength={7} placeholder="ABC1D23" style={{ ...inp(true), fontFamily: mono, fontWeight: 700, borderColor: form.placa && !placaValida(form.placa) ? C.destructive : undefined, flex: 1 }} />
+            <button onClick={buscarPlaca} disabled={buscandoPlaca || !form.placa || !placaValida(form.placa)} style={{ ...btnGhost(), padding: "8px 12px", whiteSpace: "nowrap" }}>
+              {buscandoPlaca ? "Buscando..." : "🔍 Buscar"}
+            </button>
+          </div>
           {form.placa && !placaValida(form.placa) && <span style={{ fontSize: 11, color: C.destructive }}>Formato ABC1234 ou ABC1D23</span>}
         </Campo>
         <Campo label="Renavam"><input value={form.renavam} onChange={(e) => setF("renavam", e.target.value)} style={inp(true)} /></Campo>
