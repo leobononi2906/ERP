@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash",
+      "mcp__Google_Drive",
+      "mcp__Google_Calendar",
+      "mcp__Notion",
+      "mcp__Supabase__execute_sql",
+      "mcp__Supabase__list_tables",
+      "mcp__Supabase__list_projects",
+      "mcp__Supabase__get_project",
+      "mcp__Gmail__search_threads",
+      "mcp__Gmail__get_thread",
+      "mcp__Gmail__get_message",
+      "mcp__Gmail__list_labels",
+      "mcp__Gmail__create_draft"
+    ],
+    "ask": [
+      "mcp__Google_Drive__trash_file",
+      "mcp__Gmail__send_message",
+      "mcp__Gmail__forward",
+      "mcp__Gmail__trash_message",
+      "mcp__Gmail__trash_thread",
+      "mcp__Notion__notion-move-pages",
+      "mcp__Supabase__apply_migration",
+      "mcp__Supabase__deploy_edge_function"
+    ]
+  }
+}
