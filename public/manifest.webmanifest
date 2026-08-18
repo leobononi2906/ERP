@@ -1,0 +1,14 @@
+{
+  "name": "Bononi ERP",
+  "short_name": "Bononi ERP",
+  "description": "ERP do Grupo Bononi Acessórios",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F0F3F8",
+  "theme_color": "#0F1D35",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
