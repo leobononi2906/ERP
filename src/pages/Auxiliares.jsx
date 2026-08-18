@@ -30,6 +30,7 @@ export default function Auxiliares({ usuario }) {
   return (
     <TabHub keys={false} tabs={[
       { key: "formas", label: "Formas de Pagamento", render: () => <FormasPagamento dados={dados} loading={loading} reload={carregar} /> },
+      { key: "condicoes", label: "Condições de Pagamento", render: () => <CondicoesPagamento /> },
       { key: "unidades", label: "Unidades", render: () => <Unidades dados={dados} loading={loading} reload={carregar} /> },
       { key: "areas", label: "Áreas de Serviço", render: () => <AreasServico dados={dados} loading={loading} reload={carregar} /> },
       { key: "gruposprod", label: "Grupos de Produto", render: () => <GruposProduto dados={dados} loading={loading} reload={carregar} /> },
@@ -175,6 +176,87 @@ function FormasPagamento({ dados, loading, reload }) {
                 <td style={{ ...td(), textAlign: "right" }}>{f.prazo_medio_dias ? `${f.prazo_medio_dias}d` : "—"}</td>
                 <td style={{ ...td(), textAlign: "center" }}><Badge texto={f.ativo ? "ATIVO" : "INATIVO"} /></td>
                 <td style={{ ...td(), textAlign: "center" }}><button onClick={() => setEd({ ...f })} style={btnIcon()} title="Editar"><Pencil size={14} /></button></td>
+              </tr>
+            ))}
+            {itens.length === 0 && <VazioRow n={7} />}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ CONDIÇÕES DE PAGAMENTO ═══ */
+function CondicoesPagamento() {
+  const [itens, setItens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [ed, setEd] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  async function carregar() {
+    setLoading(true);
+    try { const r = await rpc("erp_condicoes_pagamento_listar", {}); setItens(Array.isArray(r) ? r : []); }
+    catch (e) { /* ignore */ }
+    setLoading(false);
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function salvar() {
+    if (!ed.descricao) return;
+    setSaving(true);
+    try {
+      const r = await rpc("erp_condicao_pagamento_salvar", { p: ed });
+      if (r?.ok === false) { alert(r.erro || "Erro ao salvar"); }
+      else { setEd(null); await carregar(); }
+    } catch (e) { alert("Erro ao salvar condição de pagamento"); }
+    setSaving(false);
+  }
+
+  const previa = (c) => {
+    const n = Number(c.num_parcelas) || 1, iv = Number(c.intervalo_dias) || 0;
+    if (n <= 1) return iv === 0 ? "À vista" : `1x em ${iv} dias`;
+    const ini = c.entrada ? 0 : iv;
+    const dias = Array.from({ length: n }, (_, i) => ini + i * iv);
+    return `${n}x (${dias.join("/")} dias)`;
+  };
+
+  if (loading) return <Carregando />;
+  return (
+    <div>
+      <Cabecalho icon={CreditCard} titulo="Condições de Pagamento" onNovo={() => setEd({ id: 0, descricao: "", num_parcelas: 1, intervalo_dias: 0, entrada: false, libera_limite: true, ativo: true })} />
+      <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 12 }}>Define o vencimento das parcelas (ex.: "30 dias" = 1 parcela +30; "30/60/90" = 3 parcelas). "Consome crédito" = a prazo (passa pela análise de crédito).</div>
+      {ed && (
+        <div style={{ ...cardStyle(), marginBottom: 14, border: `2px solid ${C.primary}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12 }}>
+            <Campo label="Descrição *"><input value={ed.descricao} onChange={(e) => setEd({ ...ed, descricao: e.target.value })} placeholder="Ex.: 30/60/90" style={inp(true)} autoFocus /></Campo>
+            <Campo label="Nº de parcelas"><input type="number" min="1" value={ed.num_parcelas} onChange={(e) => setEd({ ...ed, num_parcelas: Number(e.target.value) })} style={inp(true)} /></Campo>
+            <Campo label="Intervalo (dias)"><input type="number" min="0" value={ed.intervalo_dias} onChange={(e) => setEd({ ...ed, intervalo_dias: Number(e.target.value) })} style={inp(true)} /></Campo>
+          </div>
+          <div style={{ display: "flex", gap: 20, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={chk}><input type="checkbox" checked={!!ed.entrada} onChange={(e) => setEd({ ...ed, entrada: e.target.checked })} /> 1ª parcela à vista (entrada)</label>
+            <label style={chk}><input type="checkbox" checked={!!ed.libera_limite} onChange={(e) => setEd({ ...ed, libera_limite: e.target.checked })} /> Consome crédito (a prazo)</label>
+            <label style={chk}><input type="checkbox" checked={!!ed.ativo} onChange={(e) => setEd({ ...ed, ativo: e.target.checked })} /> Ativo</label>
+            <span style={{ fontSize: 12, color: C.primary, fontWeight: 600, marginLeft: "auto" }}>Prévia: {previa(ed)}</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={salvar} disabled={saving || !ed.descricao} style={btnPrimary()}><Save size={14} /> Salvar</button>
+            <button onClick={() => setEd(null)} style={btnGhost()}><X size={14} /> Cancelar</button>
+          </div>
+        </div>
+      )}
+      <div style={cardStyle()}>
+        <table style={tabela}>
+          <thead><tr><th style={th()}>Descrição</th><th style={{ ...th(), textAlign: "center" }}>Parcelas</th><th style={{ ...th(), textAlign: "center" }}>Intervalo</th><th style={th()}>Vencimentos</th><th style={{ ...th(), textAlign: "center" }}>Crédito</th><th style={{ ...th(), textAlign: "center" }}>Status</th><th style={{ ...th(), textAlign: "center" }}>Ações</th></tr></thead>
+          <tbody>
+            {itens.map((c) => (
+              <tr key={c.id} style={linha}>
+                <td style={{ ...td(), fontWeight: 600 }}>{c.descricao}</td>
+                <td style={{ ...td(), textAlign: "center" }}>{c.num_parcelas || 1}x</td>
+                <td style={{ ...td(), textAlign: "center" }}>{c.intervalo_dias ? `${c.intervalo_dias}d` : "—"}</td>
+                <td style={{ ...td(), fontSize: 12, color: C.muted }}>{previa(c)}</td>
+                <td style={{ ...td(), textAlign: "center" }}>{c.libera_limite ? <Badge texto="A PRAZO" /> : <Badge texto="À VISTA" />}</td>
+                <td style={{ ...td(), textAlign: "center" }}><Badge texto={c.ativo ? "ATIVO" : "INATIVO"} /></td>
+                <td style={{ ...td(), textAlign: "center" }}><button onClick={() => setEd({ ...c })} style={btnIcon()} title="Editar"><Pencil size={14} /></button></td>
               </tr>
             ))}
             {itens.length === 0 && <VazioRow n={7} />}

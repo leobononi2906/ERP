@@ -92,6 +92,7 @@ const MENU_GROUPS = [
       { key: "vendas", label: "Vendas", icon: ShoppingCart, ok: true },
       { key: "consulta_precos", label: "Consulta de Preços", icon: Tag, ok: true, permKey: "vendas" },
       { key: "os", label: "Ordem de Serviço", icon: Wrench, ok: true },
+      { key: "solicitacoes", label: "Solicitações de Peça", icon: PackageOpen, ok: true, permAny: ["estoque", "os"] },
       { key: "devolucoes", label: "Devoluções", icon: Undo2, ok: true, permKey: "vendas" },
       { key: "encomendas", label: "Encomendas", icon: PackageOpen, ok: true, permKey: "vendas" },
       { key: "promocoes", label: "Promoções", icon: DollarSign, ok: true, permKey: "vendas" },
@@ -112,8 +113,7 @@ const MENU_GROUPS = [
     items: [
       { key: "estoque", label: "Estoque", icon: Package, ok: true },
       { key: "uso_interno", label: "Uso Interno", icon: PackageX, ok: true, permKey: "estoque" },
-      { key: "separacao", label: "Separação", icon: PackageOpen, ok: true },
-      { key: "solicitacoes", label: "Solicitações de Peça", icon: PackageOpen, ok: true, permAny: ["estoque", "os"] },
+      { key: "separacao", label: "Separação / Expedição", icon: PackageOpen, ok: true },
       { key: "remessas", label: "Remessas / Retornos", icon: Undo2, ok: true, permKey: "estoque" },
     ],
   },
