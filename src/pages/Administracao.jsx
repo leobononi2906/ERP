@@ -293,6 +293,41 @@ function AbaGrupos({ dados, onReload }) {
 }
 
 /* ═══════════════════════════════════════════════ ABA USUARIOS ═══════════════════════════════════════════════ */
+function EditorHabilidades({ idUsuario }) {
+  const [areas, setAreas] = useState(null);
+  const [salvando, setSalvando] = useState(null);
+
+  useEffect(() => { let a = true; setAreas(null); rpc("erp_usuario_habilidades_listar", { p_id_usuario: idUsuario }).then((r) => { if (a) setAreas(Array.isArray(r) ? r : []); }).catch(() => { if (a) setAreas([]); }); return () => { a = false; }; }, [idUsuario]);
+
+  async function toggle(area) {
+    setSalvando(area.id_area);
+    try {
+      await rpc("erp_usuario_habilidade_definir", { p_id_usuario: idUsuario, p_id_area: area.id_area, p_ativo: !area.tem, p_ator: idUsuario });
+      setAreas((prev) => (prev || []).map((a) => a.id_area === area.id_area ? { ...a, tem: !a.tem } : a));
+    } catch (e) { /* mantém estado */ }
+    finally { setSalvando(null); }
+  }
+
+  if (areas === null) return <div style={{ fontSize: 12.5, color: C.textMuted, padding: "8px 0" }}>Carregando áreas...</div>;
+  if (areas.length === 0) return <div style={{ fontSize: 12.5, color: C.textMuted, padding: "8px 0" }}>Nenhuma área cadastrada (Serviços → Grupos de Serviço).</div>;
+  return (
+    <>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {areas.map((a) => (
+          <div key={a.id_area} onClick={() => salvando !== a.id_area && toggle(a)} style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, cursor: salvando === a.id_area ? "wait" : "pointer",
+            background: a.tem ? C.bluePale : C.surface2, border: `1px solid ${a.tem ? C.blueMid : C.border}`,
+            color: a.tem ? C.blueMid : C.muted, fontSize: 12, fontWeight: a.tem ? 600 : 400, opacity: salvando === a.id_area ? 0.6 : 1,
+          }}>
+            {a.tem && <Check size={13} />} {a.codigo ? a.codigo + " · " : ""}{a.descricao}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>Clique para ligar/desligar. As áreas marcadas aparecem como especialidade do técnico na distribuição de serviços. Salvo na hora.</div>
+    </>
+  );
+}
+
 function AbaUsuarios({ dados, onReload }) {
   const [editUser, setEditUser] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -387,6 +422,13 @@ function AbaUsuarios({ dados, onReload }) {
             );
           })}
         </div>
+
+        <div style={{ marginTop: 20, marginBottom: 8, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted }}>Habilidades / Áreas (distribuição)</div>
+        {editUser.id ? (
+          <EditorHabilidades idUsuario={editUser.id} />
+        ) : (
+          <div style={{ fontSize: 12.5, color: C.textMuted, padding: "8px 0" }}>Salve o usuário primeiro para definir as áreas que ele atende (usadas na distribuição de serviços).</div>
+        )}
       </div>
     );
   }
