@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Boxes, Search, X, KeyRound, Clock, Plus } from "lucide-react";
+import { HardHat, LogOut, Play, Pause, CheckCircle2, RotateCcw, PackagePlus, Boxes, Search, X, KeyRound, Clock, Plus, Wrench } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, btnPrimary, btnGhost, Skeleton, SelectBusca } from "../ui";
 
@@ -46,6 +46,9 @@ export default function Apontamento() {
   const [finalizandoMulti, setFinalizandoMulti] = useState(false);
   const [avisoPause, setAvisoPause] = useState(null); // { defeito_pausado, defeito_novo }
   const [carrinho, setCarrinho] = useState([]); // array de { id_produto, qtd, obs } para modal
+  const [modalProd, setModalProd] = useState(null); // { id_produto, qtd } — lançar produção
+  const [produtosProd, setProdutosProd] = useState([]); // produtos produzidos (só produção)
+  const [lancandoProd, setLancandoProd] = useState(false);
   const [enviandoCarrinho, setEnviandoCarrinho] = useState(false);
   const timerRef = useRef(null);
 
@@ -195,6 +198,31 @@ export default function Apontamento() {
     resetTimer();
   }
 
+  async function abrirProducao() {
+    const temAberto = (ctx?.defeitos || []).some((d) => d.meu_aberto);
+    if (!temAberto) { notificar("Faça a Entrada em um defeito antes de lançar produção.", "erro"); return; }
+    if (produtosProd.length === 0) {
+      try { const r = await rpc("erp_produtos_producao_listar"); setProdutosProd(Array.isArray(r) ? r : []); } catch { /* ignore */ }
+    }
+    const defAtivo = (ctx?.defeitos || []).find((d) => d.meu_aberto) || null;
+    setModalProd({ id_produto: "", qtd: "", id_area: defAtivo?.id_area || null });
+    resetTimer();
+  }
+
+  async function lancarProducao() {
+    const m = modalProd; if (!m) return;
+    if (!m.id_produto) { notificar("Selecione o produto de produção.", "erro"); return; }
+    const qtd = num(m.qtd);
+    if (!(qtd > 0)) { notificar("Informe a quantidade.", "erro"); return; }
+    setLancandoProd(true);
+    try {
+      const r = await rpc("os_lancar_producao", { p: { id_os: ctx.os.id, id_produto: parseInt(m.id_produto), quantidade: qtd, id_area: m.id_area || null, _ator: sessao.id_colaborador } });
+      if (r?.ok === false) { notificar(r.erro || "Não foi possível lançar a produção.", "erro"); }
+      else { notificar("Produção lançada na OS!"); setModalProd(null); }
+    } catch (e) { notificar("Erro: " + (e.message || "produção"), "erro"); }
+    finally { setLancandoProd(false); resetTimer(); }
+  }
+
   function adicionarAoCarrinho() {
     const m = modal; if (!m) return;
     if (!m.id_produto) { notificar("Selecione o produto.", "erro"); return; }
@@ -320,6 +348,7 @@ export default function Apontamento() {
                   <button onClick={() => setDefModal({ descricao: "" })} style={btnGhost()}><Plus size={14} /> Novo defeito</button>
                   <button onClick={() => abrirModal("peca")} style={btnGhost()}><PackagePlus size={14} /> Solicitar peça <kbd style={{ fontSize: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, padding: "0 4px", fontFamily: mono }}>F4</kbd></button>
                   <button onClick={() => abrirModal("consumo")} style={btnGhost()}><Boxes size={14} /> Consumo</button>
+                  <button onClick={abrirProducao} style={btnGhost()}><Wrench size={14} /> Lançar Produção</button>
                 </div>
               </div>
               {ctx.os.defeito && <div style={{ fontSize: 12.5, color: C.muted, margin: "0 2px 12px" }}><b style={{ color: C.foreground }}>Pedido do cliente:</b> {ctx.os.defeito}</div>}
@@ -480,6 +509,36 @@ export default function Apontamento() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* modal LANÇAR PRODUÇÃO (produto produzido internamente) */}
+      {modalProd && (
+        <div onMouseDown={() => resetTimer()} style={{ position: "fixed", inset: 0, background: "rgba(15,29,53,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ ...cardStyle(), width: 560, maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <b style={{ fontSize: 15 }}>Lançar Produção na OS</b>
+              <button onClick={() => setModalProd(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Produto fabricado internamente (marcado como "produzido" no cadastro). Entra na OS como item de produção pra apontar/precificar.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={lbl}>Produto de produção</label>
+                <SelectBusca
+                  opcoes={produtosProd.map((p) => ({ id: p.id, label: p.nome, sub: (p.codigo ? "Cód " + p.codigo + " · " : "") + fmtBRL(p.preco_venda) }))}
+                  value={modalProd.id_produto} onChange={(id) => { setModalProd((m) => ({ ...m, id_produto: id })); resetTimer(); }}
+                  placeholder={produtosProd.length ? "Buscar produto de produção..." : "Nenhum produto marcado como produzido"} full
+                />
+              </div>
+              <div>
+                <label style={lbl}>Quantidade</label>
+                <input type="number" step="0.01" min="0" value={modalProd.qtd} onChange={(e) => setModalProd((m) => ({ ...m, qtd: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") lancarProducao(); else if (e.key === "Escape") setModalProd(null); }} style={{ ...inp(), width: "100%", fontFamily: mono }} autoFocus />
+              </div>
+              <button onClick={lancarProducao} disabled={lancandoProd || !modalProd.id_produto} style={{ ...btnPrimary(), justifyContent: "center", opacity: lancandoProd ? 0.6 : 1 }}>
+                <Wrench size={14} /> {lancandoProd ? "Lançando..." : "Lançar Produção"}
+              </button>
             </div>
           </div>
         </div>
