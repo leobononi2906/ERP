@@ -464,3 +464,20 @@ Produto (código sequencial imutável) e cliente agora aparecem em Venda/OS/Sepa
 
 ## Habilidades/Áreas do técnico para distribuição (17/08) — FEITO
 Editor de Habilidades/Áreas no modal de Usuário (Administração), abaixo dos Grupos de Acesso: liga/desliga área (grupos_servico) por clique, salvo na hora. RPCs erp_usuario_habilidades_listar + erp_usuario_habilidade_definir (upsert em usuario_habilidades). Usado na distribuição de serviços. Commit a23df58.
+
+## 🌙 NOITE 17→18/08 — LEVA DAS 8 (pedido "as 8 rodando pra amanhã cedo") — TODAS FEITAS ✅
+1. ✅ **Localização múltipla do produto** — já existia no cadastro de Produtos (backend+UI). Só confirmei.
+2. ✅ **Orçamento Ganho×Perdido** — já existia (botão "Marcar Perdido" + relatório de conversão). Só confirmei.
+3. ✅ **Consulta rápida (F3)** — já existia (atalho global no App + ConsultaRapida.jsx). Só confirmei.
+4. ✅ **Editor de Condições de Pagamento** — CONSTRUÍDO. Nova aba em Auxiliares (CRUD: parcelas/intervalo/entrada/consome-crédito/ativo + prévia de vencimentos). RPCs erp_condicoes_pagamento_listar/_salvar. Commit b04c551.
+5. ✅ **OP no pátio** — CONSTRUÍDO. Botão "Lançar Produção" no Pátio/Apontamento (produto produzido + qtd → os_lancar_producao). RPC erp_produtos_producao_listar. Commit a3afcb4.
+6. ✅ **Liberar Faturamento (gate + fila)** — CONSTRUÍDO. Vendedor "Libera" (valida pendências + crédito se a prazo) → status LIBERADO_FATURAMENTO + trava edição na OS/Venda. Tela nova "Faturamento (fila)" (Financeiro): fatura (forma/condição) ou reverte. Backend: status+colunas, erp_os/venda_liberar_faturamento, _reverter_liberacao, erp_faturamento_fila_dados. Commits 1947e1f. **Crédito validado na liberação (venda a prazo) — atende o pedido do Leo.**
+7. ✅ **Cadastro sobreposto na Venda** — CONSTRUÍDO. Clicar no cliente (cabeçalho) ou produto (linha) abre o cadastro COMPLETO como overlay. Clientes/Produtos ganharam props embedId/onCloseEmbed. Commit e186e5f.
+8. ✅ **Menu** — "Solicitações de Peça" → Comercial; "Separação" → "Separação / Expedição". Commit b04c551.
+
+## 🆕 NOVOS PEDIDOS (noite 17/08, enquanto eu rodava as 8) — A ANALISAR/CONSTRUIR
+- **NF em 2 empresas no faturamento da OS** (separando PEÇAS e SERVIÇOS): o Leo quer que o faturamento da OS possa gerar NF em 2 empresas diferentes — uma para as peças (produto) e outra para os serviços. Liga com o split MLB/Truckprest que já existe na OS. **Analisar:** como o os_faturar rateia peças×serviços por empresa/NF; provavelmente 2 faturamentos (2 títulos, 2 NFs) a partir de uma OS. → SPEC antes de construir.
+- **Transportadora + volumes na Venda:** hoje a venda só tem `valor_frete` — NÃO há transportadora, nº de volumes, peso, dimensões. Precisa de uma seção de expedição/transporte na venda (transportadora, volumes, peso, dados p/ NF de transporte). Liga com o subsistema de Frete (C:\CLAUDE\frete-kb).
+- **Dimensões/peso no PRODUTO:** a tabela `produtos` NÃO tem peso/altura/largura/comprimento/cubagem hoje (confirmado). Adicionar campos de medida e peso (úteis p/ frete, volumes, NF). Há `bling-proxy` que traz medidas do Bling (memória stonni-bling-proxy-token) — dá pra puxar de lá.
+- **Telas MOBILE + WhatsApp:** preparar versões mobile de OS, Orçamentos, Vendas (e demais), tudo integrado com **envio por WhatsApp** (mandar orçamento/OS/venda pro cliente pelo Whats). Iniciativa própria — desenhar arquitetura (PWA responsivo vs app; provedor de WhatsApp — Umbler já está no ecossistema).
+- **Ordenação de colunas nas tabelas:** falta ordenar clicando no cabeçalho (asc/desc) nas tabelas do sistema. Melhoria transversal de UX — criar um componente de cabeçalho ordenável reusável e aplicar nas listas (Clientes, Produtos, Vendas, OS, fila de faturamento, etc.).
