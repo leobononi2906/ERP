@@ -38,6 +38,7 @@ export default function Vendas({ usuario }) {
   const [servicos, setServicos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [formasPag, setFormasPag] = useState([]);
+  const [transportadoras, setTransportadoras] = useState([]);
   const [condPag, setCondPag] = useState([]);
   const [tiposSaida, setTiposSaida] = useState([]);
   const [tabelasPreco, setTabelasPreco] = useState([]);
@@ -136,6 +137,7 @@ export default function Vendas({ usuario }) {
     try {
       const d = await rpc("vendas_dados", { p_id_empresa: fEmpresa ? Number(fEmpresa) : null });
       setLista(d.vendas ?? []); setClientes(d.clientes ?? []);
+      setTransportadoras(d.transportadoras ?? []);
       setProdutos(d.produtos ?? []); setServicos(d.servicos ?? []);
       setUsuarios(d.usuarios ?? []); setFormasPag(d.formas_pagamento ?? []);
       setCondPag(d.condicoes_pagamento ?? []); setTiposSaida(d.tipos_saida ?? []);
@@ -705,6 +707,27 @@ export default function Vendas({ usuario }) {
                   <Campo label="Observação" span={3}>
                     <textarea value={form.observacao || ""} onChange={(e) => setF("observacao", e.target.value)} rows={2} style={{ ...inp(true), height: "auto", resize: "vertical" }} disabled={!podeEditarDados} />
                   </Campo>
+
+                  <div style={{ gridColumn: "1 / -1", marginTop: 6, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.textMuted, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>Transporte / Expedição</div>
+                  <Campo label="Transportadora">
+                    <select value={form.id_transportadora || ""} onChange={(e) => setF("id_transportadora", e.target.value)} style={sel(true)} disabled={!podeEditarDados}>
+                      <option value="">—</option>
+                      {transportadoras.map((t) => <option key={t.id} value={t.id}>{t.codigo ? "#" + t.codigo + " · " : ""}{t.nome}</option>)}
+                    </select>
+                  </Campo>
+                  <Campo label="Frete (modalidade)">
+                    <select value={form.modalidade_frete ?? ""} onChange={(e) => setF("modalidade_frete", e.target.value)} style={sel(true)} disabled={!podeEditarDados}>
+                      <option value="">—</option>
+                      <option value="0">0 · Por conta do emitente (CIF)</option>
+                      <option value="1">1 · Por conta do destinatário (FOB)</option>
+                      <option value="2">2 · Por conta de terceiros</option>
+                      <option value="9">9 · Sem frete</option>
+                    </select>
+                  </Campo>
+                  <Campo label="Volumes (qtd)"><input type="number" min="0" value={form.qtd_volumes ?? ""} onChange={(e) => setF("qtd_volumes", e.target.value)} style={{ ...inp(true), fontFamily: mono }} disabled={!podeEditarDados} /></Campo>
+                  <Campo label="Espécie"><input value={form.especie_volumes || ""} onChange={(e) => setF("especie_volumes", e.target.value)} placeholder="Ex.: Caixa, Volume" style={inp(true)} disabled={!podeEditarDados} /></Campo>
+                  <Campo label="Peso bruto (kg)"><input type="number" step="0.001" min="0" value={form.peso_bruto ?? ""} onChange={(e) => setF("peso_bruto", e.target.value)} style={{ ...inp(true), fontFamily: mono }} disabled={!podeEditarDados} /></Campo>
+                  <Campo label="Peso líquido (kg)"><input type="number" step="0.001" min="0" value={form.peso_liquido ?? ""} onChange={(e) => setF("peso_liquido", e.target.value)} style={{ ...inp(true), fontFamily: mono }} disabled={!podeEditarDados} /></Campo>
                 </div>
                 {podeEditarDados && (
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
