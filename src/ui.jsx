@@ -6,6 +6,44 @@ export function inp(full, ro) { return { background: ro ? "#EEF1F6" : C.surface2
 export function sel(full, ro) { return { ...inp(full, ro), cursor: ro ? "not-allowed" : "pointer", appearance: "auto" }; }
 export function th(right) { return { padding: "10px 14px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: C.textMuted, background: C.surface2, textAlign: right ? "right" : "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }; }
 export function td() { return { padding: "10px 14px", verticalAlign: "middle" }; }
+
+// Ordenação de colunas reusável: const { sort, onSort, ordenar } = useSort();
+// No thead use <ThSort label="Nome" k="nome" sort={sort} onSort={onSort} />; nas linhas use ordenar(lista, { nome: r => r.nome }).
+export function useSort(initialKey = null, initialDir = "asc") {
+  const [sort, setSort] = useState({ key: initialKey, dir: initialDir });
+  const onSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  const ordenar = (rows, accessors = {}) => {
+    if (!sort.key || !Array.isArray(rows)) return rows;
+    const get = accessors[sort.key] || ((r) => r?.[sort.key]);
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      const va = get(a), vb = get(b);
+      const ea = va === null || va === undefined || va === "";
+      const eb = vb === null || vb === undefined || vb === "";
+      if (ea && eb) return 0;
+      if (ea) return 1;   // vazios sempre por último
+      if (eb) return -1;
+      let cmp;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), "pt-BR", { numeric: true, sensitivity: "base" });
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  };
+  return { sort, onSort, ordenar };
+}
+
+export function ThSort({ label, k, sort, onSort, right }) {
+  const active = sort && sort.key === k;
+  return (
+    <th onClick={() => onSort && onSort(k)} style={{ ...th(right), cursor: "pointer", userSelect: "none" }} title="Ordenar por esta coluna">
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexDirection: right ? "row-reverse" : "row" }}>
+        {label}
+        <span style={{ opacity: active ? 1 : 0.3, fontSize: 9 }}>{active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </span>
+    </th>
+  );
+}
 export function btnPrimary() { return { display: "inline-flex", alignItems: "center", gap: 7, background: C.primary, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }; }
 export function btnGhost() { return { display: "inline-flex", alignItems: "center", gap: 7, background: C.card, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }; }
 export function btnIcon() { return { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer" }; }

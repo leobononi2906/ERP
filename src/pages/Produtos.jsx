@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History, Camera, Trash2, Truck } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, useSort, ThSort } from "../ui";
 import { EtiquetasLote } from "../EtiquetasLoteModal";
 import { DrawerEstoque, DrawerHistorico } from "../drawers";
 const SITUACOES = ["ATIVO", "INATIVO"];
@@ -46,6 +46,7 @@ export default function Produtos({ usuario, embedId = null, onCloseEmbed = null 
   const [loteOpen, setLoteOpen] = useState(false);
   const [loteItens, setLoteItens] = useState([]);
   const abrirLote = (pre) => { setLoteItens(pre ? [{ ...pre, qtd: 1 }] : []); setLoteOpen(true); };
+  const { sort, onSort, ordenar } = useSort();
 
   useEffect(() => {
     let a = true;
@@ -100,8 +101,16 @@ export default function Produtos({ usuario, embedId = null, onCloseEmbed = null 
         {loading ? <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>{[0, 1, 2, 3, 4].map((i) => <div key={i} style={{ height: 28, background: C.surface2, borderRadius: 6, animation: "pulse 1.4s ease-in-out infinite" }} />)}</div>
           : filtrados.length === 0 ? <div style={{ textAlign: "center", padding: "48px 0", color: C.textMuted }}><Package size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Nenhum produto encontrado.</div></div>
             : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 680 }}>
-              <thead><tr>{["Produto", "Grupo", "Marca", "Preço venda", "Estoque", "Situação", ""].map((h, i) => <th key={i} style={th(i === 3)}>{h}</th>)}</tr></thead>
-              <tbody>{filtrados.map((p) => { const baixo = num(p.estoque_atual) <= num(p.estoque_minimo); return (
+              <thead><tr>
+                <ThSort label="Produto" k="produto" sort={sort} onSort={onSort} />
+                <ThSort label="Grupo" k="grupo" sort={sort} onSort={onSort} />
+                <ThSort label="Marca" k="marca" sort={sort} onSort={onSort} />
+                <ThSort label="Preço venda" k="preco" sort={sort} onSort={onSort} right />
+                <ThSort label="Estoque" k="estoque" sort={sort} onSort={onSort} right />
+                <ThSort label="Situação" k="situacao" sort={sort} onSort={onSort} />
+                <th style={th()}></th>
+              </tr></thead>
+              <tbody>{ordenar(filtrados, { produto: (p) => (p.nome || "").toLowerCase(), grupo: (p) => p.grupo_nome, marca: (p) => p.marca_nome, preco: (p) => Number(p.preco_venda) || 0, estoque: (p) => Number(p.estoque_atual) || 0, situacao: (p) => p.situacao }).map((p) => { const baixo = num(p.estoque_atual) <= num(p.estoque_minimo); return (
                 <tr key={p.id} style={{ borderTop: `1px solid ${C.border}` }} onMouseEnter={(e) => e.currentTarget.style.background = C.surface2} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                   <td style={td()}><div style={{ fontWeight: 500 }}>{p.nome}</div><div style={{ fontSize: 11, color: C.textMuted, fontFamily: mono }}>{p.referencia}</div></td>
                   <td style={td()}>{p.grupo_nome || "—"}</td>

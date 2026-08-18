@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Users, History } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, useSort, ThSort } from "../ui";
 import { DrawerHistorico, DrawerFollowup } from "../drawers";
 const TIPOS = ["CLIENTE", "FORNECEDOR", "AMBOS", "FUNCIONARIO", "TRANSPORTADORA"];
 const SITUACOES = ["ATIVO", "INATIVO", "BLOQUEADO"];
@@ -47,6 +47,7 @@ export default function Clientes({ usuario, embedId = null, onCloseEmbed = null 
   const [busca, setBusca] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
   const [perfisPag, setPerfisPag] = useState([]);
+  const { sort, onSort, ordenar } = useSort();
 
   useEffect(() => {
     let a = true;
@@ -137,8 +138,16 @@ export default function Clientes({ usuario, embedId = null, onCloseEmbed = null 
         {loading ? <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>{[0, 1, 2, 3, 4].map((i) => <div key={i} style={{ height: 28, background: C.surface2, borderRadius: 6, animation: "pulse 1.4s ease-in-out infinite" }} />)}</div>
           : filtrados.length === 0 ? <div style={{ textAlign: "center", padding: "48px 0", color: C.textMuted }}><Users size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Nenhum cliente encontrado.</div></div>
             : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
-              <thead><tr>{["Cliente", "CNPJ / CPF", "Cidade", "Empresa", "Limite", "Situação", ""].map((h, i) => <th key={i} style={th(i === 4)}>{h}</th>)}</tr></thead>
-              <tbody>{filtrados.map((c) => (
+              <thead><tr>
+                <ThSort label="Cliente" k="cliente" sort={sort} onSort={onSort} />
+                <ThSort label="CNPJ / CPF" k="cpf_cnpj" sort={sort} onSort={onSort} />
+                <ThSort label="Cidade" k="cidade" sort={sort} onSort={onSort} />
+                <ThSort label="Empresa" k="empresa" sort={sort} onSort={onSort} />
+                <ThSort label="Limite" k="limite" sort={sort} onSort={onSort} right />
+                <ThSort label="Situação" k="situacao" sort={sort} onSort={onSort} />
+                <th style={th()}></th>
+              </tr></thead>
+              <tbody>{ordenar(filtrados, { cliente: (c) => (c.nome_fantasia || c.nome || "").toLowerCase(), cpf_cnpj: (c) => c.cpf_cnpj, cidade: (c) => c.cidade, empresa: (c) => c.empresa_nome, limite: (c) => Number(c.limite_credito) || 0, situacao: (c) => c.situacao }).map((c) => (
                 <tr key={c.id} style={{ borderTop: `1px solid ${C.border}` }} onMouseEnter={(e) => e.currentTarget.style.background = C.surface2} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                   <td style={td()}><div style={{ fontWeight: 500 }}>{c.nome_fantasia || c.nome}</div><div style={{ fontSize: 11, color: C.textMuted }}>{c.nome}</div></td>
                   <td style={{ ...td(), fontFamily: mono, color: C.muted }}>{c.cpf_cnpj || "—"}</td>

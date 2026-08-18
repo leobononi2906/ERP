@@ -9,7 +9,7 @@ import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
 import { irPara } from "../nav";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
-  Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca, BuscaServidor,
+  Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca, BuscaServidor, useSort, ThSort,
 } from "../ui";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { NovoClienteModal } from "../CadastroRapido";
@@ -39,6 +39,7 @@ export default function Vendas({ usuario }) {
   const [usuarios, setUsuarios] = useState([]);
   const [formasPag, setFormasPag] = useState([]);
   const [transportadoras, setTransportadoras] = useState([]);
+  const { sort, onSort, ordenar } = useSort();
   const [condPag, setCondPag] = useState([]);
   const [tiposSaida, setTiposSaida] = useState([]);
   const [tabelasPreco, setTabelasPreco] = useState([]);
@@ -1153,8 +1154,17 @@ export default function Vendas({ usuario }) {
         {loading ? <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>{[0, 1, 2, 3].map((i) => <Skeleton key={i} h={28} />)}</div>
           : filtrados.length === 0 ? <div style={{ textAlign: "center", padding: "48px 0", color: C.textMuted }}><ShoppingCart size={30} style={{ opacity: 0.4 }} /><div style={{ marginTop: 10, fontSize: 13 }}>Nenhuma venda encontrada.</div></div>
             : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 700 }}>
-              <thead><tr>{["Nº", "Cliente", "Vendedor", "Tipo Op.", "Status", "Data", "Total", ""].map((h, i) => <th key={i} style={th(i === 6)}>{h}</th>)}</tr></thead>
-              <tbody>{filtrados.map((v) => (
+              <thead><tr>
+                <ThSort label="Nº" k="numero" sort={sort} onSort={onSort} />
+                <ThSort label="Cliente" k="cliente" sort={sort} onSort={onSort} />
+                <ThSort label="Vendedor" k="vendedor" sort={sort} onSort={onSort} />
+                <ThSort label="Tipo Op." k="tipo" sort={sort} onSort={onSort} />
+                <ThSort label="Status" k="status" sort={sort} onSort={onSort} />
+                <ThSort label="Data" k="data" sort={sort} onSort={onSort} />
+                <ThSort label="Total" k="total" sort={sort} onSort={onSort} right />
+                <th style={th()}></th>
+              </tr></thead>
+              <tbody>{ordenar(filtrados, { numero: (v) => v.numero, cliente: (v) => nomeCliente(v.id_cliente), vendedor: (v) => v.id_vendedor ? nomeUsuario(v.id_vendedor) : "", tipo: (v) => tipoSaidaDesc(v.id_tipo_saida), status: (v) => v.status, data: (v) => v.criado_em || "", total: (v) => Number(v.valor_total) || 0 }).map((v) => (
                 <tr key={v.id} onClick={() => abrirDetalhe(v)} style={{ borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
                   <td style={td()}><span style={{ fontFamily: mono, fontWeight: 700, color: C.primary }}>{v.numero}</span></td>
                   <td style={{ ...td(), fontWeight: 500, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nomeCliente(v.id_cliente)}</td>

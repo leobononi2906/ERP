@@ -10,7 +10,7 @@ import { NovoClienteModal, NovoVeiculoModal } from "../CadastroRapido";
 import { DrawerHistorico, DrawerEstoque, DrawerFollowup } from "../drawers";
 import { imprimirOSDoc } from "../print";
 import { irPara } from "../nav";
-import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor, ModalAprovacao } from "../ui";
+import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton, SelectBusca, BuscaServidor, ModalAprovacao, useSort, ThSort } from "../ui";
 
 // status do defeito (unidade de trabalho do pátio)
 const DEF_ST = {
@@ -280,6 +280,7 @@ export default function OrdensServico({ usuario }) {
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [expedicoesOs, setExpedicoesOs] = useState([]);
   const [pendenciasOs, setPendenciasOs] = useState(null);
+  const { sort, onSort, ordenar } = useSort();
   const [modalVendaPerdida, setModalVendaPerdida] = useState(null); // { id_produto, nome_produto, quantidade, motivo, concorrente, observacao }
   const [salvandoVendaPerdida, setSalvandoVendaPerdida] = useState(false);
 
@@ -1565,12 +1566,17 @@ export default function OrdensServico({ usuario }) {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 700 }}>
               <thead><tr>
-                {["OS", "Cliente", "Veículo", "Status", "Entrada", "Serviços", "Total", ""].map((h, i) => (
-                  <th key={i} style={th(i >= 5)}>{h}</th>
-                ))}
+                <ThSort label="OS" k="numero" sort={sort} onSort={onSort} />
+                <ThSort label="Cliente" k="cliente" sort={sort} onSort={onSort} />
+                <ThSort label="Veículo" k="veiculo" sort={sort} onSort={onSort} />
+                <ThSort label="Status" k="status" sort={sort} onSort={onSort} />
+                <ThSort label="Entrada" k="entrada" sort={sort} onSort={onSort} />
+                <ThSort label="Serviços" k="servicos" sort={sort} onSort={onSort} right />
+                <ThSort label="Total" k="total" sort={sort} onSort={onSort} right />
+                <th style={th(true)}></th>
               </tr></thead>
               <tbody>
-                {filtrados.map((os) => (
+                {ordenar(filtrados, { numero: (os) => os.numero, cliente: (os) => nomeCliente(os.id_cliente), veiculo: (os) => os.id_veiculo ? nomeVeiculo(os.id_veiculo) : "", status: (os) => os.status, entrada: (os) => os.data_entrada || "", servicos: (os) => Number(os.valor_servicos) || 0, total: (os) => Number(os.valor_total) || 0 }).map((os) => (
                   <tr key={os.id} onClick={() => abrirDetalhe(os)} style={{ borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
                     <td style={td()}>
                       <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 14, color: C.primary }}>{os.numero}</span>

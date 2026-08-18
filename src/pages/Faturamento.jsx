@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Receipt, RotateCcw, DollarSign, X, RefreshCw, FileText, ShoppingCart } from "lucide-react";
 import { C, rpc, fmtBRL, num } from "../config";
-import { cardStyle, inp, sel, btnPrimary, btnGhost, th, td, Badge, Campo } from "../ui";
+import { cardStyle, inp, sel, btnPrimary, btnGhost, th, td, Badge, Campo, useSort, ThSort } from "../ui";
 
 // Fila de Faturamento — OS e Vendas liberadas pelo vendedor aguardando o time de faturamento.
 // O vendedor libera (bloqueia edição); aqui o faturamento FATURA de verdade ou REVERTE (devolve pra edição).
@@ -16,6 +16,7 @@ export default function Faturamento({ usuario }) {
   const [fForma, setFForma] = useState("");
   const [fCond, setFCond] = useState("");
   const timer = useRef(null);
+  const { sort, onSort, ordenar } = useSort();
 
   const notificar = (msg, tipo = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3000); };
 
@@ -104,9 +105,17 @@ export default function Faturamento({ usuario }) {
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 720 }}>
-              <thead><tr>{["Tipo", "Número", "Cliente", "Empresa", "Valor", "Liberado por", ""].map((h, i) => <th key={i} style={th(i === 4)}>{h}</th>)}</tr></thead>
+              <thead><tr>
+                <ThSort label="Tipo" k="tipo" sort={sort} onSort={onSort} />
+                <ThSort label="Número" k="numero" sort={sort} onSort={onSort} />
+                <ThSort label="Cliente" k="cliente" sort={sort} onSort={onSort} />
+                <ThSort label="Empresa" k="empresa" sort={sort} onSort={onSort} />
+                <ThSort label="Valor" k="valor" sort={sort} onSort={onSort} right />
+                <ThSort label="Liberado por" k="liberado" sort={sort} onSort={onSort} />
+                <th style={th()}></th>
+              </tr></thead>
               <tbody>
-                {linhas.map(({ tipo, item }) => (
+                {ordenar(linhas, { tipo: (l) => l.tipo, numero: (l) => l.item.numero, cliente: (l) => l.item.cliente, empresa: (l) => l.item.empresa, valor: (l) => Number(l.item.valor_total) || 0, liberado: (l) => l.item.liberado_por }).map(({ tipo, item }) => (
                   <tr key={tipo + item.id} style={{ borderTop: `1px solid ${C.border}` }}>
                     <td style={td()}><span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: tipo === "os" ? C.blueMid : C.primary }}>{tipo === "os" ? <FileText size={13} /> : <ShoppingCart size={13} />} {tipo === "os" ? "OS" : "VENDA"}</span></td>
                     <td style={{ ...td(), fontWeight: 600 }}>{item.numero}</td>
