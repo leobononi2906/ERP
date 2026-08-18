@@ -820,7 +820,7 @@ export default function OrdensServico({ usuario }) {
           {/* Cliente */}
           <div style={cardStyle()}>
             <div style={{ ...infoLabel, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}><User size={12} /> Cliente</div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{cli.nome || "—"}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{cli.codigo ? <span style={{ fontFamily: mono, color: C.muted }}>#{cli.codigo} · </span> : null}{cli.nome || "—"}</div>
             <div style={infoStyle}>
               {cli.cpf_cnpj && <div>CPF/CNPJ: <span style={{ fontFamily: mono }}>{cli.cpf_cnpj}</span></div>}
               {(cli.telefone || cli.celular) && <div>Tel: {cli.telefone || cli.celular}</div>}
@@ -1156,8 +1156,8 @@ export default function OrdensServico({ usuario }) {
                 ) : osPecas.length > 0 && (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
-                      {["Descrição", "Referência", "Qtd", "Valor Unit.", "Total", ""].map((h, i) => (
-                        <th key={i} style={th(i >= 2 && i <= 4)}>{h}</th>
+                      {["Código", "Descrição", "Referência", "Qtd", "Valor Unit.", "Total", ""].map((h, i) => (
+                        <th key={i} style={th(i >= 3 && i <= 5)}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
@@ -1166,6 +1166,7 @@ export default function OrdensServico({ usuario }) {
                         const emSeparacao = pecaEmSeparacao(p.id);
                         return (
                         <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: (p.consumo || emSeparacao) ? 0.85 : 1 }}>
+                          <td style={{ ...td(), fontFamily: mono, color: C.muted, fontWeight: 600 }}>{p.codigo ? "#" + p.codigo : "—"}</td>
                           <td style={{ ...td(), fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                             {emSeparacao && <Lock size={13} color={C.warning} title="Em separação — só a boqueta altera" />}
                             {p.descricao}

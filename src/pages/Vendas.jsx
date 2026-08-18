@@ -514,6 +514,8 @@ export default function Vendas({ usuario }) {
     const podeEditarDados = isNew ? perms.incluir : (!isFaturada && !isCancelada && perms.editar);
     const cfop = vendaAtual ? cfopResolvido(vendaAtual) : "";
     const cliNome = isNew ? (form.id_cliente ? nomeCliente(Number(form.id_cliente)) : "Nova venda") : nomeCliente(vendaAtual.id_cliente);
+    const cliCodId = isNew ? (form.id_cliente ? Number(form.id_cliente) : null) : vendaAtual.id_cliente;
+    const cliCod = cliCodId ? (clientes.find((c) => c.id === cliCodId) || {}).codigo : null;
     const condTxt = (vendaAtual?.id_condicao_pagamento || form.id_condicao_pagamento)
       ? (condPag.find((c) => c.id === (vendaAtual?.id_condicao_pagamento || Number(form.id_condicao_pagamento)))?.descricao || "A prazo")
       : "À vista";
@@ -530,7 +532,7 @@ export default function Vendas({ usuario }) {
                 {!isNew && <span style={{ fontFamily: mono, fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{vendaAtual.numero}</span>}
                 {!isNew && <span style={{ background: "rgba(255,255,255,0.2)", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{status}</span>}
               </div>
-              <div style={{ fontSize: 17, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cliNome}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cliCod ? <span style={{ fontFamily: mono, color: C.muted, fontWeight: 600 }}>#{cliCod} · </span> : null}{cliNome}</div>
               <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 2 }}>
                 {(vendaAtual?.id_vendedor || form.id_vendedor) ? `Vendedor: ${nomeUsuario(Number(vendaAtual?.id_vendedor || form.id_vendedor))} · ` : ""}
                 {condTxt}
@@ -809,13 +811,14 @@ export default function Vendas({ usuario }) {
                 : itens.length === 0 ? <div style={{ textAlign: "center", padding: "36px 0", color: C.textMuted }}><ShoppingCart size={28} style={{ opacity: 0.3 }} /><div style={{ marginTop: 8, fontSize: 13 }}>Nenhum item adicionado.</div></div>
                   : <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr>
-                      {["Tipo", "Descrição", "Qtd", "Valor Unit.", perms.exportar ? "Custo" : null, "Desc %", "Total", ""].filter(Boolean).map((h, i) => <th key={i} style={th(i >= 2)}>{h}</th>)}
+                      {["Tipo", "Código", "Descrição", "Qtd", "Valor Unit.", perms.exportar ? "Custo" : null, "Desc %", "Total", ""].filter(Boolean).map((h, i) => <th key={i} style={th(i >= 3)}>{h}</th>)}
                     </tr></thead>
                     <tbody>{itens.map((it) => {
                       const emSeparacao = itemEmSeparacao(it.id);
                       return (
                       <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: emSeparacao ? 0.8 : 1 }}>
                         <td style={td()}><Badge texto={it.tipo} cor={it.tipo === "PRODUTO" ? "ATIVO" : "ABERTA"} /></td>
+                        <td style={{ ...td(), fontFamily: mono, color: C.muted, fontWeight: 600 }}>{it.codigo ? "#" + it.codigo : "—"}</td>
                         <td style={{ ...td(), fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                           {emSeparacao && <Lock size={13} color={C.warning} title="Em separação — só a boqueta altera" />}
                           {it.descricao}{it.referencia ? <span style={{ color: C.muted, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}

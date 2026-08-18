@@ -190,7 +190,7 @@ function SeparacaoDetalhe({ id, usuario, perms, onVoltar }) {
       <div style={{ ...cardStyle(), display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
         <Info label="Empresa" valor={cab.empresa} />
         <Info label="Origem" valor={cab.numero_venda ? `Venda ${cab.numero_venda}` : cab.numero_os ? `OS ${cab.numero_os}` : "—"} />
-        <Info label="Cliente" valor={cab.cliente} />
+        <Info label="Cliente" valor={`${cab.cliente_codigo ? "#" + cab.cliente_codigo + " · " : ""}${cab.cliente || "—"}`} />
         <Info label="Centro" valor={cab.centro_estoque} />
         <Info label="Solicitante" valor={cab.solicitante} />
         <Info label="Solicitada em" valor={fmtDH(cab.data_solicitacao)} />
