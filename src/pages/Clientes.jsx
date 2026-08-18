@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Users, History } from "lucide-react";
 import { C, mono, fmtBRL, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge } from "../ui";
@@ -31,7 +31,8 @@ function validaCNPJ(v) {
 const docValido = (doc, pessoa) => { const d = soDigitos(doc); if (!d) return true; return pessoa === "F" ? validaCPF(d) : validaCNPJ(d); };
 const vazio = () => ({ id: null, tipo_pessoa: "J", tipo: "CLIENTE", nome: "", nome_fantasia: "", cpf_cnpj: "", rg_ie: "", inscricao_municipal: "", email: "", telefone: "", celular: "", whatsapp: "", cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", limite_credito: "", id_perfil_pagamento: "", situacao: "ATIVO", id_empresa: "", observacao: "", indicador_ie: 9, inscricao_suframa: "", iss_retido: false, email_nfe: "" });
 
-export default function Clientes({ usuario }) {
+export default function Clientes({ usuario, embedId = null, onCloseEmbed = null }) {
+  const embedRef = useRef(false);
   const perms = (usuario && usuario.permissoes && usuario.permissoes.clientes) || {};
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
@@ -58,6 +59,14 @@ export default function Clientes({ usuario }) {
   const abrirNovo = () => { setForm(vazio()); setFisc(false); setErroForm(""); setView("form"); };
   const abrirEditar = (c) => { setForm({ ...vazio(), ...c }); setFisc(false); setErroForm(""); setView("form"); };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // modo embutido (overlay a partir da Venda/OS): abre direto o registro pedido
+  useEffect(() => {
+    if (embedId && !embedRef.current && clientes.length) {
+      const c = clientes.find((x) => String(x.id) === String(embedId));
+      if (c) { embedRef.current = true; abrirEditar(c); }
+    }
+  }, [embedId, clientes]);
 
   async function buscarCep() {
     const cep = (form.cep || "").replace(/\D/g, ""); if (cep.length !== 8) return;
@@ -111,7 +120,7 @@ export default function Clientes({ usuario }) {
 
   const filtrados = clientes.filter((c) => { const q = busca.trim().toLowerCase(); const okB = !q || (c.nome || "").toLowerCase().includes(q) || (c.nome_fantasia || "").toLowerCase().includes(q) || (c.cpf_cnpj || "").includes(q) || String(c.codigo || "").includes(q); return okB && (!fEmpresa || String(c.id_empresa) === fEmpresa); });
 
-  if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} buscarCep={buscarCep} buscarCnpj={buscarCnpj} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} perfisPag={perfisPag} />;
+  if (view === "form") return <FormCliente form={form} setF={setF} empresas={empresas} salvar={salvar} saving={saving} voltar={onCloseEmbed || (() => setView("lista"))} erro={erroForm} buscarCep={buscarCep} buscarCnpj={buscarCnpj} perms={perms} fisc={fisc} destravar={() => setFisc(true)} toast={toast} perfisPag={perfisPag} />;
 
   return (
     <>

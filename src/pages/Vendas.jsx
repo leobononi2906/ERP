@@ -13,6 +13,8 @@ import {
 } from "../ui";
 import { DrawerHistorico, DrawerEstoque } from "../drawers";
 import { NovoClienteModal } from "../CadastroRapido";
+import Clientes from "./Clientes";
+import Produtos from "./Produtos";
 import { useEmpresaAtiva, getEmpresaAtiva } from "../empresa";
 
 
@@ -63,6 +65,8 @@ export default function Vendas({ usuario }) {
   const [credito, setCredito] = useState(null);
   const [travaCredito, setTravaCredito] = useState(null);
   const [novoClienteAberto, setNovoClienteAberto] = useState(false);
+  const [cadClienteId, setCadClienteId] = useState(null); // overlay cadastro completo do cliente
+  const [cadProdutoId, setCadProdutoId] = useState(null); // overlay cadastro completo do produto
   function onClienteCriado(c) {
     setClientes((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, c]);
     if (c.id) aplicarDefaultsCliente(String(c.id));
@@ -556,7 +560,7 @@ export default function Vendas({ usuario }) {
                 {!isNew && <span style={{ fontFamily: mono, fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{vendaAtual.numero}</span>}
                 {!isNew && <span style={{ background: "rgba(255,255,255,0.2)", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{status}</span>}
               </div>
-              <div style={{ fontSize: 17, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cliCod ? <span style={{ fontFamily: mono, color: C.muted, fontWeight: 600 }}>#{cliCod} · </span> : null}{cliNome}</div>
+              <div onClick={() => !isNew && vendaAtual?.id_cliente && setCadClienteId(vendaAtual.id_cliente)} title={!isNew ? "Abrir cadastro do cliente" : ""} style={{ fontSize: 17, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: (!isNew && vendaAtual?.id_cliente) ? "pointer" : "default" }}>{cliCod ? <span style={{ fontFamily: mono, color: C.muted, fontWeight: 600 }}>#{cliCod} · </span> : null}{cliNome}</div>
               <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 2 }}>
                 {(vendaAtual?.id_vendedor || form.id_vendedor) ? `Vendedor: ${nomeUsuario(Number(vendaAtual?.id_vendedor || form.id_vendedor))} · ` : ""}
                 {condTxt}
@@ -852,7 +856,7 @@ export default function Vendas({ usuario }) {
                         <td style={{ ...td(), fontFamily: mono, color: C.muted, fontWeight: 600 }}>{it.codigo ? "#" + it.codigo : "—"}</td>
                         <td style={{ ...td(), fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                           {emSeparacao && <Lock size={13} color={C.warning} title="Em separação — só a boqueta altera" />}
-                          {it.descricao}{it.referencia ? <span style={{ color: C.muted, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}
+                          {it.id_produto ? <span onClick={() => setCadProdutoId(it.id_produto)} title="Abrir cadastro do produto" style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }}>{it.descricao}</span> : it.descricao}{it.referencia ? <span style={{ color: C.muted, fontSize: 11, marginLeft: 6 }}>{it.referencia}</span> : null}
                         </td>
                         <td style={{ ...td(), textAlign: "right" }}>{it.quantidade}</td>
                         <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(it.valor_unitario)}</td>
@@ -1085,6 +1089,23 @@ export default function Vendas({ usuario }) {
         {histVenda && !isNew && <DrawerHistorico tabela="vendas" registro={vendaAtual.id} titulo="Histórico da venda" sub={`Venda ${vendaAtual.numero}`} onClose={() => setHistVenda(false)} />}
         {drawerProdV && <DrawerEstoque idProduto={drawerProdV} idEmpresa={vendaAtual?.id_empresa || null} onClose={() => setDrawerProdV(null)} />}
         <NovoClienteModal aberto={novoClienteAberto} onClose={() => setNovoClienteAberto(false)} onCreated={onClienteCriado} idEmpresa={form.id_empresa || fEmpresa} usuario={usuario} empresas={empresas} />
+
+        {cadClienteId && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,29,53,0.5)", display: "flex", justifyContent: "center", alignItems: "flex-start", overflowY: "auto", padding: 20 }}>
+            <div style={{ background: C.background, borderRadius: 12, width: "min(1100px, 96vw)", minHeight: 200, position: "relative", padding: "18px 22px 26px", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
+              <button onClick={() => setCadClienteId(null)} title="Fechar cadastro" style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.border}`, background: C.card, cursor: "pointer", fontSize: 16, color: C.muted }}>✕</button>
+              <Clientes usuario={usuario} embedId={cadClienteId} onCloseEmbed={() => setCadClienteId(null)} />
+            </div>
+          </div>
+        )}
+        {cadProdutoId && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,29,53,0.5)", display: "flex", justifyContent: "center", alignItems: "flex-start", overflowY: "auto", padding: 20 }}>
+            <div style={{ background: C.background, borderRadius: 12, width: "min(1100px, 96vw)", minHeight: 200, position: "relative", padding: "18px 22px 26px", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
+              <button onClick={() => setCadProdutoId(null)} title="Fechar cadastro" style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 34, height: 34, borderRadius: 8, border: `1px solid ${C.border}`, background: C.card, cursor: "pointer", fontSize: 16, color: C.muted }}>✕</button>
+              <Produtos usuario={usuario} embedId={cadProdutoId} onCloseEmbed={() => setCadProdutoId(null)} />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

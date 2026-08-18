@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle, Lock, ShieldCheck, Eye, Package, Boxes, Receipt, Tag, Building2, Printer, History, Camera, Trash2, Truck } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc, SUPA_URL, SUPA_KEY } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo, Aviso, Badge, Skeleton } from "../ui";
@@ -26,8 +26,9 @@ async function uploadFotoProduto(file, referencia) {
   return `${SUPA_URL}/storage/v1/object/public/produtos/${path}`;
 }
 
-export default function Produtos({ usuario }) {
+export default function Produtos({ usuario, embedId = null, onCloseEmbed = null }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.produtos) || {};
+  const embedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
   const [produtos, setProdutos] = useState([]);
@@ -57,6 +58,14 @@ export default function Produtos({ usuario }) {
   const abrirEditar = (p) => { setForm({ ...vazio(), ...p }); setProt(false); setErroForm(""); setView("form"); };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // modo embutido (overlay a partir da Venda/OS): abre direto o produto pedido
+  useEffect(() => {
+    if (embedId && !embedRef.current && produtos.length) {
+      const p = produtos.find((x) => String(x.id) === String(embedId));
+      if (p) { embedRef.current = true; abrirEditar(p); }
+    }
+  }, [embedId, produtos]);
+
   async function salvar() {
     if (!form.nome.trim()) { setErroForm("O nome do produto é obrigatório."); return; }
     setErroForm(""); setSaving(true);
@@ -70,7 +79,7 @@ export default function Produtos({ usuario }) {
 
   const filtrados = produtos.filter((p) => { const q = busca.trim().toLowerCase(); const okB = !q || (p.nome || "").toLowerCase().includes(q) || (p.referencia || "").toLowerCase().includes(q) || (p.codigo_barras || "").toLowerCase().includes(q); return okB && (!fGrupo || String(p.id_grupo) === fGrupo); });
 
-  if (view === "form") return <FormProduto form={form} setF={setF} grupos={grupos} marcas={marcas} unidades={unidades} salvar={salvar} saving={saving} voltar={() => setView("lista")} erro={erroForm} perms={perms} prot={prot} destravar={() => setProt(true)} toast={toast} ator={usuario.id} />;
+  if (view === "form") return <FormProduto form={form} setF={setF} grupos={grupos} marcas={marcas} unidades={unidades} salvar={salvar} saving={saving} voltar={onCloseEmbed || (() => setView("lista"))} erro={erroForm} perms={perms} prot={prot} destravar={() => setProt(true)} toast={toast} ator={usuario.id} />;
 
   return (
     <>
