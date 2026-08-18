@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   ShoppingCart, Package, Wrench, FileText, Trash2, Eye, ThumbsUp, ThumbsDown,
-  ArrowRightCircle, Clock, Calendar, XCircle, BarChart3, TrendingUp,
+  ArrowRightCircle, Clock, Calendar, XCircle, BarChart3, TrendingUp, MessageCircle,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
+import { abrirWhatsApp, telefoneCliente, msgOrcamento } from "../whatsapp";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
   Aviso, Badge, Skeleton, ModalAprovacao, SelectBusca,
@@ -358,6 +359,7 @@ export default function Orcamentos({ usuario }) {
             {podeAprovar && <button onClick={aprovar} disabled={saving} style={{ ...btnPrimary(), background: C.success }}><ThumbsUp size={14} /> Aprovar</button>}
             {podeReprovar && <button onClick={() => { setMotivoRepr(""); setReprovarOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><ThumbsDown size={14} /> Reprovar</button>}
             {!isNew && ["ABERTO", "APROVADO"].includes(status) && perms.aprovar && <button onClick={() => { setMotivoPerder(""); setPerderOpen(true); }} style={{ ...btnGhost(), color: C.warning, borderColor: C.warning }}><XCircle size={14} /> Marcar Perdido</button>}
+            {!isNew && <button onClick={() => { const c = clientes.find((x) => x.id === orcAtual.id_cliente); abrirWhatsApp(telefoneCliente(c), msgOrcamento({ numero: orcAtual.numero, cliente: nomeCliente(orcAtual.id_cliente), empresa: orcAtual.empresa || "", valor: totalProd + totalServ, itens, validade: orcAtual.data_validade ? new Date(orcAtual.data_validade).toLocaleDateString("pt-BR") : null })); }} style={{ ...btnGhost(), color: "#128C7E", borderColor: "#128C7E" }}><MessageCircle size={14} /> WhatsApp</button>}
             {podeConverter && <button onClick={converter} disabled={saving} style={btnPrimary()}><ArrowRightCircle size={14} /> Converter em Venda</button>}
           </div>
         </div>

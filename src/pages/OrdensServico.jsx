@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
-  DollarSign, Send, Eye, Printer, Undo2, History, Boxes,
+  DollarSign, Send, Eye, Printer, Undo2, History, Boxes, MessageCircle,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc, ATALHOS } from "../config";
+import { abrirWhatsApp, telefoneCliente, msgOS } from "../whatsapp";
 import { getEmpresaAtiva, useEmpresaAtiva } from "../empresa";
 import { NovoClienteModal, NovoVeiculoModal } from "../CadastroRapido";
 import { DrawerHistorico, DrawerEstoque, DrawerFollowup } from "../drawers";
@@ -832,6 +833,9 @@ export default function OrdensServico({ usuario }) {
             </button>
             <button onClick={() => setFollowupOs(true)} style={btnGhost()}>
               <History size={14} /> Follow-up
+            </button>
+            <button onClick={() => abrirWhatsApp(telefoneCliente(cli), msgOS({ numero: osAtual.numero, cliente: cli.nome, empresa: osAtual.empresa || "", valor: osAtual.valor_total, status: osAtual.status, itens: [...osPecas.map((p) => ({ descricao: p.descricao, quantidade: p.quantidade, valor_total: p.valor_total })), ...osServicos.map((s) => ({ descricao: s.descricao, quantidade: 1, valor_total: s.valor_total }))] }))} style={{ ...btnGhost(), color: "#128C7E", borderColor: "#128C7E" }}>
+              <MessageCircle size={14} /> WhatsApp
             </button>
             {osAtual.status !== "CANCELADA" && (osPecas || []).length > 0 && (
               <button onClick={() => irPara("devolucoes", { origem: "OS", id: osAtual.id, numero: osAtual.numero })} style={btnGhost()}>

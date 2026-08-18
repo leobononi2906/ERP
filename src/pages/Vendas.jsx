@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import {
   Search, Plus, Pencil, ArrowLeft, Save, X, CheckCircle2, AlertCircle,
   ShoppingCart, Package, Wrench, FileText, DollarSign, Trash2, Eye, Ban, Printer, Tag, Undo2,
-  ChevronDown, ChevronRight, History, Boxes,
+  ChevronDown, ChevronRight, History, Boxes, MessageCircle,
 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc, ATALHOS } from "../config";
 import { imprimirVendaDoc, imprimirEtiquetaExpedicao } from "../print";
+import { abrirWhatsApp, telefoneCliente, msgVenda } from "../whatsapp";
 import { irPara } from "../nav";
 import {
   cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Campo,
@@ -623,6 +624,7 @@ export default function Vendas({ usuario }) {
             <button onClick={() => imprimirVendaDoc({ venda: vendaAtual, itens, cliente: nomeCliente(vendaAtual.id_cliente), empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "", pagamento: vendaAtual.id_condicao_pagamento ? ((condPag.find((c) => c.id === vendaAtual.id_condicao_pagamento) || {}).descricao || "A prazo") : "À vista" })} style={btnGhost()}><Printer size={14} /> Imprimir</button>
             <button onClick={() => imprimirEtiquetaExpedicao({ venda: vendaAtual, cliente: clientes.find((c) => c.id === vendaAtual.id_cliente) || { nome: nomeCliente(vendaAtual.id_cliente) }, empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "" })} style={btnGhost()}><Tag size={14} /> Etiqueta</button>
             <button onClick={() => setHistVenda(true)} style={btnGhost()}><History size={14} /> Histórico</button>
+            <button onClick={() => { const c = clientes.find((x) => x.id === vendaAtual.id_cliente); abrirWhatsApp(telefoneCliente(c), msgVenda({ numero: vendaAtual.numero, cliente: nomeCliente(vendaAtual.id_cliente), empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "", valor: vendaAtual.valor_total, itens })); }} style={{ ...btnGhost(), color: "#128C7E", borderColor: "#128C7E" }}><MessageCircle size={14} /> WhatsApp</button>
             {!isCancelada && <button onClick={() => irPara("devolucoes", { origem: "VENDA", id: vendaAtual.id, numero: vendaAtual.numero })} style={btnGhost()}><Undo2 size={14} /> Devolver</button>}
             {!isFaturada && !isCancelada && !isLiberado && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
             {!isFaturada && !isCancelada && !isLiberado && perms.editar && itens.length > 0 && (
