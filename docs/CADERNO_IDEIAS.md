@@ -488,3 +488,10 @@ Editor de Habilidades/Áreas no modal de Usuário (Administração), abaixo dos 
 - ✅ **C. Ordenação de colunas** — hook useSort + ThSort no ui.jsx, aplicado em Clientes/Produtos/Vendas/OS/Fila de Faturamento (padrão pra replicar no resto). Commit 918f985.
 - 📋 **D. NF em 2 empresas (peças×serviços)** — SPEC em docs/SPEC_NF_DUAS_EMPRESAS.md. Aguarda 3 decisões do Leo (onde amarra empresa peça/serviço; sempre split?; 2 títulos?).
 - 📋 **E. Mobile + WhatsApp** — SPEC em docs/SPEC_MOBILE_WHATSAPP.md. Aguarda decisão (PWA responsivo vs nativo; wa.me vs provedor automático).
+
+## 🌙 NOITE 17→18/08 — "FAZ TUDO" (WhatsApp + PWA + NF 2 empresas) — FEITO
+- ✅ **WhatsApp (wa.me)** em Venda/OS/Orçamento — botão abre o Whats com telefone do cliente + mensagem pronta (nº, valor, itens). Helper src/whatsapp.js. Commit 4b5dff0.
+- ✅ **PWA instalável** (manifest + ícone + meta) — ERP vira app no celular (Adicionar à tela inicial). Base pra camada mobile. Commit efd4020.
+- ✅ **NF em 2 empresas (peças×serviços) — CONSTRUÍDA** (era spec). Definição do Leo: **toda OS é MLB PR** (peças/ICMS); o **serviço separa** pra outra empresa (ISS/NFS-e) — importa p/ precificação e impostos. Mapa: MLB PR=emp 3 (peças), Bononi PR=emp 1 ("Prestação de Serviços"). RPC `erp_os_faturar_split` gera **2 títulos** (peças na empresa da OS + serviços na empresa escolhida), comissões e estoque inalterados. Descoberta: há trigger `trg_os_baixa_estoque` que baixa estoque ao virar FATURADA (o split respeita, baixa na empresa da OS). Front: opção "Faturar separando peças×serviços" na **fila de Faturamento** (escolhe a empresa dos serviços). Testado (rollback): OS 34 → peças R$219,80 emp3 + serviços R$970,00 emp1. Commit fc097e9.
+  - **Config opcional:** `erp_config('os_empresa_servicos','1')` pré-seleciona a empresa dos serviços (ex.: 1=Bononi PR). Hoje vazio → o faturador escolhe na hora. Spec original em docs/SPEC_NF_DUAS_EMPRESAS.md.
+- 🔜 **Mobile (telas responsivas)** — PWA já instala; falta a camada responsiva/mobile das telas (OS/orçamento/venda) e, se quiser, WhatsApp automático via provedor. Spec em docs/SPEC_MOBILE_WHATSAPP.md.
