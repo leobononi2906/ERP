@@ -51,8 +51,8 @@ Produto para bipagem: `produtos.codigo_barras` (varchar) + `produtos.codigo` (se
 
 ## Fases
 
-- **Fase 1 — Picking consolidado + destino.**
-  Boqueta seleciona vários pedidos (filtro por canal/marketplace) → sai **1 picking agrupando produtos**. Ao separar, marca destino (Balcão/Pátio/Expedição). Tela de Separação ganha o modo "consolidado".
+- **Fase 1 — Picking consolidado + destino. ✅ FEITO (18/08).**
+  Na tela **Separação**: checkbox nas linhas SOLICITADA → "Gerar picking consolidado" → cria 1 onda (`erp_pickings`) agrupando os produtos (soma qtd). View da onda mostra produtos somados + quebra por pedido, imprime bobina, e define **destino** (Balcão/Pátio/Expedição) em massa ou por pedido (`expedicoes.destino`). "Ondas em aberto" listadas no topo da fila. Backend: `erp_picking_gerar/dados/concluir/cancelar/definir_destino/erp_pickings_listar` (testados). Destino só marca roteamento — NÃO baixa estoque (isso é a Fase 2). Confirmação de separação por pedido segue no detalhe existente (botão "Separar/conferir" na onda).
 - **Fase 2 — Expedição anti-erro (bipagem ao empacotar).**
   Fila de Expedição (pedidos com destino=EXPEDICAO). Tela de empacotamento: bipa produto por produto contra a lista; fecha o volume só a 100%. Produtos marcados pedem nº de série. Gera volume/etiqueta.
 - **Fase 3 — Bling → fila.**
