@@ -8,13 +8,15 @@ import { cardStyle, inp, sel, btnPrimary, btnGhost, th, td, Badge, Campo, useSor
 export default function Faturamento({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.financeiro) || {};
   const podeFaturar = perms.aprovar || perms.editar || perms.incluir;
-  const [dados, setDados] = useState({ os: [], vendas: [], formas: [], condicoes: [] });
+  const [dados, setDados] = useState({ os: [], vendas: [], formas: [], condicoes: [], empresas: [], empresa_servicos_padrao: null });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(null);
   const [toast, setToast] = useState(null);
   const [modalFat, setModalFat] = useState(null); // { tipo:'os'|'venda', item }
   const [fForma, setFForma] = useState("");
   const [fCond, setFCond] = useState("");
+  const [fSplit, setFSplit] = useState(false);   // OS: faturar separando peças×serviços em 2 empresas
+  const [fEmpServ, setFEmpServ] = useState("");   // empresa dos serviços no split
   const timer = useRef(null);
   const { sort, onSort, ordenar } = useSort();
 
@@ -23,7 +25,7 @@ export default function Faturamento({ usuario }) {
   async function carregar() {
     try {
       const d = await rpc("erp_faturamento_fila_dados");
-      setDados({ os: d?.os || [], vendas: d?.vendas || [], formas: d?.formas || [], condicoes: d?.condicoes || [] });
+      setDados({ os: d?.os || [], vendas: d?.vendas || [], formas: d?.formas || [], condicoes: d?.condicoes || [], empresas: d?.empresas || [], empresa_servicos_padrao: d?.empresa_servicos_padrao || null });
     } catch (e) { /* silencioso no refresh */ }
     finally { setLoading(false); }
   }
@@ -33,17 +35,21 @@ export default function Faturamento({ usuario }) {
     return () => clearInterval(timer.current);
   }, []);
 
-  function abrirFaturar(tipo, item) { setFForma(""); setFCond(""); setModalFat({ tipo, item }); }
+  function abrirFaturar(tipo, item) { setFForma(""); setFCond(""); setFSplit(false); setFEmpServ(dados.empresa_servicos_padrao ? String(dados.empresa_servicos_padrao) : ""); setModalFat({ tipo, item }); }
 
   async function confirmarFaturar() {
     if (!fForma) { notificar("Selecione a forma de pagamento.", "erro"); return; }
     const { tipo, item } = modalFat;
+    const split = tipo === "os" && fSplit;
+    if (split && !fEmpServ) { notificar("Selecione a empresa dos serviços para faturar separado.", "erro"); return; }
     setSaving(tipo + item.id);
     try {
-      const fn = tipo === "os" ? "os_faturar" : "venda_faturar";
-      const p = tipo === "os"
-        ? { id_os: item.id, id_forma_pagamento: num(fForma), id_condicao_pagamento: num(fCond) || null, _ator: usuario.id }
-        : { id_venda: item.id, id_forma_pagamento: num(fForma), id_condicao_pagamento: num(fCond) || null, _ator: usuario.id };
+      const fn = split ? "erp_os_faturar_split" : (tipo === "os" ? "os_faturar" : "venda_faturar");
+      const p = split
+        ? { id_os: item.id, id_empresa_servicos: num(fEmpServ), id_forma_pagamento: num(fForma), id_condicao_pagamento: num(fCond) || null, _ator: usuario.id }
+        : tipo === "os"
+          ? { id_os: item.id, id_forma_pagamento: num(fForma), id_condicao_pagamento: num(fCond) || null, _ator: usuario.id }
+          : { id_venda: item.id, id_forma_pagamento: num(fForma), id_condicao_pagamento: num(fCond) || null, _ator: usuario.id };
       const res = await rpc(fn, { p });
       if (res?.ok === false) { notificar(res.msg || res.erro || "Não foi possível faturar.", "erro"); setSaving(null); return; }
       notificar(`${tipo === "os" ? "OS" : "Venda"} ${item.numero} faturada!`);
@@ -162,6 +168,25 @@ export default function Faturamento({ usuario }) {
                 {dados.condicoes.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
               </select>
             </Campo>
+
+            {modalFat.tipo === "os" && (
+              <div style={{ marginTop: 6, padding: 12, borderRadius: 8, background: fSplit ? C.bluePale : C.surface2, border: `1px solid ${fSplit ? C.blueMid : C.border}` }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                  <input type="checkbox" checked={fSplit} onChange={(e) => setFSplit(e.target.checked)} />
+                  Faturar separando peças × serviços em 2 empresas (2 NFs)
+                </label>
+                {fSplit && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 8 }}>Peças ficam na empresa da OS (ICMS / NF-e). Escolha a empresa dos <b>serviços</b> (ISS / NFS-e):</div>
+                    <select value={fEmpServ} onChange={(e) => setFEmpServ(e.target.value)} style={sel(true)}>
+                      <option value="">Selecione a empresa dos serviços...</option>
+                      {dados.empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}{e.uf ? " (" + e.uf + ")" : ""}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
               <button onClick={() => setModalFat(null)} style={btnGhost()}>Cancelar</button>
               <button onClick={confirmarFaturar} disabled={!fForma || saving} style={{ ...btnPrimary(), opacity: (!fForma || saving) ? 0.6 : 1 }}><DollarSign size={14} /> Confirmar Faturamento</button>
