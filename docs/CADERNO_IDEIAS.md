@@ -495,3 +495,9 @@ Editor de Habilidades/Áreas no modal de Usuário (Administração), abaixo dos 
 - ✅ **NF em 2 empresas (peças×serviços) — CONSTRUÍDA** (era spec). Definição do Leo: **toda OS é MLB PR** (peças/ICMS); o **serviço separa** pra outra empresa (ISS/NFS-e) — importa p/ precificação e impostos. Mapa: MLB PR=emp 3 (peças), Bononi PR=emp 1 ("Prestação de Serviços"). RPC `erp_os_faturar_split` gera **2 títulos** (peças na empresa da OS + serviços na empresa escolhida), comissões e estoque inalterados. Descoberta: há trigger `trg_os_baixa_estoque` que baixa estoque ao virar FATURADA (o split respeita, baixa na empresa da OS). Front: opção "Faturar separando peças×serviços" na **fila de Faturamento** (escolhe a empresa dos serviços). Testado (rollback): OS 34 → peças R$219,80 emp3 + serviços R$970,00 emp1. Commit fc097e9.
   - **Config opcional:** `erp_config('os_empresa_servicos','1')` pré-seleciona a empresa dos serviços (ex.: 1=Bononi PR). Hoje vazio → o faturador escolhe na hora. Spec original em docs/SPEC_NF_DUAS_EMPRESAS.md.
 - 🔜 **Mobile (telas responsivas)** — PWA já instala; falta a camada responsiva/mobile das telas (OS/orçamento/venda) e, se quiser, WhatsApp automático via provedor. Spec em docs/SPEC_MOBILE_WHATSAPP.md.
+
+## 📌 Decisão (18/08) — Mobile/PWA fica NA AGULHA (implantação posterior)
+Leo: NÃO vamos trabalhar as telas mobile agora — deixar "na agulha" pra uma implantação futura. O que fica pronto e parado:
+- ✅ **PWA instalável** já está no ar (manifest + ícone + meta) — o ERP já pode ser "adicionado à tela inicial" no celular.
+- ⏸️ **Camada responsiva das telas** (OS/orçamento/venda em layout mobile) + **WhatsApp automático via provedor** = adiados. Retomar na fase de implantação mobile. Spec pronta em docs/SPEC_MOBILE_WHATSAPP.md.
+- Obs.: o **envio por WhatsApp via wa.me já funciona no desktop** (botão nas 3 telas) — isso NÃO depende do mobile.
