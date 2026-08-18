@@ -481,3 +481,10 @@ Editor de Habilidades/Áreas no modal de Usuário (Administração), abaixo dos 
 - **Dimensões/peso no PRODUTO:** a tabela `produtos` NÃO tem peso/altura/largura/comprimento/cubagem hoje (confirmado). Adicionar campos de medida e peso (úteis p/ frete, volumes, NF). Há `bling-proxy` que traz medidas do Bling (memória stonni-bling-proxy-token) — dá pra puxar de lá.
 - **Telas MOBILE + WhatsApp:** preparar versões mobile de OS, Orçamentos, Vendas (e demais), tudo integrado com **envio por WhatsApp** (mandar orçamento/OS/venda pro cliente pelo Whats). Iniciativa própria — desenhar arquitetura (PWA responsivo vs app; provedor de WhatsApp — Umbler já está no ecossistema).
 - **Ordenação de colunas nas tabelas:** falta ordenar clicando no cabeçalho (asc/desc) nas tabelas do sistema. Melhoria transversal de UX — criar um componente de cabeçalho ordenável reusável e aplicar nas listas (Clientes, Produtos, Vendas, OS, fila de faturamento, etc.).
+
+## 🌙 NOITE 17→18/08 — LEVA "PRECISAMOS DISSO" (os novos pedidos) — status
+- ✅ **A. Dimensões e peso no produto** — colunas peso_kg/altura/largura/comprimento + form. Commit d0348cd.
+- ✅ **B. Transportadora + volumes na venda** — seção Transporte/Expedição (transportadora, modalidade frete, volumes, espécie, peso bruto/líquido). Commit d7aec5e.
+- ✅ **C. Ordenação de colunas** — hook useSort + ThSort no ui.jsx, aplicado em Clientes/Produtos/Vendas/OS/Fila de Faturamento (padrão pra replicar no resto). Commit 918f985.
+- 📋 **D. NF em 2 empresas (peças×serviços)** — SPEC em docs/SPEC_NF_DUAS_EMPRESAS.md. Aguarda 3 decisões do Leo (onde amarra empresa peça/serviço; sempre split?; 2 títulos?).
+- 📋 **E. Mobile + WhatsApp** — SPEC em docs/SPEC_MOBILE_WHATSAPP.md. Aguarda decisão (PWA responsivo vs nativo; wa.me vs provedor automático).
