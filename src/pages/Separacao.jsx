@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Package, RefreshCw, Printer, Hand, CheckCircle2, XCircle, AlertCircle, PackageOpen, Truck, Store, ArrowLeft, Search, X } from "lucide-react";
+import { Package, RefreshCw, Printer, Hand, CheckCircle2, XCircle, AlertCircle, PackageOpen, Truck, Store, ArrowLeft, Search, X, Undo2 } from "lucide-react";
 import { C, mono, fmtBRL, num, rpc } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Badge, Aviso } from "../ui";
 const STATUS_COR = { SOLICITADA: "ABERTA", EM_SEPARACAO: "BLOQUEADO", SEPARADA: "ATIVO", ENTREGUE: "INATIVO", CANCELADA: "CANCELADA" };
@@ -21,6 +21,7 @@ function Info({ label, valor }) {
 export default function Separacao({ usuario }) {
   const perms = (usuario && usuario.permissoes && usuario.permissoes.separacao) || {};
   const [fila, setFila] = useState([]);
+  const [devol, setDevol] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -37,6 +38,10 @@ export default function Separacao({ usuario }) {
       const data = await rpc("erp_separacao_dados", { p_status: fStatus.length ? fStatus : null, p_id_empresa: fEmpresa ? Number(fEmpresa) : null, p_busca: fBusca || null });
       setFila(Array.isArray(data?.fila) ? data.fila : []);
       setEmpresas(Array.isArray(data?.empresas) ? data.empresas : []);
+      try {
+        const dd = await rpc("erp_devolucao_dados", { p_id_empresa: fEmpresa ? Number(fEmpresa) : null });
+        setDevol((dd?.devolucoes || []).filter(d => d.status === "AGUARDANDO"));
+      } catch (_) { /* devoluções são complementares — não quebra a fila */ }
     } catch (e) { notificar(e.message || "Erro ao carregar fila.", "destructive"); }
     finally { setLoading(false); }
   }, [fStatus, fEmpresa, fBusca]);
@@ -57,6 +62,16 @@ export default function Separacao({ usuario }) {
     } catch (e) { notificar(e.message, "destructive"); }
   };
 
+  const confirmarDevol = async (d) => {
+    if (!window.confirm(`Confirmar o RECEBIMENTO físico da devolução ${d.numero} (${d.cliente_nome})?\n\nIsso dá entrada da peça no estoque e gera saldo a favor do cliente.`)) return;
+    try {
+      const r = await rpc("erp_devolucao_confirmar", { p_id: d.id, p_id_usuario: usuario.id });
+      if (r && r.ok === false) return notificar(r.erro || "Falha ao confirmar.", "destructive");
+      notificar(`Recebimento confirmado — ${fmtBRL(r?.credito || d.valor_total)} a favor do cliente.`);
+      carregar(true);
+    } catch (e) { notificar(e.message, "destructive"); }
+  };
+
   // === DETALHE ===
   if (detalheId) return <SeparacaoDetalhe id={detalheId} usuario={usuario} perms={perms} onVoltar={() => { setDetalheId(null); carregar(true); }} />;
 
@@ -68,6 +83,33 @@ export default function Separacao({ usuario }) {
         <div><h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Separação — Fila</h1><p style={{ fontSize: 13, color: C.muted, margin: "2px 0 0" }}>{fila.length} solicitações · {usuario.nome}</p></div>
         <button onClick={() => carregar()} style={btnGhost()}><RefreshCw size={16} style={loading ? { animation: "spin 1s linear infinite" } : {}} /> Atualizar</button>
       </div>
+
+      {/* Devoluções aguardando recebimento — a boqueta confere e dá entrada aqui mesmo */}
+      {perms.aprovar && devol.length > 0 && (
+        <div style={{ ...cardStyle(), marginBottom: 14, borderLeft: `3px solid ${C.warning}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            <Undo2 size={16} color={C.warning} />
+            <b style={{ fontSize: 14 }}>Devoluções a receber ({devol.length})</b>
+            <span style={{ fontSize: 12, color: C.muted }}>— cliente trouxe a peça de volta; confira e dê entrada no estoque</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 620 }}>
+              <thead><tr>{["Nº", "Cliente", "Origem", "Saldo", ""].map((h, i) => <th key={i} style={th(i === 3)}>{h}</th>)}</tr></thead>
+              <tbody>{devol.map(d => (
+                <tr key={d.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                  <td style={{ ...td(), fontFamily: mono, fontWeight: 600 }}>{d.numero}</td>
+                  <td style={{ ...td(), maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.cliente_nome}</td>
+                  <td style={{ ...td(), color: C.muted, whiteSpace: "nowrap" }}>{d.origem} {d.numero_origem || ""}</td>
+                  <td style={{ ...td(), textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtBRL(d.valor_total)}</td>
+                  <td style={{ ...td(), textAlign: "right" }}>
+                    <button onClick={() => confirmarDevol(d)} style={{ ...btnPrimary(), background: C.success, padding: "6px 12px", fontSize: 12 }}><CheckCircle2 size={14} /> Confirmar recebimento</button>
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Filtros */}
       <div style={{ ...cardStyle(), display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 14 }}>
