@@ -454,3 +454,13 @@ Semântica da baixa confirmada: orçamento nunca baixa; **boqueta baixa quando o
 - **Conta financeira na baixa:** a baixa de um título só cai em conta financeira da MESMA empresa que faturou. Se o dinheiro precisar ir para outra empresa, o financeiro faz uma TRANSFERÊNCIA depois (movimento próprio).
   - **Front:** ContasReceber/ContasPagar filtram o select de conta por `titulo.id_empresa`.
   - **Backend (trava dura, testada):** `public.erp_baixar_titulo` rejeita conta de outra empresa com mensagem clara (título emp 5 × conta emp 1 = bloqueado). Vale mesmo que o front mude — integridade garantida no banco.
+
+## Venda: abrir cadastro completo de cliente/produto sobreposto (17/08)
+Pedido do Leo: a partir da tela de Vendas, clicar no cliente (cabeçalho) ou no produto (linha do item) e abrir o CADASTRO COMPLETO daquele registro como MODAL SOBREPOSTO (overlay), sem sair da venda. Objetivo: agilidade — ver/editar cadastro sem perder a venda em andamento. Depois replicar o mesmo padrão na OS.
+Abordagem despachada p/ sessão ERP: adicionar props `embedId`+`onCloseEmbed` a Clientes.jsx/Produtos.jsx (abre o registro e renderiza em overlay com X); em Vendas.jsx estados cadClienteId/cadProdutoId + handlers no cabeçalho e nas linhas. Respeitar permissões (abre leitura se sem editar).
+
+## Código sequencial de produto e cliente nas telas (17/08) — FEITO
+Produto (código sequencial imutável) e cliente agora aparecem em Venda/OS/Separação: coluna Código nos itens + código do cliente no cabeçalho. Backend enriquecido: os_detalhe_dados, vendas_detalhe_dados, erp_separacao_detalhe (cliente_codigo), os_dados e vendas_dados (código do cliente na lista). Commit 3a143ed.
+
+## Habilidades/Áreas do técnico para distribuição (17/08) — FEITO
+Editor de Habilidades/Áreas no modal de Usuário (Administração), abaixo dos Grupos de Acesso: liga/desliga área (grupos_servico) por clique, salvo na hora. RPCs erp_usuario_habilidades_listar + erp_usuario_habilidade_definir (upsert em usuario_habilidades). Usado na distribuição de serviços. Commit a23df58.
