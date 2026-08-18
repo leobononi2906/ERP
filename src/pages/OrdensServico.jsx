@@ -410,6 +410,23 @@ export default function OrdensServico({ usuario }) {
   const [fatCond, setFatCond] = useState("");
   const [fatAprov, setFatAprov] = useState({ aberto: false, mensagem: "" });
 
+  async function liberarFaturamentoOS() {
+    try {
+      const res = await rpc("erp_os_liberar_faturamento", { p_id_os: osAtual.id, p_ator: usuario.id });
+      if (res?.ok === false) { notificar(res.erro || "Não foi possível liberar.", "erro"); return; }
+      setOsAtual((o) => ({ ...o, status: "LIBERADO_FATURAMENTO" }));
+      notificar("OS liberada para faturamento!");
+    } catch (e) { notificar("Erro: " + (e.message || ""), "erro"); }
+  }
+  async function reverterLiberacaoOS() {
+    try {
+      const res = await rpc("erp_os_reverter_liberacao", { p_id_os: osAtual.id, p_ator: usuario.id });
+      if (res?.ok === false) { notificar(res.erro || "Não foi possível reverter.", "erro"); return; }
+      setOsAtual((o) => ({ ...o, status: "ABERTA" }));
+      notificar("Liberação revertida — OS voltou para edição.");
+    } catch (e) { notificar("Erro: " + (e.message || ""), "erro"); }
+  }
+
   async function abrirFaturamento() {
     try {
       const pend = await rpc("erp_os_pendencias", { p_id_os: osAtual.id });
@@ -713,6 +730,7 @@ export default function OrdensServico({ usuario }) {
     const totalServicos = osServicos.reduce((s, sv) => s + (num(sv.valor_total) || 0), 0);
     const totalPecas = osPecas.reduce((s, p) => s + (num(p.valor_total) || 0), 0);
     const cli = dadosCliente(osAtual.id_cliente);
+    const osLiberado = osAtual.status === "LIBERADO_FATURAMENTO";
     const veic = osAtual.id_veiculo ? dadosVeiculo(osAtual.id_veiculo) : null;
     const resp = osAtual.id_usuario_responsavel ? dadosUsuario(osAtual.id_usuario_responsavel) : null;
     const infoStyle = { fontSize: 12, color: C.muted, lineHeight: 1.6 };
@@ -729,7 +747,7 @@ export default function OrdensServico({ usuario }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>OS {osAtual.numero}</h1>
               <Badge texto={osAtual.status} cor={STATUS_CORES[osAtual.status]} />
-              {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (() => {
+              {perms.editar && osAtual.status !== "FATURADA" && osAtual.status !== "LIBERADO_FATURAMENTO" && !osAtual.cancelada && (() => {
                 const atual = prismasOs.find((p) => p.os_numero === osAtual.numero);
                 const livres = prismasOs.filter((p) => p.ativo && (!p.em_uso || p.os_numero === osAtual.numero));
                 return (
@@ -744,6 +762,12 @@ export default function OrdensServico({ usuario }) {
               })()}
             </div>
           </div>
+
+          {osLiberado && (
+            <div style={{ background: C.warningBg, color: C.warning, padding: "12px 16px", borderRadius: 8, margin: "0 0 16px", fontSize: 13, fontWeight: 500 }}>
+              🔒 OS <b>liberada para faturamento</b> — edição travada. Para alterar, o faturamento precisa reverter a liberação.
+            </div>
+          )}
 
           {/* Aviso de pendências para faturar */}
           {pendenciasOs && pendenciasOs.ok === false && pendenciasOs.pendencias && pendenciasOs.pendencias.length > 0 && (
@@ -778,15 +802,21 @@ export default function OrdensServico({ usuario }) {
           )}
 
           <div style={{ display: "flex", gap: 8 }}>
-            {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && osServicos.length > 0 && (
+            {perms.aprovar && osAtual.status !== "FATURADA" && osAtual.status !== "LIBERADO_FATURAMENTO" && !osAtual.cancelada && osServicos.length > 0 && (
               <button onClick={abrirAvaliacao} style={btnGhost()}>
                 <CheckCircle2 size={14} /> Avaliar
               </button>
             )}
-            {perms.aprovar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
-              <button onClick={abrirFaturamento} disabled={pendenciasOs && pendenciasOs.ok === false} style={{ ...btnPrimary(), background: pendenciasOs && pendenciasOs.ok === false ? C.muted : C.success, opacity: pendenciasOs && pendenciasOs.ok === false ? 0.6 : 1, cursor: pendenciasOs && pendenciasOs.ok === false ? "not-allowed" : "pointer" }} title={pendenciasOs && pendenciasOs.ok === false ? "Resolva os pendências antes de faturar" : ""}>
-                <DollarSign size={14} /> Faturar OS
+            {perms.editar && osAtual.status !== "FATURADA" && osAtual.status !== "LIBERADO_FATURAMENTO" && !osAtual.cancelada && (osServicos.length > 0 || osPecas.length > 0) && (
+              <button onClick={liberarFaturamentoOS} disabled={pendenciasOs && pendenciasOs.ok === false} style={{ ...btnPrimary(), background: pendenciasOs && pendenciasOs.ok === false ? C.muted : C.success, opacity: pendenciasOs && pendenciasOs.ok === false ? 0.6 : 1, cursor: pendenciasOs && pendenciasOs.ok === false ? "not-allowed" : "pointer" }} title={pendenciasOs && pendenciasOs.ok === false ? "Resolva os pendências antes de liberar" : "Libera a OS para o faturamento (trava edição)"}>
+                <DollarSign size={14} /> Liberar Faturamento
               </button>
+            )}
+            {osLiberado && perms.aprovar && (
+              <button onClick={reverterLiberacaoOS} style={{ ...btnGhost(), color: C.warning, borderColor: C.warning }}><Undo2 size={14} /> Reverter liberação</button>
+            )}
+            {osLiberado && perms.aprovar && (
+              <button onClick={abrirFaturamento} style={{ ...btnPrimary(), background: C.success }}><DollarSign size={14} /> Faturar OS</button>
             )}
             {perms.editar && osAtual.status !== "FATURADA" && (
               <button onClick={() => { setForm({ ...OS_VAZIA(), ...osAtual }); setView("form"); }} style={btnGhost()}>
@@ -930,7 +960,7 @@ export default function OrdensServico({ usuario }) {
               <div style={cardStyle()}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Defeitos Relatados</span>
-                  {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+                  {perms.editar && osAtual.status !== "FATURADA" && osAtual.status !== "LIBERADO_FATURAMENTO" && !osAtual.cancelada && (
                     <button onClick={() => setAddDefeito(!addDefeito)} style={btnPrimary()}>
                       <Plus size={14} /> Adicionar defeito
                     </button>
@@ -976,7 +1006,7 @@ export default function OrdensServico({ usuario }) {
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.descricao}</span>
                         {d.area && <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{d.area}</span>}
                         {d.status && (() => { const st = DEF_ST[d.status] || DEF_ST.ABERTO; return <span style={{ background: st.bg, color: st.fg, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{st.t}</span>; })()}
-                        {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && !d.tem_apontamento && (
+                        {perms.editar && osAtual.status !== "FATURADA" && osAtual.status !== "LIBERADO_FATURAMENTO" && !osAtual.cancelada && !d.tem_apontamento && (
                           <button onClick={() => excluirDefeito(d.id)} style={{ ...btnIcon(), color: C.muted }} title="Remover"><Trash2 size={13} /></button>
                         )}
                       </div>
@@ -1111,7 +1141,7 @@ export default function OrdensServico({ usuario }) {
               <div style={cardStyle()}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Peças da OS{num(osAtual.valor_consumo) > 0 ? <span style={{ fontSize: 11, fontWeight: 500, color: C.warning, marginLeft: 10 }}>consumo interno: {fmtBRL(osAtual.valor_consumo)} (não cobrado)</span> : null}</span>
-                  {perms.editar && osAtual.status !== "FATURADA" && !osAtual.cancelada && (
+                  {perms.editar && osAtual.status !== "FATURADA" && osAtual.status !== "LIBERADO_FATURAMENTO" && !osAtual.cancelada && (
                     <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={() => {
                         const desc = window.prompt("Encomenda — descreva o item que precisa ser comprado para esta OS:");

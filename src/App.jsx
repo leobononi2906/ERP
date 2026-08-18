@@ -73,6 +73,7 @@ import VendasPerdidas from "./pages/VendasPerdidas";
 import CaixaLoja from "./pages/financeiro/Caixa";
 import Cobranca from "./pages/Cobranca";
 import Remessas from "./pages/Remessas";
+import Faturamento from "./pages/Faturamento";
 
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
@@ -131,6 +132,7 @@ const MENU_GROUPS = [
   {
     groupKey: "financeiro_g", label: "Financeiro", icon: DollarSign,
     items: [
+      { key: "faturamento", label: "Faturamento (fila)", icon: DollarSign, ok: true, permKey: "financeiro" },
       { key: "caixa_loja", label: "Caixa (Loja)", icon: DollarSign, ok: true, permAny: ["caixa", "financeiro"] },
       { key: "cobranca", label: "Cobrança", icon: ClipboardList, ok: true, permKey: "financeiro" },
       { key: "financeiro", label: "Financeiro", icon: DollarSign, ok: true },
@@ -345,6 +347,7 @@ export default function App() {
         {pagina === "cobranca" && <Cobranca usuario={usuario} />}
         {pagina === "separacao" && <Separacao usuario={usuario} />}
         {pagina === "remessas" && <Remessas usuario={usuario} />}
+        {pagina === "faturamento" && <Faturamento usuario={usuario} />}
         {pagina === "financeiro" && <Financeiro usuario={usuario} />}
         {pagina === "servicos" && <Servicos usuario={usuario} />}
         {pagina === "precos_especiais" && <PrecosEspeciais usuario={usuario} />}

@@ -404,6 +404,29 @@ export default function Vendas({ usuario }) {
   const totalVenda = num(vendaAtual?.valor_total) || 0;
   const parcelasBatem = Math.abs(totalParcelas - totalVenda) < 0.01;
 
+  /* ─── liberar faturamento (gate: pendências + crédito) ─────── */
+  async function liberarFaturamento() {
+    if (travaCredito?.bloqueado) { notificar("Cliente com cadastro de crédito desatualizado — o financeiro precisa validar antes de liberar para faturamento.", "erro"); return; }
+    setSaving(true);
+    try {
+      const res = await rpc("erp_venda_liberar_faturamento", { p_id_venda: vendaAtual.id, p_ator: usuario.id });
+      if (res?.ok === false) { notificar(res.erro || "Não foi possível liberar.", "erro"); setSaving(false); return; }
+      await recarregarDetalhe(vendaAtual.id);
+      notificar("Venda liberada para faturamento!");
+    } catch (e) { notificar("Erro: " + (e.message || ""), "erro"); }
+    finally { setSaving(false); }
+  }
+  async function reverterLiberacao() {
+    setSaving(true);
+    try {
+      const res = await rpc("erp_venda_reverter_liberacao", { p_id_venda: vendaAtual.id, p_ator: usuario.id });
+      if (res?.ok === false) { notificar(res.erro || "Não foi possível reverter.", "erro"); setSaving(false); return; }
+      await recarregarDetalhe(vendaAtual.id);
+      notificar("Liberação revertida — venda voltou para edição.");
+    } catch (e) { notificar("Erro: " + (e.message || ""), "erro"); }
+    finally { setSaving(false); }
+  }
+
   /* ─── faturar ──────────────────────────────────────────────── */
   async function faturar(libCredito = false, aprovadorId = null) {
     if (travaCredito?.bloqueado) { notificar("Cliente com cadastro de crédito desatualizado — o financeiro precisa liberar antes de faturar.", "erro"); return; }
@@ -510,8 +533,9 @@ export default function Vendas({ usuario }) {
     const status = vendaAtual?.status || "ABERTA";
     const isFaturada = status === "FATURADA";
     const isCancelada = status === "CANCELADA";
-    const podeEditarItens = !isNew && !isFaturada && !isCancelada && perms.editar;
-    const podeEditarDados = isNew ? perms.incluir : (!isFaturada && !isCancelada && perms.editar);
+    const isLiberado = status === "LIBERADO_FATURAMENTO";
+    const podeEditarItens = !isNew && !isFaturada && !isCancelada && !isLiberado && perms.editar;
+    const podeEditarDados = isNew ? perms.incluir : (!isFaturada && !isCancelada && !isLiberado && perms.editar);
     const cfop = vendaAtual ? cfopResolvido(vendaAtual) : "";
     const cliNome = isNew ? (form.id_cliente ? nomeCliente(Number(form.id_cliente)) : "Nova venda") : nomeCliente(vendaAtual.id_cliente);
     const cliCodId = isNew ? (form.id_cliente ? Number(form.id_cliente) : null) : vendaAtual.id_cliente;
@@ -593,14 +617,21 @@ export default function Vendas({ usuario }) {
             <button onClick={() => imprimirEtiquetaExpedicao({ venda: vendaAtual, cliente: clientes.find((c) => c.id === vendaAtual.id_cliente) || { nome: nomeCliente(vendaAtual.id_cliente) }, empresa: (empresas.find((e) => e.id === vendaAtual.id_empresa) || {}).nome_fantasia || "" })} style={btnGhost()}><Tag size={14} /> Etiqueta</button>
             <button onClick={() => setHistVenda(true)} style={btnGhost()}><History size={14} /> Histórico</button>
             {!isCancelada && <button onClick={() => irPara("devolucoes", { origem: "VENDA", id: vendaAtual.id, numero: vendaAtual.numero })} style={btnGhost()}><Undo2 size={14} /> Devolver</button>}
-            {!isFaturada && !isCancelada && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
-            {!isFaturada && !isCancelada && perms.aprovar && itens.length > 0 && (
-              <button onClick={abrirFaturar} disabled={pendenciasVenda && pendenciasVenda.ok === false} style={{ ...btnPrimary(), marginLeft: "auto", background: pendenciasVenda && pendenciasVenda.ok === false ? C.muted : C.primary, opacity: pendenciasVenda && pendenciasVenda.ok === false ? 0.6 : 1, cursor: pendenciasVenda && pendenciasVenda.ok === false ? "not-allowed" : "pointer" }} title={pendenciasVenda && pendenciasVenda.ok === false ? "Resolva os pendências antes de faturar" : ""}>
-                <DollarSign size={14} /> Faturar
+            {!isFaturada && !isCancelada && !isLiberado && perms.excluir && <button onClick={() => { setMotivoCancel(""); setCancelOpen(true); }} style={{ ...btnGhost(), color: C.destructive, borderColor: C.destructive }}><Ban size={14} /> Cancelar</button>}
+            {!isFaturada && !isCancelada && !isLiberado && perms.editar && itens.length > 0 && (
+              <button onClick={liberarFaturamento} disabled={saving || (pendenciasVenda && pendenciasVenda.ok === false)} style={{ ...btnPrimary(), marginLeft: "auto", background: (pendenciasVenda && pendenciasVenda.ok === false) ? C.muted : C.primary, opacity: (saving || (pendenciasVenda && pendenciasVenda.ok === false)) ? 0.6 : 1, cursor: (pendenciasVenda && pendenciasVenda.ok === false) ? "not-allowed" : "pointer" }} title={pendenciasVenda && pendenciasVenda.ok === false ? "Resolva os pendências antes de liberar" : "Libera a venda para o faturamento (trava edição)"}>
+                <DollarSign size={14} /> Liberar Faturamento
               </button>
+            )}
+            {isLiberado && perms.aprovar && (
+              <button onClick={reverterLiberacao} disabled={saving} style={{ ...btnGhost(), color: C.warning, borderColor: C.warning, marginLeft: "auto" }}><Undo2 size={14} /> Reverter liberação</button>
+            )}
+            {isLiberado && perms.aprovar && itens.length > 0 && (
+              <button onClick={abrirFaturar} disabled={saving} style={btnPrimary()}><DollarSign size={14} /> Faturar</button>
             )}
           </div>
         )}
+        {isLiberado && <Aviso cor="warning"><AlertCircle size={16} /> Venda <b>liberada para faturamento</b> — edição travada. Para alterar, o faturamento precisa reverter a liberação.</Aviso>}
 
         {erroForm && <Aviso cor="destructive"><AlertCircle size={16} /> {erroForm}</Aviso>}
         {vendaAtual?.motivo_cancelamento && <Aviso cor="destructive"><Ban size={16} /> Cancelada: {vendaAtual.motivo_cancelamento}</Aviso>}
