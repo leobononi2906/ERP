@@ -28,7 +28,6 @@
       "mcp__Gmail__forward",
       "mcp__Gmail__trash_message",
       "mcp__Gmail__trash_thread",
-      "mcp__Notion__notion-move-pages",
       "mcp__Supabase__apply_migration",
       "mcp__Supabase__deploy_edge_function"
     ]
