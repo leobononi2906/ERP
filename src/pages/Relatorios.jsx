@@ -297,16 +297,23 @@ function imprimirTabela(titulo, cols, rows, tot, temMoney, filtroTxt) {
 
 /* ═══════════ DRE ═══════════ */
 function DRE({ lookups }) {
-  const [f, setF] = useState({ id_empresa: "", data_de: new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10), data_ate: hojeISO() });
+  const [f, setF] = useState({ id_empresa: "", id_centro_custo: "", data_de: new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10), data_ate: hojeISO() });
   const [res, setRes] = useState(null);
+  const [centros, setCentros] = useState([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const set = (k, v) => setF((o) => ({ ...o, [k]: v }));
 
+  useEffect(() => {
+    let a = true;
+    rpc("erp_centros_custo_listar", {}).then((d) => { if (a) setCentros(Array.isArray(d) ? d : (d?.centros || [])); }).catch(() => {});
+    return () => { a = false; };
+  }, []);
+
   async function gerar() {
     setLoading(true); setErro("");
     try {
-      const data = await rpc("erp_dre", { p: { id_empresa: f.id_empresa || null, data_de: f.data_de || null, data_ate: f.data_ate || null } });
+      const data = await rpc("erp_dre", { p: { id_empresa: f.id_empresa || null, id_centro_custo: f.id_centro_custo || null, data_de: f.data_de || null, data_ate: f.data_ate || null } });
       setRes(data);
     } catch (e) { setErro(e.message || String(e)); setRes(null); }
     finally { setLoading(false); }
@@ -341,6 +348,12 @@ function DRE({ lookups }) {
             <select value={f.id_empresa} onChange={(e) => set("id_empresa", e.target.value)} style={selStyle}>
               <option value="">Todas</option>
               {lookups.empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+            </select>
+          </Campo>
+          <Campo label="Centro de custo">
+            <select value={f.id_centro_custo} onChange={(e) => set("id_centro_custo", e.target.value)} style={selStyle}>
+              <option value="">Todos</option>
+              {centros.map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
             </select>
           </Campo>
           <Campo label="De"><input type="date" value={f.data_de} onChange={(e) => set("data_de", e.target.value)} style={selStyle} /></Campo>
@@ -384,6 +397,34 @@ function DRE({ lookups }) {
               </tbody>
             </table>
           </div>
+
+          {Array.isArray(res.por_centro) && res.por_centro.length > 0 && (
+            <div style={{ ...cardStyle(), padding: 0, overflowX: "auto", marginTop: 16 }}>
+              <div style={{ padding: "12px 14px", fontWeight: 700, fontSize: 13, borderBottom: `1px solid ${C.border}` }}>Resultado por centro de custo</div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ color: C.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <td style={{ padding: "8px 14px" }}>Centro</td>
+                    <td style={{ padding: "8px 14px", textAlign: "right" }}>Receita líq.</td>
+                    <td style={{ padding: "8px 14px", textAlign: "right" }}>CMV</td>
+                    <td style={{ padding: "8px 14px", textAlign: "right" }}>Despesas</td>
+                    <td style={{ padding: "8px 14px", textAlign: "right" }}>Resultado</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {res.por_centro.map((c, i) => (
+                    <tr key={i} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <td style={{ padding: "9px 14px", fontWeight: 600 }}>{c.centro}</td>
+                      <td style={{ padding: "9px 14px", textAlign: "right", fontFamily: mono2 }}>{fmtBRL(c.receita_liquida)}</td>
+                      <td style={{ padding: "9px 14px", textAlign: "right", fontFamily: mono2, color: C.textMuted }}>{fmtBRL(c.cmv)}</td>
+                      <td style={{ padding: "9px 14px", textAlign: "right", fontFamily: mono2, color: C.textMuted }}>{fmtBRL(c.despesas)}</td>
+                      <td style={{ padding: "9px 14px", textAlign: "right", fontFamily: mono2, fontWeight: 700, color: (c.resultado || 0) >= 0 ? C.success : C.destructive }}>{fmtBRL(c.resultado)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>

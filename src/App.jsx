@@ -31,26 +31,6 @@ import Servicos from "./pages/Servicos";
 import Auxiliares from "./pages/Auxiliares";
 import ComissoesOS from "./pages/ComissoesOS";
 import ConsultaPrecos from "./pages/ConsultaPrecos";
-import { TabHub } from "./Hub";
-
-// Hubs de abas (reduzem o menu: um item abre várias telas em abas/sub-abas)
-function CadastrosHub({ usuario }) {
-  return <TabHub tabs={[
-    { key: "clientes", label: "Clientes", icon: Users, render: () => <Clientes usuario={usuario} /> },
-    { key: "produtos", label: "Produtos", icon: Package, render: () => <Produtos usuario={usuario} /> },
-    { key: "veiculos", label: "Veículos", icon: Truck, render: () => <Veiculos usuario={usuario} /> },
-    { key: "aux", label: "Auxiliares", icon: Settings, render: () => <Auxiliares usuario={usuario} /> },
-  ]} />;
-}
-function ServicosHub({ usuario }) {
-  return <TabHub tabs={[
-    { key: "distribuicao", label: "Distribuição", icon: Users, render: () => <DistribuicaoServicos usuario={usuario} /> },
-    { key: "patio", label: "Pátio", icon: Clock, render: () => <Apontamento usuario={usuario} /> },
-    { key: "precificacao", label: "Precificação", icon: Layers, render: () => <Precificacao usuario={usuario} /> },
-    { key: "solicitacoes", label: "Solicitações", icon: PackageOpen, render: () => <Solicitacoes usuario={usuario} /> },
-    { key: "comissoes", label: "Comissões", icon: DollarSign, render: () => <ComissoesOS /> },
-  ]} />;
-}
 import PrecosEspeciais from "./pages/PrecosEspeciais";
 import Encomendas from "./pages/Encomendas";
 import Promocoes from "./pages/Promocoes";
@@ -135,7 +115,7 @@ const MENU_GROUPS = [
       { key: "faturamento", label: "Faturamento (fila)", icon: DollarSign, ok: true, permKey: "financeiro" },
       { key: "caixa_loja", label: "Caixa (Loja)", icon: DollarSign, ok: true, permAny: ["caixa", "financeiro"] },
       { key: "cobranca", label: "Cobrança", icon: ClipboardList, ok: true, permKey: "financeiro" },
-      { key: "financeiro", label: "Financeiro", icon: DollarSign, ok: true },
+      { key: "financeiro", label: "Contas a Pagar/Receber", icon: DollarSign, ok: true },
       { key: "fiscal", label: "Apuração Fiscal", icon: FileText, ok: true, permKey: "financeiro" },
     ],
   },
@@ -324,8 +304,6 @@ export default function App() {
         <ConsultaRapida aberto={consultaAberta} onClose={() => setConsultaAberta(false)} usuario={usuario} />
 
         {pagina === "dashboard" && <Dashboard />}
-        {pagina === "cadastros" && <CadastrosHub usuario={usuario} />}
-        {pagina === "servicos_hub" && <ServicosHub usuario={usuario} />}
         {pagina === "clientes" && <Clientes usuario={usuario} />}
         {pagina === "produtos" && <Produtos usuario={usuario} />}
         {pagina === "veiculos" && <Veiculos usuario={usuario} />}
@@ -369,7 +347,7 @@ export default function App() {
         {pagina === "pedidos_compra" && <PedidosCompra usuario={usuario} />}
         {pagina === "estoque_parado" && <EstoqueParado usuario={usuario} />}
         {pagina === "vendas_perdidas" && <VendasPerdidas usuario={usuario} />}
-        {!["dashboard", "cadastros", "servicos_hub", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "remessas", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "vendas_perdidas", "config_fiscal", "fiscal", "folha_sim", "colaboradores", "folha", "verbas"].includes(pagina) && (
+        {!["dashboard", "clientes", "produtos", "veiculos", "auxiliares", "comissoes", "orcamentos", "vendas", "consulta_precos", "os", "distribuicao_os", "apontamento", "precificacao", "solicitacoes", "prismas", "tipos_operacao", "servicos", "estoque", "uso_interno", "separacao", "remessas", "financeiro", "caixa_loja", "cobranca", "precos_especiais", "encomendas", "promocoes", "admin", "relatorios", "entradas", "devolucoes", "demanda", "cotacoes", "pedidos_compra", "estoque_parado", "vendas_perdidas", "config_fiscal", "config_pagamento", "fiscal", "folha_sim", "colaboradores", "folha", "verbas"].includes(pagina) && (
           <div style={{ textAlign: "center", padding: "80px 0", color: C.textMuted }}>
             <Package size={36} style={{ opacity: 0.4 }} />
             <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600 }}>Módulo em construção</div>

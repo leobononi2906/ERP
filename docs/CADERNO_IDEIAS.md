@@ -501,3 +501,34 @@ Leo: NÃO vamos trabalhar as telas mobile agora — deixar "na agulha" pra uma i
 - ✅ **PWA instalável** já está no ar (manifest + ícone + meta) — o ERP já pode ser "adicionado à tela inicial" no celular.
 - ⏸️ **Camada responsiva das telas** (OS/orçamento/venda em layout mobile) + **WhatsApp automático via provedor** = adiados. Retomar na fase de implantação mobile. Spec pronta em docs/SPEC_MOBILE_WHATSAPP.md.
 - Obs.: o **envio por WhatsApp via wa.me já funciona no desktop** (botão nas 3 telas) — isso NÃO depende do mobile.
+
+## 🗒️ CADERNO — leva 19/08 (anotar, depois executar/decidir) — A ANALISAR
+> Pedidos jogados pelo Leo pra registrar antes de construir. Status: **A DECIDIR/EXECUTAR**. (lista pode continuar — Leo estava mandando em sequência)
+
+1. **Cadastro de cliente obrigatório completo ao "Novo" pela Venda/OS.**
+   Pedido: ao clicar em **Novo cliente** dentro de Venda ou OS, faltam dados — **endereço e parte fiscal devem ser OBRIGATÓRIOS** pra concluir o cadastro (não deixar salvar cliente incompleto).
+   Leitura rápida: o "cadastro sobreposto" (overlay do Clientes completo) já foi feito em 17/08 (commit e186e5f), mas **não força** os campos obrigatórios. → Definir a lista exata de campos obrigatórios (endereço: CEP/logradouro/nº/cidade/UF; fiscal: CPF/CNPJ, IE/isento, indicador de contribuinte) e validar no salvar (front + RPC). Relevante pra NF-e não falhar depois.
+
+2. **Custo e Fiscal escondidos até de VISUALIZAÇÃO pra quem não tem permissão.**
+   Pedido: preço de **custo** e **parte fiscal** não podem ficar abertos **nem para ver** pra quem não tem autorização.
+   Leitura rápida: hoje há permissões por grupo, mas custo/fiscal provavelmente aparecem (só edição é limitada, não a visualização). → Criar permissão específica (ex.: `produto.ver_custo`, `produto.ver_fiscal`) e **ocultar os blocos/colunas** (não só desabilitar) em Produtos, Venda, OS, Orçamento, Consulta de Preços. Cuidar de RPCs/relatórios que devolvem custo pro front.
+
+3. **OS — produção de produtos com MÚLTIPLOS itens e finalização item a item.**
+   Pedido: numa mesma produção pode ser lançado **mais de um produto**; pra finalizar, o colaborador **finaliza cada item produzido separadamente** — finaliza o item e depois **termina o apontamento**.
+   Leitura rápida: hoje o "Lançar Produção" no Pátio é 1 produto por vez (os_lancar_producao, commit a3afcb4). → Evoluir pra: 1 apontamento de produção com **N itens**; cada item tem seu **finalizar** próprio; o apontamento só encerra quando todos os itens finalizados. Precisa de tabela de itens da produção + status por item. SPEC antes de codar.
+
+4. **BUG — NF de entrada não lança o financeiro (contas a pagar).**
+   Pedido/relato: ao lançar a **NF de entrada**, deu problema pra gerar o **contas a pagar**.
+   Leitura rápida: existe `Entradas.jsx` e a RPC `erp_gerar_titulos_pagar`/`fn_gerar_titulos_pagar`. → **Investigar** o fluxo entrada → geração de título CP (erro na RPC? falta plano de contas/fornecedor? condição de pagamento?). É bug, tratar com prioridade quando formos executar. (Pode ter relação com a futura trava de "sem plano de contas não lança".)
+
+5. **Performance — deixar o sistema eficiente e rápido (transversal).**
+   Pedido: pensar em eficiência/velocidade do sistema como um todo.
+   Leitura rápida (dívidas de performance que eu já conheço, a atacar):
+   - **Listagens carregam `Range: 0-9999`** (Clientes, Produtos, Vendas, OS…) — traz tudo de uma vez. → migrar pra **paginação + busca no servidor** (já é dívida assumida no CLAUDE.md). Maior ganho.
+   - **Views `vw_dim_*` / views pesadas sem índice** dão lentidão/timeout — revisar índices nas colunas de filtro/join mais usadas (data, empresa, cliente, status).
+   - **Front chama várias RPCs em sequência** ao abrir tela (ex.: Separação, Financeiro) — paralelizar e/ou consolidar numa RPC "dados da tela".
+   - **Recalcular no banco, não no front** — cards de resumo (Em Aberto/Vencido) hoje somam no navegador sobre a lista inteira; passar pra agregação no servidor.
+   - **Materialized views + cron** pra telas de leitura pesada (DRE, dashboards) já é padrão do ecossistema — aplicar onde faltar.
+   → Vira um **plano de performance** (medir primeiro: quais telas/queries estão lentas), depois atacar por maior impacto. SPEC/checklist antes de sair mexendo.
+
+6. _(aguardando — Leo ainda estava mandando)_
