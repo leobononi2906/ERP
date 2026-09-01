@@ -284,6 +284,13 @@ export default function App() {
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, padding: 20 }}>
+        {/* Aviso global — ERP em construção, não usar para operação real */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "#FEF0EF", border: "1px solid #F5B5B0", color: "#8A1B12" }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
+          <span style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+            <b>ERP em construção — ambiente de TESTES.</b> Não use os dados, tipos ou configurações daqui para a operação real. O sistema oficial em produção é o <b>SGA (Firebird)</b>. Nada daqui deve ser usado como referência em outros aplicativos.
+          </span>
+        </div>
         {/* Barra superior — seletor global de empresa */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "6px 10px" }}>
