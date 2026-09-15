@@ -1,11 +1,20 @@
 # ERP Bononi — Instrucoes para o Claude Code
 
+> **Estado atual, pendencias e dev-log: `docs/STATUS.md`.** Este arquivo e so o que e estavel.
+> Contexto do grupo e regras de banco: skill `bononi-contexto`. Consultar o banco:
+> `consultar-banco`. Publicar: `publicar-e-conferir`. Registrar: `registrar-status`.
+> (As skills `bononi-padrao` e `bononi-erp`, citadas em docs antigos, viraram a `bononi-contexto`
+> e seus arquivos em `references/`.)
+
 ## Projeto
 - **Nome:** ERP Grupo Bononi
 - **Stack:** React 18 + Vite 5 + Supabase (PostgreSQL)
-- **Schema Supabase:** `"Teste ERP"` (projeto `vishxwdxqiygbxmtpfoy`)
+- **Schema Supabase:** `"Teste ERP"` (dentro do projeto de PRODUCAO `vishxwdxqiygbxmtpfoy`, que e
+  compartilhado com todos os outros apps do grupo — ver Regras importantes)
 - **Deploy:** Vercel (erp-five-chi.vercel.app)
 - **Repo:** https://github.com/leobononi2906/ERP
+- **Clone nesta maquina (`ecommerce06`):** `C:\Aplicações da bononi\ERP`. Os caminhos
+  `C:\CLAUDE\...` citados aqui e nos docs sao da maquina do Leo e **nao existem nesta**.
 - **Dono:** Leonardo Bononi (leobononi2906)
 
 ## Idioma
@@ -41,7 +50,14 @@ src/
 - Permissoes: todo modulo deve verificar `PERMS` do grupo do usuario
 
 ## Regras importantes
-1. Aplicar SQL direto no Supabase — NAO precisa mostrar antes, so informar o que foi feito
+1. **SQL dentro do schema `"Teste ERP"`: aplicar direto, sem mostrar antes — so informar o que foi
+   feito.** Este ERP ainda esta sendo construido e o schema e dele; a autonomia aqui e de proposito.
+   **O limite e a borda do schema.** O `"Teste ERP"` mora dentro do projeto Supabase de PRODUCAO,
+   compartilhado com todos os apps do grupo. Entao qualquer coisa FORA dele — `public.vw_*`,
+   `geral_*`, tabelas de outro app (`exp_`, `prt_`, `assist_`, `cob_`, `fin_`…), extensao, role,
+   cron, `DROP`/`DELETE` em massa — segue a regra do grupo: monta, testa, e **passa por revisao
+   antes de aplicar**, mostrando o que vai ser feito (skill `bononi-contexto`, §0.3).
+   `SELECT` e sempre livre, em qualquer schema.
 2. NAO refatorar codigo que ja funciona alem do minimo necessario
 3. NAO mexer em views `vw_*` nem tabelas de outros sistemas
 4. NAO criar arquivos desnecessarios — preferir editar os existentes
@@ -55,7 +71,13 @@ src/
 - `erp_20.07.2026.md` — Snapshot/diario do desenvolvimento
 
 ## Banco Firebird (referencia do sistema atual)
-- Caminho: `C:\CLAUDE\ERP FIREBIRD\SGA_BONONI - Copia.FDB`
-- Ferramenta: `"C:\Program Files (x86)\Firebird\Firebird_2_5\bin\isql.exe" -user SYSDBA -password masterkey`
-- ~280 tabelas, 196 procedures, 570 triggers
-- Volumes: 67K clientes, 19K produtos, 74K movimentos, 14K NFs
+O ERP legado (SGA) e a referencia para migrar as regras de negocio. ~280 tabelas, 196 procedures,
+570 triggers. Volumes: 67K clientes, 19K produtos, 74K movimentos, 14K NFs.
+
+- **Copia offline:** `C:\CLAUDE\ERP FIREBIRD\SGA_BONONI - Copia.FDB` — **so na maquina do Leo**,
+  nao existe nesta. Ferramenta: `isql.exe` do Firebird 2.5 (`-user SYSDBA -password masterkey`).
+- 🚫 **O Firebird de PRODUCAO (`192.168.0.5:3050`, `SGA_BONONI.FDB`) e SO LEITURA.** Nunca
+  `CREATE`/`ALTER`/`DROP`, nem indice, nem trigger, nem "view inofensiva" — inclusive por SSH.
+  Se faltar campo ou dataset, a saida e uma extracao propria (`SELECT`) no replicador, nunca
+  mexer no Firebird em si. Uma copia local nao e o de producao: confira em qual voce esta antes
+  de rodar qualquer coisa que nao seja `SELECT`.
