@@ -55,6 +55,26 @@ import Cobranca from "./pages/Cobranca";
 import Remessas from "./pages/Remessas";
 import Faturamento from "./pages/Faturamento";
 
+// Onde a pessoa está (camada 2 de atualização segura): página e usuário
+// sobrevivem a F5. `usuario` é reidratado da sessão (login_erp não devolve
+// senha/token — só id/nome/perfil/permissões). Os dois no sessionStorage, de
+// propósito: fechar o navegador sem "Sair" não deixa a tela de uma pessoa
+// para a próxima que entrar no mesmo computador.
+const USUARIO_KEY = "erp:usuario";
+const PAGINA_KEY = "erp:ultima-pagina";
+
+function usuarioSalvo() {
+  try {
+    const raw = sessionStorage.getItem(USUARIO_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function paginaSalva() {
+  try { return sessionStorage.getItem(PAGINA_KEY) || "dashboard"; }
+  catch { return "dashboard"; }
+}
+
 const MENU_GROUPS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, ok: true, standalone: true },
   {
@@ -139,6 +159,25 @@ const MENU_GROUPS = [
   },
 ];
 
+// Página existe no menu e o usuário atual tem visualizar nela? (mesma regra
+// de itemVisivel, só que buscando pela chave da página salva.)
+function paginaPermitida(pagina, usuario) {
+  if (!usuario) return false;
+  const perms = usuario.permissoes || {};
+  const permitido = (m) => {
+    if (!m.ok) return false;
+    if (m.permAny) return m.permAny.some((k) => perms[k] && perms[k].visualizar);
+    const p = perms[m.permKey || m.key];
+    return !!(p && p.visualizar);
+  };
+  for (const entry of MENU_GROUPS) {
+    if (entry.standalone) { if (entry.key === pagina) return permitido(entry); continue; }
+    const achado = entry.items.find((m) => m.key === pagina);
+    if (achado) return permitido(achado);
+  }
+  return false;
+}
+
 function MenuItem({ m, pagina, setPagina }) {
   const ativo = pagina === m.key;
   return (
@@ -156,8 +195,8 @@ function MenuItem({ m, pagina, setPagina }) {
 }
 
 export default function App() {
-  const [usuario, setUsuario] = useState(null);
-  const [pagina, setPagina] = useState("dashboard");
+  const [usuario, setUsuario] = useState(usuarioSalvo);
+  const [pagina, setPagina] = useState(paginaSalva);
   const [gruposAbertos, setGruposAbertos] = useState({ comercial: true });
   const [empresas, setEmpresas] = useState([]);
   const [empAtiva, setEmpAtiva] = useState(getEmpresaAtiva());
@@ -168,6 +207,19 @@ export default function App() {
     window.addEventListener("erp-nav", h);
     return () => window.removeEventListener("erp-nav", h);
   }, []);
+
+  // Restaura a página salva só depois que o usuário (e o menu dele) existe;
+  // se não for mais permitida, cai no dashboard.
+  useEffect(() => {
+    if (!usuario) return;
+    if (!paginaPermitida(pagina, usuario)) setPagina("dashboard");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usuario]);
+
+  // Grava a cada troca de página.
+  useEffect(() => {
+    try { sessionStorage.setItem(PAGINA_KEY, pagina); } catch { /* ignore */ }
+  }, [pagina]);
 
   // Atalho global da consulta rápida (F2): abre por cima sem fechar o que está aberto.
   useEffect(() => {
@@ -189,7 +241,11 @@ export default function App() {
 
   const trocarEmpresa = (v) => { setEmpresaAtiva(v); setEmpAtiva(v ? String(v) : ""); };
 
-  if (!usuario) return <Login onLogin={(u) => { setLogUsuario(u); setUsuario(u); }} />;
+  if (!usuario) return <Login onLogin={(u) => {
+    setLogUsuario(u);
+    setUsuario(u);
+    try { sessionStorage.setItem(USUARIO_KEY, JSON.stringify(u)); } catch { /* ignore */ }
+  }} />;
 
   const perms = usuario.permissoes || {};
 
@@ -277,7 +333,13 @@ export default function App() {
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 4, padding: "0 6px" }}>
             {(usuario.grupos || []).map((g) => g.nome).join(", ") || "Sem grupo"}
           </div>
-          <div onClick={() => { setLogUsuario(null); setUsuario(null); }} style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer" }}>
+          <div onClick={() => {
+            setLogUsuario(null);
+            setUsuario(null);
+            setPagina("dashboard");
+            try { sessionStorage.removeItem(USUARIO_KEY); } catch { /* ignore */ }
+            try { sessionStorage.removeItem(PAGINA_KEY); } catch { /* ignore */ }
+          }} style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer" }}>
             <LogOut size={16} /> Sair ({usuario.nome})
           </div>
         </div>

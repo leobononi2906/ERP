@@ -1,6 +1,6 @@
 # ERP Bononi — Status do projeto
 
-> Atualizado: 2026-09-15
+> Atualizado: 2026-09-28
 
 > Documento de contexto para **iniciar uma nova conversa** já orientado. Resume o que
 > está pronto, o que falta, as regras de negócio e as armadilhas conhecidas.
@@ -57,6 +57,7 @@
 - Estoque · Compras · Financeiro · Relatórios · Sistema(Administração)
 
 ## Módulos prontos (destaques recentes)
+- **F5 não desloga nem volta para o Dashboard** (28/09/2026, skill `manter-tela-ao-atualizar`): `usuario` (retorno do `login_erp`, sem senha/token) e a página ficam em `sessionStorage` (`erp:usuario`, `erp:ultima-pagina`) e são reidratados no mount. A página salva só vale se `paginaPermitida()` (mesma regra do menu) aprovar para o usuário atual; senão, Dashboard. O Sair limpa as duas. `sessionStorage` de propósito: fechar o navegador não passa a tela para o próximo usuário.
 - **Pátio/Serviço:** prismas por vendedor (pool, liberados ao faturar), login de pátio (prisma+colaborador+senha, sessão curta), defeito como unidade de trabalho (status), apontamento Entrada/Pausa/Retomar/Finalizar (teclado), solicitação de peça/consumo. RPCs `os_patio_*`, `os_prisma*`.
 - **Precificação:** seleciona apontamentos por **checkbox** (pode misturar áreas na mesma OS) com **somatória de horas ao vivo** e vincula num serviço (`os_servico_criar_de_apontamentos`). Toggle faturável por linha.
 - **Comissão de serviço por apontamento** (Serviços→Comissões): `erp_comissoes_os_dados` rateia o valor do serviço proporcional às **horas faturáveis** de cada colaborador × **% comissão serviço de cada um**. Não depende do `id_tecnico` único.
