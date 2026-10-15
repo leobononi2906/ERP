@@ -1,6 +1,6 @@
 # ERP Bononi — Instrucoes para o Claude Code
 
-> **Estado atual, pendencias e dev-log: `docs/STATUS.md`.** Este arquivo e so o que e estavel.
+> **Estado atual: `docs/STATUS.md`. Fila de gestao (o que cobrar, de quem): `docs/FILA_GESTAO.md` — skill `gestao-erp`.** Este arquivo e so o que e estavel.
 > Contexto do grupo e regras de banco: skill `bononi-contexto`. Consultar o banco:
 > `consultar-banco`. Publicar: `publicar-e-conferir`. Registrar: `registrar-status`.
 > (As skills `bononi-padrao` e `bononi-erp`, citadas em docs antigos, viraram a `bononi-contexto`
