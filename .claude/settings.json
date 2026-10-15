@@ -20,10 +20,15 @@
       "mcp__Notion__notion-create-comment",
       "mcp__Notion__notion-fetch",
       "mcp__Notion__notion-search",
+      "mcp__Supabase",
       "mcp__Supabase__execute_sql",
       "mcp__Supabase__list_tables",
       "mcp__Supabase__list_projects",
       "mcp__Supabase__get_project",
+      "mcp__Supabase__apply_migration",
+      "mcp__Supabase__deploy_edge_function",
+      "mcp__Supabase__get_publishable_keys",
+      "mcp__Supabase__get_project_url",
       "mcp__Gmail__search_threads",
       "mcp__Gmail__get_thread",
       "mcp__Gmail__get_message",
@@ -35,9 +40,7 @@
       "mcp__Gmail__send_message",
       "mcp__Gmail__forward",
       "mcp__Gmail__trash_message",
-      "mcp__Gmail__trash_thread",
-      "mcp__Supabase__apply_migration",
-      "mcp__Supabase__deploy_edge_function"
+      "mcp__Gmail__trash_thread"
     ]
   }
 }
