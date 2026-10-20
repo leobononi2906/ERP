@@ -1,6 +1,6 @@
 # ERP Bononi — Status do projeto
 
-> Atualizado: 2026-09-28
+> Atualizado: 2026-10-20
 
 > Documento de contexto para **iniciar uma nova conversa** já orientado. Resume o que
 > está pronto, o que falta, as regras de negócio e as armadilhas conhecidas.
@@ -57,6 +57,7 @@
 - Estoque · Compras · Financeiro · Relatórios · Sistema(Administração)
 
 ## Módulos prontos (destaques recentes)
+- **Tema escuro (claro / escuro / automático)** (20/10/2026, 53121a0, pedido do dono: todas as aplicações com tema escuro): botão na barra lateral (`BotaoTema`); o automático segue o aparelho e a escolha fica no navegador, aplicada antes da página pintar (`public/bononi-tema.js` no `<head>`). O objeto `C` de `src/config.js` agora devolve `var(--erp-*)`; os valores de verdade (claro e escuro) ficam no `<style>` do `index.html`, trocados por `<html data-theme>`. Por isso os milhares de estilos inline e os objetos de estilo criados no topo do módulo acompanham o tema sem re-render. **HTML de impressão (`src/print.jsx`, popup de Relatórios) não usa `C` e fica sempre claro.** Conferido: build e oxlint verdes, sem concatenação de alfa restante, tela de login nos dois temas e console limpo. **As telas internas (Dashboard, Vendas, OS, Financeiro, Folha, Separação etc.) e os gráficos do Dashboard (recharts, que recebem `C.border`/`C.blueMid` em atributos SVG) não foram vistos no escuro**: o ERP tem login próprio, sem modo de teste, e as telas leem dados reais. Olhar com o login.
 - **F5 não desloga nem volta para o Dashboard** (28/09/2026, skill `manter-tela-ao-atualizar`): `usuario` (retorno do `login_erp`, sem senha/token) e a página ficam em `sessionStorage` (`erp:usuario`, `erp:ultima-pagina`) e são reidratados no mount. A página salva só vale se `paginaPermitida()` (mesma regra do menu) aprovar para o usuário atual; senão, Dashboard. O Sair limpa as duas. `sessionStorage` de propósito: fechar o navegador não passa a tela para o próximo usuário.
 - **Pátio/Serviço:** prismas por vendedor (pool, liberados ao faturar), login de pátio (prisma+colaborador+senha, sessão curta), defeito como unidade de trabalho (status), apontamento Entrada/Pausa/Retomar/Finalizar (teclado), solicitação de peça/consumo. RPCs `os_patio_*`, `os_prisma*`.
 - **Precificação:** seleciona apontamentos por **checkbox** (pode misturar áreas na mesma OS) com **somatória de horas ao vivo** e vincula num serviço (`os_servico_criar_de_apontamentos`). Toggle faturável por linha.
@@ -122,6 +123,7 @@ topo. Os demais, por assunto:
 | `GUIA-PRODUCAO-ERP.md` §Produção e `GUIA_PECAS_OS.md` §Produção | ordem de produção (OP) e composição/BOM | ao mexer em produção |
 
 ## Armadilhas conhecidas (não repetir)
+- **Nunca concatene transparência na cor `C`** (`C.x + "22"`, `${C.x}33`): `C.x` é `var(--erp-x)`, e `var(--erp-x)22` é CSS inválido, sem erro nenhum, e o estilo some. Use `alfa(C.x, 0.2)` (`color-mix`). Cor em HTML de impressão (janela nova) não resolve `var()`: use hexadecimal ali.
 - **`th` e `td` de `ui.jsx` são FUNÇÕES** (`th(right)`, `td()`), não objetos. Usar sempre `style={td()}` / `style={{ ...td(), ... }}`. Passar `style={td}` (a função) dispara **React error #62** ("style expects a mapping, not a string") e **derruba o app inteiro** (tela branca). Foi a causa do crash ao faturar venda com parcelas/rateio (13/08). Crash de render NÃO cai em try/catch — só no `window.onerror` global (grava em `erp_logs_frontend`, ver via `erp_logs_erros`), NÃO em `log_acessos`.
 - **NUNCA** nomear estado de índice de seleção como `sel` (colide com o helper `sel()` do `ui.jsx` e quebra a tela). Usar `hi`/`linha`/`idxSel`.
 - Overload de RPC com mesmo conjunto de args → PGRST203. Ao acrescentar parâmetro, **o front sempre envia o novo param** (ex.: `os_salvar` com `p_ator`, `servico_salvar(p jsonb)`), ou renomear a antiga.
