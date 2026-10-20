@@ -27,17 +27,20 @@
         --erp-success:#0F9D6E; --erp-success-bg:#E8F8F3; --erp-warning:#E07B00; --erp-warning-bg:#FEF5E7;
         --erp-destructive:#D93025; --erp-destructive-bg:#FEF0EF; --erp-sidebar:#1A3A8F; --erp-purple:#6B3FA0; --erp-purple-bg:#E8E0F8;
       }
-      :root[data-theme="dark"] {
-        color-scheme: dark;
-        --erp-background:#0B1220; --erp-foreground:#E6EBF5; --erp-card:#121A2B; --erp-surface2:#172033;
-        --erp-primary:#4F73E0; --erp-blue-mid:#3AA0F0; --erp-blue-light:#4CC8FF; --erp-blue-pale:#14263F;
-        --erp-muted:#9AA8C2; --erp-text-muted:#6F7D99; --erp-border:#25314A;
-        --erp-success:#34C795; --erp-success-bg:#0E2D25; --erp-warning:#F0A030; --erp-warning-bg:#35260E;
-        --erp-destructive:#F26B62; --erp-destructive-bg:#3A1A19; --erp-sidebar:#101A38; --erp-purple:#B79AF0; --erp-purple-bg:#2A1F45;
+      /* tema escuro só na TELA: no papel tudo volta ao claro */
+      @media screen {
+        :root[data-theme="dark"] {
+          color-scheme: dark;
+          --erp-background:#0B1220; --erp-foreground:#E6EBF5; --erp-card:#121A2B; --erp-surface2:#172033;
+          --erp-primary:#4F73E0; --erp-blue-mid:#3AA0F0; --erp-blue-light:#4CC8FF; --erp-blue-pale:#14263F;
+          --erp-muted:#9AA8C2; --erp-text-muted:#6F7D99; --erp-border:#25314A;
+          --erp-success:#34C795; --erp-success-bg:#0E2D25; --erp-warning:#F0A030; --erp-warning-bg:#35260E;
+          --erp-destructive:#F26B62; --erp-destructive-bg:#3A1A19; --erp-sidebar:#101A38; --erp-purple:#B79AF0; --erp-purple-bg:#2A1F45;
+        }
       }
       body { background: var(--erp-background); }
       /* campos nativos (input/select/textarea) sem estilo próprio acompanham o tema */
-      :root[data-theme="dark"] :where(input, select, textarea) { background-color: var(--erp-card); color: var(--erp-foreground); }
+      @media screen { :root[data-theme="dark"] :where(input, select, textarea) { background-color: var(--erp-card); color: var(--erp-foreground); } }
       @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
     </style>
   </head>
