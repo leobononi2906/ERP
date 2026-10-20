@@ -7,17 +7,17 @@ const diasAtraso = (v) => { if (!v) return 0; const [y,m,d] = String(v).substrin
 const badge = (status, venc) => {
   // status vem cru do banco: ABERTO | PAGO_PARCIAL | PAGO | VENCIDO | CANCELADO | RENEGOCIADO
   if (status === "PAGO") return { label: "Quitado", bg: C.successBg, fg: C.success };
-  if (status === "PAGO_PARCIAL") return { label: "Parcial", bg: "#FFF3E0", fg: C.warning };
-  if (status === "CANCELADO") return { label: "Cancelado", bg: "#F1F5F9", fg: "#64748B" };
-  if (status === "RENEGOCIADO") return { label: "Renegociado", bg: "#F1F5F9", fg: "#64748B" };
+  if (status === "PAGO_PARCIAL") return { label: "Parcial", bg: C.warningBg, fg: C.warning };
+  if (status === "CANCELADO") return { label: "Cancelado", bg: C.surface2, fg: C.muted };
+  if (status === "RENEGOCIADO") return { label: "Renegociado", bg: C.surface2, fg: C.muted };
   if (status === "VENCIDO" || (status === "ABERTO" && diasAtraso(venc) > 0)) return { label: "Vencido", bg: C.destructiveBg, fg: C.destructive };
   return { label: "Aberto", bg: C.bluePale, fg: C.blueMid };
 };
-const inp = { width: "100%", padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 8, background: "#fff", fontFamily: "inherit" };
+const inp = { width: "100%", padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 8, background: C.card, fontFamily: "inherit" };
 const bp = { padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#fff", background: C.primary, border: "none", borderRadius: 8, cursor: "pointer" };
-const bs = { ...bp, background: "#fff", color: C.foreground, border: `1px solid ${C.border}` };
+const bs = { ...bp, background: C.card, color: C.foreground, border: `1px solid ${C.border}` };
 
-function Ov({ children, onClose }) { return <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.35)"}}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:14,maxWidth:480,width:"95%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>{children}</div></div>; }
+function Ov({ children, onClose }) { return <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.35)"}}><div onClick={e=>e.stopPropagation()} style={{background: C.card,borderRadius:14,maxWidth:480,width:"95%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>{children}</div></div>; }
 function MH({ children, onClose }) { return <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 20px",borderBottom:`1px solid ${C.border}`}}><div style={{fontSize:15,fontWeight:700}}>{children}</div><button onClick={onClose} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:C.muted}}>✕</button></div>; }
 function MB({ children }) { return <div style={{padding:20}}>{children}</div>; }
 function F({ label, req, children }) { return <div style={{marginBottom:12}}><label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{label}{req&&<span style={{color:C.destructive}}> *</span>}</label>{children}</div>; }
@@ -72,10 +72,10 @@ export default function ContasPagar({ usuario }) {
       {toast && <div style={{position:"fixed",top:16,right:16,zIndex:100,padding:"10px 18px",borderRadius:8,background:C.successBg,color:C.success,fontSize:13,fontWeight:600,boxShadow:"0 2px 12px rgba(0,0,0,0.12)"}}>{toast}</div>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:16}}>
         {[["Em Aberto",resumo.aberto,C.primary],["Vencido",resumo.vencido,C.destructive],["A Pagar 30d",resumo.ap30,C.warning]].map(([l,v,c])=>(
-          <div key={l} style={{background:"#fff",borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}><div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,fontFamily:"'DM Mono',monospace",color:c}}>{fmtBRL(v)}</div></div>
+          <div key={l} style={{background: C.card,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}><div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,fontFamily:"'DM Mono',monospace",color:c}}>{fmtBRL(v)}</div></div>
         ))}
       </div>
-      <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",background:"#fff",borderRadius:12,padding:14,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",background: C.card,borderRadius:12,padding:14,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
         <div style={{flex:1,minWidth:200,position:"relative"}}><Search size={15} style={{position:"absolute",left:10,top:10,color:C.textMuted}}/><input placeholder="Buscar..." value={busca} onChange={e=>setBusca(e.target.value)} style={{...inp,paddingLeft:32}}/></div>
         <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)} style={{...inp,width:"auto"}}><option value="">Todos</option><option value="ABERTO">Aberto</option><option value="PAGO_PARCIAL">Parcial</option><option value="PAGO">Quitado</option></select>
         <input type="date" value={dataIni} onChange={e=>setDataIni(e.target.value)} style={{...inp,width:"auto"}}/>
@@ -83,19 +83,19 @@ export default function ContasPagar({ usuario }) {
         <button onClick={()=>setModalNovo(true)} style={bp}><Plus size={14} style={{marginRight:4,verticalAlign:"middle"}}/>Novo</button>
       </div>
       {loading ? <div style={{textAlign:"center",padding:40,color:C.textMuted}}>Carregando...</div> : titulos.length===0 ? <div style={{textAlign:"center",padding:40,color:C.textMuted}}>Nenhum título a pagar.</div> :
-      <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}><div style={{overflowX:"auto"}}>
+      <div style={{background: C.card,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}><div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr style={{background:C.surface2,borderBottom:`1px solid ${C.border}`}}>
           {["Nº","Fornecedor","Valor","Saldo","Vencimento","Status","Ações"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.muted}}>{h}</th>)}
         </tr></thead><tbody>{titulos.map(t=>{
           const b=badge(t.status,t.data_vencimento); const atr=diasAtraso(t.data_vencimento); const venc=t.status!=="PAGO"&&atr>0; const aguarda=t.status!=="PAGO"&&!t.aprovado;
-          return <tr key={t.id} style={{borderBottom:`1px solid ${C.border}`,background:venc?"#FEF0EF":"#fff"}}>
+          return <tr key={t.id} style={{borderBottom:`1px solid ${C.border}`,background:venc?C.destructiveBg:"#fff"}}>
             <td style={{padding:"10px 12px",fontWeight:500}}>{t.numero||"—"}<span style={{fontSize:11,color:C.textMuted,marginLeft:4}}>{t.parcela}</span></td>
             <td style={{padding:"10px 12px",maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.cliente_nome||"—"}</td>
             <td style={{padding:"10px 12px",textAlign:"right",fontFamily:"'DM Mono',monospace"}}>{fmtBRL(t.valor)}</td>
             <td style={{padding:"10px 12px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:600}}>{fmtBRL(t.valor_saldo)}</td>
             <td style={{padding:"10px 12px",textAlign:"center"}}>{fmtData(t.data_vencimento)}{venc&&<div style={{fontSize:10,fontWeight:700,color:C.destructive}}>{atr}d</div>}</td>
             <td style={{padding:"10px 12px",textAlign:"center"}}>
-              {aguarda&&<span style={{display:"block",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600,background:"#FFF3E0",color:C.warning,marginBottom:2}}>Aguardando Aprovação</span>}
+              {aguarda&&<span style={{display:"block",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600,background:C.warningBg,color:C.warning,marginBottom:2}}>Aguardando Aprovação</span>}
               <span style={{display:"inline-block",padding:"3px 10px",borderRadius:12,fontSize:11,fontWeight:600,background:b.bg,color:b.fg}}>{b.label}</span>
             </td>
             <td style={{padding:"10px 12px",textAlign:"center",whiteSpace:"nowrap"}}>

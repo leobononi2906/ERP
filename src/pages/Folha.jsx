@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Play, AlertCircle, X, FileText, Download, Wallet, CheckCircle } from "lucide-react";
-import { C, mono, fmtBRL, rpc } from "../config";
+import { C, mono, fmtBRL, rpc, alfa } from "../config";
 import { cardStyle, sel, th, td, btnPrimary, Skeleton } from "../ui";
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -170,7 +170,7 @@ export default function Folha({ usuario }) {
                   <button onClick={baixarEsocial} style={{ ...btnPrimary(), height: 34, fontSize: 12.5, background: "transparent", color: C.primary, border: `1px solid ${C.primary}` }}><Download size={14} /> Lote eSocial S-1200</button>
                 </div>
               </div>
-              {msgOk && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 14px", borderRadius: 8, fontSize: 12.5, background: C.success + "18", color: C.success }}><CheckCircle size={15} /> {msgOk}</div>}
+              {msgOk && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 14px", borderRadius: 8, fontSize: 12.5, background: alfa(C.success, 0.09), color: C.success }}><CheckCircle size={15} /> {msgOk}</div>}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                 <div style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>FGTS Digital (DAE)</div>

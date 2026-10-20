@@ -592,7 +592,7 @@ export default function Vendas({ usuario }) {
               <div style={{ fontWeight: 800, marginBottom: 3 }}>🔒 Cadastro de crédito precisa de atualização</div>
               <div style={{ opacity: 0.92, marginBottom: 8 }}>{travaCredito.motivo}</div>
               {ehFinanceiro
-                ? <button onClick={liberarConsultaCredito} style={{ background: "#fff", color: C.destructive, border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Liberar consulta agora</button>
+                ? <button onClick={liberarConsultaCredito} style={{ background: C.card, color: C.destructive, border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Liberar consulta agora</button>
                 : <button onClick={avisarFinanceiroCredito} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.5)", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Avisar financeiro</button>}
             </div>
           )}
@@ -955,7 +955,7 @@ export default function Vendas({ usuario }) {
         {/* Modal Faturar — Movimentação Financeira */}
         {fatOpen && vendaAtual && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setFatOpen(false)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 640, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 24, width: 640, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                 <h2 style={{ fontSize: 16, fontWeight: 700 }}>Movimentação Financeira — Venda {vendaAtual.numero}</h2>
                 <span style={{ fontSize: 22, fontWeight: 700, fontFamily: mono, color: C.primary }}>{fmtBRL(totalVenda)}</span>
@@ -980,8 +980,8 @@ export default function Vendas({ usuario }) {
 
               {/* NSU (cartão) */}
               {fatPreview?.is_cartao && (
-                <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: "#fff8ec", border: `1px solid ${C.warning || "#f0c060"}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8a6d1a", marginBottom: 8 }}>💳 Transação de cartão</div>
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: C.warningBg, border: `1px solid ${C.warning || "#f0c060"}` }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.warning, marginBottom: 8 }}>💳 Transação de cartão</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 10 }}>
                     <Campo label="NSU *"><input value={fatNsu} onChange={(e) => setFatNsu(e.target.value)} style={inp(true)} placeholder="NSU / DOC" /></Campo>
                     <Campo label="Nº transação"><input value={fatNumTransacao} onChange={(e) => setFatNumTransacao(e.target.value)} style={inp(true)} /></Campo>
@@ -1058,7 +1058,7 @@ export default function Vendas({ usuario }) {
         {/* Modal Cancelar */}
         {cancelOpen && vendaAtual && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setCancelOpen(false)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: C.destructive }}>Cancelar Venda {vendaAtual.numero}</h2>
               <Campo label="Motivo do cancelamento *">
                 <textarea value={motivoCancel} onChange={(e) => setMotivoCancel(e.target.value)} rows={3} placeholder="Informe o motivo..." style={{ ...inp(true), height: "auto", resize: "vertical" }} />
@@ -1184,7 +1184,7 @@ export default function Vendas({ usuario }) {
       {/* ─── MODAL REGISTRAR VENDA PERDIDA ────────────────────── */}
       {modalVendaPerdida && (
         <div onClick={() => setModalVendaPerdida(null)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>Registrar venda perdida</span>
               <button onClick={() => setModalVendaPerdida(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>

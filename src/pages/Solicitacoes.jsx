@@ -6,9 +6,9 @@ import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton } from "../
 const PRIOR = { 1: { t: "Alta", c: C.destructive }, 2: { t: "Média", c: C.warning }, 3: { t: "Normal", c: C.muted } };
 const STATUS_COR = {
   PENDENTE: { bg: C.bluePale, fg: C.blueMid, label: "Pendente" },
-  PARCIAL:  { bg: "#FFF3E0", fg: C.warning, label: "Parcial" },
+  PARCIAL:  { bg: C.warningBg, fg: C.warning, label: "Parcial" },
   ATENDIDA: { bg: C.successBg, fg: C.success, label: "Atendida" },
-  CANCELADA:{ bg: "#F1F5F9", fg: "#64748B", label: "Cancelada" },
+  CANCELADA:{ bg: C.surface2, fg: C.muted, label: "Cancelada" },
 };
 const pend = (s) => (Number(s.qtd_solicitada) || 0) - (Number(s.qtd_atendida) || 0);
 

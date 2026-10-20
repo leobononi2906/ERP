@@ -166,7 +166,7 @@ export default function Separacao({ usuario }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ListChecks size={18} /> <b>{selIds.size}</b> pedido(s) selecionado(s) para uma onda</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => setSelIds(new Set())} style={{ ...btnGhost(), color: "#fff", borderColor: "rgba(255,255,255,0.5)" }}>Limpar</button>
-            <button onClick={gerarPicking} disabled={gerando} style={{ ...btnPrimary(), background: "#fff", color: C.primary }}><Layers size={16} /> {gerando ? "Gerando..." : "Gerar picking consolidado"}</button>
+            <button onClick={gerarPicking} disabled={gerando} style={{ ...btnPrimary(), background: C.card, color: C.primary }}><Layers size={16} /> {gerando ? "Gerando..." : "Gerar picking consolidado"}</button>
           </div>
         </div>
       )}

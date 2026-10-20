@@ -8,16 +8,16 @@ const diasAtraso = (v) => { if (!v) return 0; const [y,m,d] = String(v).substrin
 const badge = (status, venc) => {
   // status vem cru do banco: ABERTO | PAGO_PARCIAL | PAGO | VENCIDO | CANCELADO | RENEGOCIADO
   if (status === "PAGO") return { label: "Quitado", bg: C.successBg, fg: C.success };
-  if (status === "PAGO_PARCIAL") return { label: "Parcial", bg: "#FFF3E0", fg: C.warning };
-  if (status === "CANCELADO") return { label: "Cancelado", bg: "#F1F5F9", fg: "#64748B" };
-  if (status === "RENEGOCIADO") return { label: "Renegociado", bg: "#F1F5F9", fg: "#64748B" };
+  if (status === "PAGO_PARCIAL") return { label: "Parcial", bg: C.warningBg, fg: C.warning };
+  if (status === "CANCELADO") return { label: "Cancelado", bg: C.surface2, fg: C.muted };
+  if (status === "RENEGOCIADO") return { label: "Renegociado", bg: C.surface2, fg: C.muted };
   if (status === "VENCIDO" || (status === "ABERTO" && diasAtraso(venc) > 0)) return { label: "Vencido", bg: C.destructiveBg, fg: C.destructive };
   return { label: "Aberto", bg: C.bluePale, fg: C.blueMid };
 };
 
-const inputSt = { width: "100%", padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 8, background: "#fff", fontFamily: "inherit" };
+const inputSt = { width: "100%", padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 8, background: C.card, fontFamily: "inherit" };
 const btnPrimSt = { padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#fff", background: C.primary, border: "none", borderRadius: 8, cursor: "pointer" };
-const btnSecSt = { ...btnPrimSt, background: "#fff", color: C.foreground, border: `1px solid ${C.border}` };
+const btnSecSt = { ...btnPrimSt, background: C.card, color: C.foreground, border: `1px solid ${C.border}` };
 
 export default function ContasReceber({ usuario }) {
   const [titulos, setTitulos] = useState([]);
@@ -111,7 +111,7 @@ export default function ContasReceber({ usuario }) {
       {/* Cards */}
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:16 }}>
         {[["Em Aberto",resumo.aberto,C.primary],["Vencido",resumo.vencido,C.destructive],["A Vencer 30d",resumo.av30,C.warning]].map(([l,v,c])=>(
-          <div key={l} style={{ background:"#fff",borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+          <div key={l} style={{ background: C.card,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
             <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textMuted,marginBottom:4 }}>{l}</div>
             <div style={{ fontSize:22,fontWeight:700,fontFamily:"'DM Mono',monospace",color:c }}>{fmtBRL(v)}</div>
           </div>
@@ -119,7 +119,7 @@ export default function ContasReceber({ usuario }) {
       </div>
 
       {/* Filtros */}
-      <div style={{ display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",background:"#fff",borderRadius:12,padding:14,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+      <div style={{ display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",background: C.card,borderRadius:12,padding:14,marginBottom:16,boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
         <div style={{ flex:1,minWidth:200,position:"relative" }}>
           <Search size={15} style={{ position:"absolute",left:10,top:10,color:C.textMuted }} />
           <input placeholder="Buscar número, cliente..." value={busca} onChange={e=>setBusca(e.target.value)} style={{ ...inputSt, paddingLeft:32 }} />
@@ -135,7 +135,7 @@ export default function ContasReceber({ usuario }) {
       {/* Tabela */}
       {loading ? <div style={{textAlign:"center",padding:40,color:C.textMuted}}>Carregando...</div> :
        titulos.length===0 ? <div style={{textAlign:"center",padding:40,color:C.textMuted}}>Nenhum título encontrado.</div> : (
-        <div style={{ background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+        <div style={{ background: C.card,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
           <div style={{ overflowX:"auto" }}>
             <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
               <thead><tr style={{ background:C.surface2,borderBottom:`1px solid ${C.border}` }}>
@@ -149,7 +149,7 @@ export default function ContasReceber({ usuario }) {
                   const atr = diasAtraso(t.data_vencimento);
                   const venc = t.status !== "PAGO" && atr > 0;
                   return (
-                    <tr key={t.id} style={{ borderBottom:`1px solid ${C.border}`, background: venc ? "#FEF0EF" : "#fff" }}>
+                    <tr key={t.id} style={{ borderBottom:`1px solid ${C.border}`, background: venc ? C.destructiveBg : "#fff" }}>
                       <td style={{padding:"10px 12px",fontWeight:500}}>{t.numero||"—"}<span style={{fontSize:11,color:C.textMuted,marginLeft:4}}>{t.parcela}</span></td>
                       <td style={{padding:"10px 12px",maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.cliente_nome||"—"}</td>
                       <td style={{padding:"10px 12px"}}>{t.origem ? <span style={{fontSize:11,color:C.blueMid}}>{t.origem} {t.numero_origem}</span> : <span style={{fontSize:11,color:C.textMuted}}>Avulso</span>}</td>
@@ -186,7 +186,7 @@ export default function ContasReceber({ usuario }) {
 /* ── Modais ── */
 function Overlay({ children, onClose }) {
   return <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.35)"}}>
-    <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:14,maxWidth:480,width:"95%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>{children}</div>
+    <div onClick={e=>e.stopPropagation()} style={{background: C.card,borderRadius:14,maxWidth:480,width:"95%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>{children}</div>
   </div>;
 }
 function MHeader({ children, onClose }) {

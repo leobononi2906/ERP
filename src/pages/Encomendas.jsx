@@ -9,7 +9,7 @@ import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Campo, Skel
 const STATUS_INFO = {
   COTACAO:   { label: "AGUARDANDO COTAÇÃO", bg: C.warningBg, fg: C.warning },
   COTADA:    { label: "COTADA — AGUARDA VENDEDOR", bg: C.bluePale, fg: C.blueMid },
-  EM_COMPRA: { label: "EM COMPRA", bg: "#E8E0F8", fg: "#6B3FA0" },
+  EM_COMPRA: { label: "EM COMPRA", bg: C.purpleBg, fg: C.purple },
   RECEBIDA:  { label: "RECEBIDA", bg: C.successBg, fg: C.success },
   REPROVADA: { label: "REPROVADA", bg: C.destructiveBg, fg: C.destructive },
   CANCELADA: { label: "CANCELADA", bg: C.surface2, fg: C.muted },
@@ -162,7 +162,7 @@ export default function Encomendas({ usuario }) {
         {[
           { label: "Aguardando cotação", v: pendCot, cor: C.warning },
           { label: "Aguardando aprovação do vendedor", v: pendApr, cor: C.blueMid },
-          { label: "Em compra (aguardando chegar)", v: emCompra, cor: "#6B3FA0" },
+          { label: "Em compra (aguardando chegar)", v: emCompra, cor: C.purple },
         ].map((k, i) => (
           <div key={i} style={cardStyle()}>
             <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", color: C.textMuted, marginBottom: 4 }}>{k.label}</div>
@@ -228,7 +228,7 @@ export default function Encomendas({ usuario }) {
       {/* Modal COTAR */}
       {cotarId && (
         <div onClick={() => setCotarId(null)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 460, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 460, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>Registrar Cotação</span>
               <button onClick={() => setCotarId(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
@@ -259,7 +259,7 @@ export default function Encomendas({ usuario }) {
       {/* Modal FORNECEDORES */}
       {modalForn && (
         <div onClick={() => setModalForn(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 560, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 560, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>Fornecedores</span>
               <button onClick={() => setModalForn(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>

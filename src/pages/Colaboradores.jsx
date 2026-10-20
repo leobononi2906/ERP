@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Users, Plus, Search, X, Trash2, Save, UserPlus, KeyRound } from "lucide-react";
-import { C, mono, fmtBRL, rpc } from "../config";
+import { C, mono, fmtBRL, rpc, alfa } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton } from "../ui";
 
 const VINC_LABEL = {
@@ -124,7 +124,7 @@ export default function Colaboradores({ usuario }) {
                   <tr key={c.id} style={{ borderTop: `1px solid ${C.border}`, cursor: "pointer" }} onClick={() => abrirEdicao(c.id)}>
                     <td style={{ ...td(), fontFamily: mono }}>{c.matricula || "—"}</td>
                     <td style={td()}><div style={{ fontWeight: 600 }}>{c.nome}</div><div style={{ fontSize: 11.5, color: C.muted }}>{[c.cargo, c.departamento].filter(Boolean).join(" · ") || "—"}</div></td>
-                    <td style={td()}><span style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 20, background: C.muted + "22", color: C.foreground }}>{VINC_LABEL[c.tipo_vinculo] || c.tipo_vinculo}</span></td>
+                    <td style={td()}><span style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 20, background: alfa(C.muted, 0.13), color: C.foreground }}>{VINC_LABEL[c.tipo_vinculo] || c.tipo_vinculo}</span></td>
                     <td style={{ ...td(), fontFamily: mono }}>{c.categoria_esocial}</td>
                     <td style={{ ...td(), textAlign: "right", fontFamily: mono }}>{fmtBRL(c.salario_base)}</td>
                     <td style={{ ...td(), textAlign: "center", fontFamily: mono }}>{c.n_dependentes || 0}</td>
@@ -192,7 +192,7 @@ export default function Colaboradores({ usuario }) {
                 <div style={{ fontSize: 13.5, fontWeight: 700 }}>Acesso ao sistema</div>
               </div>
               {acesso ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: C.muted + "11", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: alfa(C.muted, 0.07), padding: "8px 12px", borderRadius: 8, fontSize: 13 }}>
                   <span>Login: <b style={{ fontFamily: mono }}>{acesso.login}</b></span>
                   <span style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 20, background: (acesso.ativo ? C.success : C.destructive) + "22", color: acesso.ativo ? C.success : C.destructive }}>{acesso.ativo ? "ativo" : "inativo"}</span>
                   <span style={{ fontSize: 12, color: C.textMuted }}>· gerencie perfil/grupos e senha em Administração → Usuários</span>
@@ -225,7 +225,7 @@ export default function Colaboradores({ usuario }) {
               {deps.length === 0 ? <div style={{ fontSize: 12.5, color: C.textMuted }}>Nenhum dependente.</div> : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {deps.map((d, i) => (
-                    <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", background: C.muted + "11", padding: 8, borderRadius: 8 }}>
+                    <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", background: alfa(C.muted, 0.07), padding: 8, borderRadius: 8 }}>
                       <input placeholder="Nome" value={d.nome || ""} onChange={setDep(i, "nome")} style={{ ...inpF, flex: 2, minWidth: 140 }} />
                       <select value={d.tipo || "FILHO"} onChange={setDep(i, "tipo")} style={{ ...selF, flex: 1, minWidth: 100 }}>
                         {["FILHO", "CONJUGE", "PAI_MAE", "OUTRO"].map((t) => <option key={t} value={t}>{t}</option>)}

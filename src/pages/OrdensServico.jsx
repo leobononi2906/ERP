@@ -4,7 +4,7 @@ import {
   Lock, Wrench, Play, Square, Clock, User, Package, FileText, ChevronDown, ChevronUp, Trash2,
   DollarSign, Send, Eye, Printer, Undo2, History, Boxes, MessageCircle,
 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc, ATALHOS } from "../config";
+import { C, mono, fmtBRL, num, rpc, ATALHOS, alfa } from "../config";
 import { abrirWhatsApp, telefoneCliente, msgOS } from "../whatsapp";
 import { getEmpresaAtiva, useEmpresaAtiva } from "../empresa";
 import { NovoClienteModal, NovoVeiculoModal } from "../CadastroRapido";
@@ -16,8 +16,8 @@ import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, btnIcon, Secao, Camp
 // status do defeito (unidade de trabalho do pátio)
 const DEF_ST = {
   ABERTO:      { t: "Aberto",       bg: C.bluePale,  fg: C.blueMid },
-  EM_EXECUCAO: { t: "Em execução",  bg: "#FFF3E0",   fg: C.warning },
-  PAUSADO:     { t: "Pausado",      bg: "#F1F5F9",   fg: "#64748B" },
+  EM_EXECUCAO: { t: "Em execução",  bg: C.warningBg,   fg: C.warning },
+  PAUSADO:     { t: "Pausado",      bg: C.surface2,   fg: C.muted },
   CONCLUIDO:   { t: "Concluído",    bg: C.successBg, fg: C.success },
 };
 
@@ -1006,7 +1006,7 @@ export default function OrdensServico({ usuario }) {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {osDefeitos.map((d) => (
-                      <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff" }}>
+                      <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.card }}>
                         <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 13, color: C.destructive, minWidth: 44 }}>{d.codigo}</span>
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{d.descricao}</span>
                         {d.area && <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{d.area}</span>}
@@ -1122,11 +1122,11 @@ export default function OrdensServico({ usuario }) {
                             <td style={td()}>
                               {perms.aprovar && (
                                 aptAberto ? (
-                                  <button onClick={() => finalizarApontamento(aptAberto)} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30` }} title="Finalizar apontamento">
+                                  <button onClick={() => finalizarApontamento(aptAberto)} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${alfa(C.destructive, 0.19)}` }} title="Finalizar apontamento">
                                     <Square size={14} />
                                   </button>
                                 ) : (
-                                  <button onClick={() => iniciarApontamento(sv.id)} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${C.success}30` }} title="Iniciar apontamento">
+                                  <button onClick={() => iniciarApontamento(sv.id)} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${alfa(C.success, 0.19)}` }} title="Iniciar apontamento">
                                     <Play size={14} />
                                   </button>
                                 )
@@ -1175,7 +1175,7 @@ export default function OrdensServico({ usuario }) {
                     <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: C.textMuted, letterSpacing: "0.08em" }}>Solicitações de Separação</span>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                       {expedicoesOs.map(exp => (
-                        <div key={exp.id} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: exp.status === "SOLICITADA" ? C.warningBg || "#FFF3CD" : exp.status === "ENTREGUE" ? C.successBg : C.surface2, color: exp.status === "SOLICITADA" ? "#856404" : exp.status === "ENTREGUE" ? C.success : C.muted, border: `1px solid ${C.border}` }}>
+                        <div key={exp.id} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, background: exp.status === "SOLICITADA" ? C.warningBg || C.warningBg : exp.status === "ENTREGUE" ? C.successBg : C.surface2, color: exp.status === "SOLICITADA" ? C.warning : exp.status === "ENTREGUE" ? C.success : C.muted, border: `1px solid ${C.border}` }}>
                           {exp.numero} · <Badge texto={exp.status} />
                         </div>
                       ))}
@@ -1206,7 +1206,7 @@ export default function OrdensServico({ usuario }) {
                             {emSeparacao && <Lock size={13} color={C.warning} title="Em separação — só a boqueta altera" />}
                             {p.descricao}
                             {p.consumo && <span style={{ marginLeft: 8, background: C.warningBg, color: C.warning, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>CONSUMO</span>}
-                            {p.produzido && <span style={{ marginLeft: 8, background: "#E8E0F8", color: "#6B3FA0", fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>PRODUÇÃO · {p.status || "PENDENTE"}</span>}
+                            {p.produzido && <span style={{ marginLeft: 8, background: C.purpleBg, color: C.purple, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>PRODUÇÃO · {p.status || "PENDENTE"}</span>}
                             {p.id_encomenda && <span style={{ marginLeft: 8, background: C.bluePale, color: C.blueMid, fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>ENCOMENDA</span>}
                           </td>
                           <td style={{ ...td(), color: C.muted, fontFamily: mono }}>{p.referencia || "—"}</td>
@@ -1217,11 +1217,11 @@ export default function OrdensServico({ usuario }) {
                             {p.produzido && p.status !== "CONCLUIDO" && (
                               <span style={{ display: "inline-flex", gap: 6 }}>
                                 {aptAbertoProd ? (
-                                  <button onClick={() => finalizarApontamento(aptAbertoProd)} disabled={emSeparacao} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${C.destructive}30`, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode finalizar" : "Finalizar apontamento"}>
+                                  <button onClick={() => finalizarApontamento(aptAbertoProd)} disabled={emSeparacao} style={{ ...btnIcon(), background: C.destructiveBg, color: C.destructive, border: `1px solid ${alfa(C.destructive, 0.19)}`, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode finalizar" : "Finalizar apontamento"}>
                                     <Square size={14} />
                                   </button>
                                 ) : (
-                                  <button onClick={() => iniciarApontamentoProducao(p.id)} disabled={emSeparacao} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${C.success}30`, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode iniciar" : "Iniciar apontamento"}>
+                                  <button onClick={() => iniciarApontamentoProducao(p.id)} disabled={emSeparacao} style={{ ...btnIcon(), background: C.successBg, color: C.success, border: `1px solid ${alfa(C.success, 0.19)}`, opacity: emSeparacao ? 0.5 : 1, cursor: emSeparacao ? "not-allowed" : "pointer" }} title={emSeparacao ? "Em separação — não pode iniciar" : "Iniciar apontamento"}>
                                     <Play size={14} />
                                   </button>
                                 )}
@@ -1288,7 +1288,7 @@ export default function OrdensServico({ usuario }) {
         {/* ─── MODAL LANÇAR PRODUÇÃO ─────────────────────────── */}
         {modalProducao && (
           <div onClick={() => setModalProducao(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 480, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 480, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>Lançar Produção na OS</span>
                 <button onClick={() => setModalProducao(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
@@ -1346,7 +1346,7 @@ export default function OrdensServico({ usuario }) {
         {/* ─── MODAL SOLICITAR PEÇA ──────────────────────────── */}
         {modalPeca && (
           <div onClick={() => { setModalPeca(false); setModoDireto(false); }} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 440, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>Solicitar Peça para Separação</span>
                 <button onClick={() => { setModalPeca(false); setModoDireto(false); }} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
@@ -1413,7 +1413,7 @@ export default function OrdensServico({ usuario }) {
         {/* ─── MODAL AVALIAR SERVIÇOS ────────────────────────── */}
         {modalAvaliar && (
           <div onClick={() => setModalAvaliar(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>Avaliar Serviços — OS {osAtual.numero}</span>
                 <button onClick={() => setModalAvaliar(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
@@ -1465,7 +1465,7 @@ export default function OrdensServico({ usuario }) {
 
         {modalFaturar && (
           <div onClick={() => setModalFaturar(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>Faturar OS {osAtual.numero}</span>
                 <button onClick={() => setModalFaturar(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>
@@ -1606,7 +1606,7 @@ export default function OrdensServico({ usuario }) {
         {/* ─── MODAL REGISTRAR VENDA PERDIDA ────────────────────── */}
         {modalVendaPerdida && (
           <div onClick={() => setModalVendaPerdida(null)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 420, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>Registrar venda perdida</span>
                 <button onClick={() => setModalVendaPerdida(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>

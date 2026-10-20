@@ -146,7 +146,7 @@ function ModalPerfil({ perfil, formas, condicoes, onClose, onSaved, usuario, not
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 22, width: 640, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 22, width: 640, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800 }}>{f.id ? "Editar perfil" : "Novo perfil"}</h2>
           <button onClick={onClose} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: C.textMuted }}><X size={18} /></button>

@@ -53,13 +53,22 @@ if (typeof window !== "undefined") {
   });
 }
 
-export const C = {
-  background: "#F0F3F8", foreground: "#0F1D35", card: "#FFFFFF", surface2: "#F7F9FC",
-  primary: "#1A3A8F", blueMid: "#0077CC", blueLight: "#00AAEE", bluePale: "#E8F4FD",
-  muted: "#5A6A85", textMuted: "#9AA5B8", border: "#E2E8F2",
-  success: "#0F9D6E", successBg: "#E8F8F3", warning: "#E07B00", warningBg: "#FEF5E7",
-  destructive: "#D93025", destructiveBg: "#FEF0EF", sidebar: "#1A3A8F",
+// Paleta por tema. `C` devolve var(--erp-*): os valores de verdade (claro/escuro) ficam no <style>
+// do index.html, trocados por <html data-theme> (public/bononi-tema.js, antes da pintura). Assim
+// objetos de estilo criados no topo do módulo e useMemo acompanham o tema sem re-render.
+// NÃO concatene alfa em hex (`C.x + "22"`, `${C.x}33`): use alfa(C.x, 0.2). HTML de impressão
+// (print.jsx etc.) não usa C e fica sempre claro.
+const CORES = {
+  background: "background", foreground: "foreground", card: "card", surface2: "surface2",
+  primary: "primary", blueMid: "blue-mid", blueLight: "blue-light", bluePale: "blue-pale",
+  muted: "muted", textMuted: "text-muted", border: "border",
+  success: "success", successBg: "success-bg", warning: "warning", warningBg: "warning-bg",
+  destructive: "destructive", destructiveBg: "destructive-bg", sidebar: "sidebar",
+  purple: "purple", purpleBg: "purple-bg",
 };
+export const C = Object.fromEntries(Object.entries(CORES).map(([k, v]) => [k, `var(--erp-${v})`]));
+// cor + transparência (substitui a concatenação de alfa em hex)
+export const alfa = (cor, p) => `color-mix(in srgb, ${cor} ${Math.round(p * 100)}%, transparent)`;
 export const mono = "'DM Mono', ui-monospace, monospace";
 
 // Mapa único de atalhos de teclado (tecla → ação). Modais abrem por cima sem fechar o que está aberto; Esc volta ao ponto.

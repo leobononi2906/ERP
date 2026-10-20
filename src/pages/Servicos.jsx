@@ -180,7 +180,7 @@ export default function Servicos({ usuario }) {
 
       {modalAreas && (
         <div onClick={() => setModalAreas(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "95%", maxWidth: 520, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, width: "95%", maxWidth: 520, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>Áreas de Serviço</span>
               <button onClick={() => setModalAreas(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.muted }}>✕</button>

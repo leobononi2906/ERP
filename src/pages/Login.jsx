@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { User, Lock, Eye, EyeOff, LoaderCircle, AlertCircle, Building2 } from "lucide-react";
-import { C, mono, rpc } from "../config";
+import { C, mono, rpc, alfa } from "../config";
 
 export default function Login({ onLogin }) {
   const [login, setLogin] = useState("");
@@ -41,7 +41,7 @@ export default function Login({ onLogin }) {
 
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(15,29,53,0.04)" }}>
           {error && (
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: C.destructiveBg, border: `1px solid ${C.destructive}33`, borderRadius: 8, padding: "10px 12px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: C.destructiveBg, border: `1px solid ${alfa(C.destructive, 0.2)}`, borderRadius: 8, padding: "10px 12px", marginBottom: 16 }}>
               <AlertCircle size={17} style={{ color: C.destructive, flexShrink: 0, marginTop: 1 }} />
               <span style={{ color: C.destructive, fontSize: 13, fontWeight: 500 }}>{error}</span>
             </div>

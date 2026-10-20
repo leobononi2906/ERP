@@ -18,7 +18,7 @@ const STATUS_BADGE = {
   ABERTO: [C.bluePale, C.blueMid],
   APROVADO: [C.successBg, C.success],
   REPROVADO: [C.destructiveBg, C.destructive],
-  CONVERTIDO: ["#E8E0F8", "#6B3FA0"],
+  CONVERTIDO: [C.purpleBg, C.purple],
   PERDIDO: [C.warningBg, C.warning],
   VENCIDO: [C.warningBg, C.warning],
 };
@@ -516,7 +516,7 @@ export default function Orcamentos({ usuario }) {
         {/* Modal Reprovar */}
         {reprovarOpen && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setReprovarOpen(false)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Reprovar Orçamento {orcAtual.numero}</h2>
               <Campo label="Motivo da reprovação *">
                 <textarea value={motivoRepr} onChange={(e) => setMotivoRepr(e.target.value)} rows={3} placeholder="Informe o motivo..." style={{ ...inp(true), height: "auto", resize: "vertical" }} />
@@ -534,7 +534,7 @@ export default function Orcamentos({ usuario }) {
         {/* Modal Marcar Perdido */}
         {perderOpen && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setPerderOpen(false)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Marcar como Perdido — {orcAtual.numero}</h2>
               <p style={{ fontSize: 12.5, color: C.muted, marginBottom: 14 }}>O orçamento não virou venda. O motivo entra no relatório de conversão (ganho × perdido).</p>
               <Campo label="Motivo da perda *">
@@ -618,7 +618,7 @@ export default function Orcamentos({ usuario }) {
       {/* Relatório de conversão (ganho × perdido) */}
       {relOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "6vh", overflowY: "auto" }} onClick={() => setRelOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, width: 720, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 24, width: 720, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <TrendingUp size={18} style={{ color: C.primary }} />
               <h2 style={{ fontSize: 16, fontWeight: 800 }}>Conversão de orçamentos</h2>

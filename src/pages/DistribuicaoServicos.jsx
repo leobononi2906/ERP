@@ -174,7 +174,7 @@ export default function DistribuicaoServicos({ usuario }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle()}>
           <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", color: C.textMuted, marginBottom: 4 }}>Pendentes</div>
-          <div style={{ fontSize: 24, fontWeight: 700, fontFamily: mono, color: "#B45309" }}>{pendentes}</div>
+          <div style={{ fontSize: 24, fontWeight: 700, fontFamily: mono, color: C.warning }}>{pendentes}</div>
         </div>
         <div style={cardStyle()}>
           <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", color: C.textMuted, marginBottom: 4 }}>Em Execucao</div>
@@ -327,7 +327,7 @@ export default function DistribuicaoServicos({ usuario }) {
                     <td style={{ ...td(), fontWeight: 500, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.cliente}</td>
                     <td style={{ ...td(), fontFamily: mono, fontSize: 11.5, color: C.muted, whiteSpace: "nowrap" }}>{fmtLancado(s.criado_em)}</td>
                     <td style={td()}>{s.area ? <span style={{ background: C.bluePale, color: C.blueMid, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{s.area_codigo || s.area}</span> : <span style={{ color: C.textMuted }}>—</span>}</td>
-                    <td style={{ ...td(), maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: s.origem === "PRODUCAO" ? 600 : 400, color: s.origem === "PRODUCAO" ? "#6B3FA0" : C.foreground }}>{s.descricao}</td>
+                    <td style={{ ...td(), maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: s.origem === "PRODUCAO" ? 600 : 400, color: s.origem === "PRODUCAO" ? C.purple : C.foreground }}>{s.descricao}</td>
                     <td style={td()}>
                       <Badge texto={STATUS_LABEL[s.status] || s.status} cor={STATUS_MAP[s.status]} />
                       {s.status === "PARADO" && s.motivo_parado && <div style={{ fontSize: 11, color: C.destructive, marginTop: 3, maxWidth: 160 }} title={s.motivo_parado}>⛔ {s.motivo_parado}</div>}

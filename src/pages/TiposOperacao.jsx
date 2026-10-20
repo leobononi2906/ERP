@@ -17,7 +17,7 @@ function Toggle({ label, value, onChange, disabled }) {
         width: 36, height: 20, borderRadius: 10, background: value ? C.success : C.border,
         position: "relative", transition: "background 0.2s", cursor: disabled ? "not-allowed" : "pointer",
       }}>
-        <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: value ? 18 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+        <div style={{ width: 16, height: 16, borderRadius: "50%", background: C.card, position: "absolute", top: 2, left: value ? 18 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
       </div>
       <span style={{ fontSize: 13 }}>{label}</span>
     </label>

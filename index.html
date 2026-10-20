@@ -8,6 +8,8 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <meta name="theme-color" content="#0F1D35" />
+    <!-- Tema claro/escuro/sistema: SÍNCRONO e antes do CSS (sem flash). Cópia do Hub. -->
+    <script src="/bononi-tema.js?v=20261020a"></script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -16,7 +18,26 @@
       @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500;600&display=swap');
       * { box-sizing: border-box; }
       html, body, #root { margin: 0; min-height: 100%; }
-      body { font-family: 'DM Sans', sans-serif; background: #F0F3F8; }
+      body { font-family: 'DM Sans', sans-serif; }
+            /* Paleta do ERP (C em src/config.js devolve var(--erp-*)). Escuro: data-theme=dark. */
+      :root {
+        --erp-background:#F0F3F8; --erp-foreground:#0F1D35; --erp-card:#FFFFFF; --erp-surface2:#F7F9FC;
+        --erp-primary:#1A3A8F; --erp-blue-mid:#0077CC; --erp-blue-light:#00AAEE; --erp-blue-pale:#E8F4FD;
+        --erp-muted:#5A6A85; --erp-text-muted:#9AA5B8; --erp-border:#E2E8F2;
+        --erp-success:#0F9D6E; --erp-success-bg:#E8F8F3; --erp-warning:#E07B00; --erp-warning-bg:#FEF5E7;
+        --erp-destructive:#D93025; --erp-destructive-bg:#FEF0EF; --erp-sidebar:#1A3A8F; --erp-purple:#6B3FA0; --erp-purple-bg:#E8E0F8;
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --erp-background:#0B1220; --erp-foreground:#E6EBF5; --erp-card:#121A2B; --erp-surface2:#172033;
+        --erp-primary:#4F73E0; --erp-blue-mid:#3AA0F0; --erp-blue-light:#4CC8FF; --erp-blue-pale:#14263F;
+        --erp-muted:#9AA8C2; --erp-text-muted:#6F7D99; --erp-border:#25314A;
+        --erp-success:#34C795; --erp-success-bg:#0E2D25; --erp-warning:#F0A030; --erp-warning-bg:#35260E;
+        --erp-destructive:#F26B62; --erp-destructive-bg:#3A1A19; --erp-sidebar:#101A38; --erp-purple:#B79AF0; --erp-purple-bg:#2A1F45;
+      }
+      body { background: var(--erp-background); }
+      /* campos nativos (input/select/textarea) sem estilo próprio acompanham o tema */
+      :root[data-theme="dark"] :where(input, select, textarea) { background-color: var(--erp-card); color: var(--erp-foreground); }
       @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
     </style>
   </head>

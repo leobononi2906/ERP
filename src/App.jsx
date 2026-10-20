@@ -7,6 +7,7 @@ import {
 import { C, mono, setLogUsuario, rpc, ATALHOS } from "./config";
 import { navHandoff } from "./nav";
 import SinoAutorizacoes from "./SinoAutorizacoes";
+import BotaoTema from "./BotaoTema";
 import ConsultaRapida from "./ConsultaRapida";
 import { getEmpresaAtiva, setEmpresaAtiva } from "./empresa";
 import Login from "./pages/Login";
@@ -333,6 +334,7 @@ export default function App() {
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 4, padding: "0 6px" }}>
             {(usuario.grupos || []).map((g) => g.nome).join(", ") || "Sem grupo"}
           </div>
+          <div style={{ padding: "6px 6px 0" }}><BotaoTema /></div>
           <div onClick={() => {
             setLogUsuario(null);
             setUsuario(null);
@@ -347,7 +349,7 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, padding: 20 }}>
         {/* Aviso global — ERP em construção, não usar para operação real */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "#FEF0EF", border: "1px solid #F5B5B0", color: "#8A1B12" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: C.destructiveBg, border: "1px solid #F5B5B0", color: C.destructive }}>
           <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
           <span style={{ fontSize: 12.5, lineHeight: 1.45 }}>
             <b>ERP em construção — ambiente de TESTES.</b> Não use os dados, tipos ou configurações daqui para a operação real. O sistema oficial em produção é o <b>SGA (Firebird)</b>. Nada daqui deve ser usado como referência em outros aplicativos.

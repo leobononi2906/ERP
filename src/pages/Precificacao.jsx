@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, ChevronDown, ChevronRight, Layers, Wrench, DollarSign, Check, X, Search, Link2 } from "lucide-react";
-import { C, mono, fmtBRL, num, rpc } from "../config";
+import { C, mono, fmtBRL, num, rpc, alfa } from "../config";
 import { cardStyle, inp, sel, th, td, btnPrimary, btnGhost, Skeleton, Badge, SelectBusca } from "../ui";
 
 const fmtData = (d) => (d ? String(d).slice(0, 10).split("-").reverse().join("/") : "—");
@@ -183,7 +183,7 @@ export default function Precificacao({ usuario }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
         <div style={cardStyle()}>
           <div style={kpiLbl}>Blocos a precificar</div>
-          <div style={{ fontSize: 24, fontWeight: 700, fontFamily: mono, color: "#B45309" }}>{totalBlocos}</div>
+          <div style={{ fontSize: 24, fontWeight: 700, fontFamily: mono, color: C.warning }}>{totalBlocos}</div>
         </div>
         <div style={cardStyle()}>
           <div style={kpiLbl}>Horas faturáveis (blocos)</div>
@@ -208,7 +208,7 @@ export default function Precificacao({ usuario }) {
       </div>
 
       {erro && (
-        <div style={{ background: C.destructiveBg, border: `1px solid ${C.destructive}33`, borderRadius: 10, padding: 14, marginBottom: 16, color: C.destructive, fontSize: 13 }}>
+        <div style={{ background: C.destructiveBg, border: `1px solid ${alfa(C.destructive, 0.2)}`, borderRadius: 10, padding: 14, marginBottom: 16, color: C.destructive, fontSize: 13 }}>
           {erro}
         </div>
       )}
@@ -306,7 +306,7 @@ export default function Precificacao({ usuario }) {
                                           <td style={{ padding: "7px 10px", textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtH(a.horas)}</td>
                                           <td style={{ padding: "7px 10px", color: C.muted, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.observacao || "—"}</td>
                                           <td style={{ padding: "7px 10px", textAlign: "center" }}>
-                                            <button onClick={() => toggleFaturavel(a)} title={a.faturavel ? "Faturável (clique p/ excluir)" : "Não faturável (clique p/ incluir)"} style={{ ...togBtn, background: a.faturavel ? C.successBg : "#fff", color: a.faturavel ? C.success : C.textMuted, borderColor: a.faturavel ? `${C.success}55` : C.border }}>
+                                            <button onClick={() => toggleFaturavel(a)} title={a.faturavel ? "Faturável (clique p/ excluir)" : "Não faturável (clique p/ incluir)"} style={{ ...togBtn, background: a.faturavel ? C.successBg : "#fff", color: a.faturavel ? C.success : C.textMuted, borderColor: a.faturavel ? `${alfa(C.success, 0.33)}` : C.border }}>
                                               {a.faturavel ? <Check size={14} /> : <X size={14} />}
                                             </button>
                                           </td>
@@ -369,7 +369,7 @@ export default function Precificacao({ usuario }) {
           {selAreas.length > 1 && <span style={{ fontSize: 11.5, background: "rgba(255,255,255,0.2)", borderRadius: 6, padding: "2px 8px" }}>{selAreas.length} áreas</span>}
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
             <button onClick={limparSelecao} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.4)", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Limpar</button>
-            <button onClick={abrirVincular} style={{ background: "#fff", border: "none", color: C.primary, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Link2 size={15} /> Vincular a um serviço</button>
+            <button onClick={abrirVincular} style={{ background: C.card, border: "none", color: C.primary, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Link2 size={15} /> Vincular a um serviço</button>
           </div>
         </div>
       )}
@@ -377,7 +377,7 @@ export default function Precificacao({ usuario }) {
       {/* Modal vincular */}
       {vincOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 950, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setVincOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 22, width: 460, maxWidth: "92vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, borderRadius: 14, padding: 22, width: 460, maxWidth: "92vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Vincular apontamentos a um serviço</h2>
             <p style={{ fontSize: 12.5, color: C.muted, marginTop: 0, marginBottom: 14 }}>
               OS {selOs?.numero} · {selCount} apontamento{selCount > 1 ? "s" : ""} · {fmtH(selHorasFat)} faturáveis

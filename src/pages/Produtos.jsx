@@ -773,7 +773,7 @@ function Composicao({ idProduto, podeEditar }) {
 
   return (
     <div style={{ ...cardStyle(), marginBottom: 16, borderLeft: "3px solid #6B3FA0" }}>
-      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6B3FA0", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: C.purple, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
         <Boxes size={14} /> Composição de custo + Mão de obra
       </div>
       <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 12 }}>
@@ -784,7 +784,7 @@ function Composicao({ idProduto, podeEditar }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
         {[
           { l: "Custo materiais", v: custoMat, c: C.foreground },
-          { l: "Mão de obra (MO)", v: valorMo, c: "#6B3FA0" },
+          { l: "Mão de obra (MO)", v: valorMo, c: C.purple },
           { l: "Custo total", v: custoTotal, c: C.primary },
         ].map((k, i) => (
           <div key={i} style={{ background: C.surface2, borderRadius: 10, padding: "10px 12px" }}>

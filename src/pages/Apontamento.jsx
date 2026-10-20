@@ -7,8 +7,8 @@ const SESSAO_MS = 60 * 1000; // PC coletivo: volta ao login após 60s parado (er
 
 const DEFEITO_COR = {
   ABERTO:       { bg: C.bluePale,      fg: C.blueMid,   label: "Aberto" },
-  EM_EXECUCAO:  { bg: "#FFF3E0",       fg: C.warning,   label: "Em execução" },
-  PAUSADO:      { bg: "#F1F5F9",       fg: "#64748B",   label: "Pausado" },
+  EM_EXECUCAO:  { bg: C.warningBg,       fg: C.warning,   label: "Em execução" },
+  PAUSADO:      { bg: C.surface2,       fg: C.muted,   label: "Pausado" },
   CONCLUIDO:    { bg: C.successBg,     fg: C.success,   label: "Concluído" },
 };
 
